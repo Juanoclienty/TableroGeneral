@@ -290,15 +290,16 @@ def cargar_ventas_crm() -> pd.DataFrame:
 
 
 def cargar_ventas_detalle_crm() -> pd.DataFrame:
-    """Ventas ganadas del CRM con detalle por lead (nombre, email, closer)."""
+    """Ventas ganadas del CRM con detalle por lead (nombre, email, usuario/closer)."""
     try:
         import datos_crm as _crm
         df_crm = _crm.cargar_crm()
-        v = df_crm[df_crm["estado_resumen"] == "5. Venta"][["fecha_lead", "Nombre", "Emails", "closer"]].copy()
+        cols = ["fecha_lead", "Nombre", "Emails", "Usuario"]
+        v = df_crm[df_crm["estado_resumen"] == "5. Venta"][[c for c in cols if c in df_crm.columns]].copy()
         v["ventas"] = 1
         return v.reset_index(drop=True)
     except Exception:
-        return pd.DataFrame(columns=["fecha_lead", "Nombre", "Emails", "closer", "ventas"])
+        return pd.DataFrame(columns=["fecha_lead", "Nombre", "Emails", "Usuario", "ventas"])
 
 
 @st.cache_data(ttl=3600)
@@ -1015,7 +1016,7 @@ with tab_gral:
                     _vkey = _srow.get("_vkey", "")
                     _subs = _dvd[_dvd["_vkey"] == _vkey] if _vkey else pd.DataFrame()
                     _venta_tip_data[_plbl] = [
-                        {"nombre": r.get("Nombre",""), "mail": r.get("Emails",""), "closer": r.get("closer","")}
+                        {"nombre": r.get("Nombre",""), "mail": r.get("Emails",""), "closer": r.get("Usuario","")}
                         for _, r in _subs.iterrows()
                     ]
             df_show = df_show.drop(columns=["_vkey"], errors="ignore")
