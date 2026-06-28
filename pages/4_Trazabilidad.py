@@ -26,6 +26,10 @@ OBJ = {
 # ── Carga sheets ─────────────────────────────────────────────────
 
 def _fetch_csv(sheet_name: str) -> pd.DataFrame:
+    import os
+    cache_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", f"traz_{sheet_name}.parquet")
+    if os.path.exists(cache_path):
+        return pd.read_parquet(cache_path)
     url = (
         f"https://docs.google.com/spreadsheets/d/{ID_SHEET}"
         f"/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"

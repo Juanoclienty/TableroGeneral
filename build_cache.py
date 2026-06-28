@@ -113,4 +113,17 @@ try:
 except Exception as e:
     print(f"  ✗ Histórico: {e}")
 
+# ── 7. Trazabilidad sheets ────────────────────────────────────────────────────
+print("Cacheando Trazabilidad...")
+ID_TRAZ = "1eGCO6821Dy7j591fShFAkezDHoaRUvTXgAWJt8eDZus"
+traz_sheets = ["Diaria_R1", "Diaria_R2", "Objetivos"]
+for sheet in traz_sheets:
+    try:
+        url = f"https://docs.google.com/spreadsheets/d/{ID_TRAZ}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet)}"
+        df = _fetch_csv(url)
+        df.to_parquet(os.path.join(CACHE_DIR, f"traz_{sheet}.parquet"), index=False)
+        print(f"  ✓ {sheet} ({len(df)} filas)")
+    except Exception as e:
+        print(f"  ✗ {sheet}: {e}")
+
 print("\n✅ Cache build completo.")
