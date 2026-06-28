@@ -1911,30 +1911,11 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 .exp-link:hover{{text-decoration:underline}}
 .exp-empty{{color:#94a3b8;font-style:italic;font-size:0.75rem}}
 .count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px;display:inline-block}}
-.btn-exp{{font-size:0.72rem;padding:2px 8px;border-radius:10px;border:1px solid #cbd5e1;cursor:pointer;background:#f8fafc;color:#475569;margin-left:12px;vertical-align:middle}}
-.btn-exp:hover{{background:#e2e8f0}}
-.detail-panel{{display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:16px 20px;margin-bottom:14px;position:relative}}
-.detail-panel.open{{display:block}}
-.detail-close{{position:absolute;top:10px;right:14px;font-size:1rem;cursor:pointer;color:#94a3b8;border:none;background:none;line-height:1}}
-.detail-close:hover{{color:#1e293b}}
-.detail-title{{font-size:0.9rem;font-weight:700;color:#1a3a5c;margin-bottom:12px;padding-right:24px}}
-.detail-grid{{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}}
-.detail-full{{grid-column:1/-1}}
-.modal-field{{margin-bottom:0}}
-.modal-label{{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:600;margin-bottom:2px}}
-.modal-val{{font-size:0.82rem;color:#1e293b;line-height:1.5}}
-.modal-empty{{font-size:0.78rem;color:#94a3b8;font-style:italic}}
-.modal-link{{color:#1a3a5c;font-size:0.82rem}}
 </style>
 </head><body>
 <table style="margin-bottom:12px"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
 <div style="display:flex;align-items:center;margin:10px 0 4px">
 <div class="count" id="det-count"></div>
-</div>
-<div class="detail-panel" id="detail-panel">
-  <button class="detail-close" onclick="closeDetail()">✕</button>
-  <div class="detail-title" id="detail-title"></div>
-  <div class="detail-grid" id="detail-content"></div>
 </div>
 <div class="det-wrap">
 <table class="det-tbl">
@@ -1946,7 +1927,6 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 <th class="det-th" style="text-align:center" onclick="sortDet(4)">Estado R1 <span id="arr4"></span></th>
 <th class="det-th" style="text-align:center" onclick="sortDet(5)">Estado CRM <span id="arr5"></span></th>
 <th class="det-th" style="text-align:center" onclick="sortDet(6)">CC <span id="arr6"></span></th>
-<th class="det-th" style="text-align:center;width:44px"></th>
 </tr></thead>
 <tbody id="det-body"></tbody>
 </table>
@@ -2001,6 +1981,8 @@ function _expandHtml(r){{
   var hasExp=r.explicacion&&r.explicacion!=='nan'&&r.explicacion.trim();
   var hasFat=r.fathom&&r.fathom!=='nan'&&r.fathom.trim()&&r.fathom.startsWith('http');
   var hasCon=r.consultas&&r.consultas!=='nan'&&r.consultas.trim();
+  var hasEmp=r.empresa&&r.empresa!=='nan'&&r.empresa.trim();
+  var hasObj=r.objeciones&&r.objeciones!=='nan'&&r.objeciones.trim();
   var h='<div class="exp-grid">';
   h+='<div><div class="exp-label">Explicación call confirmer</div>';
   h+=hasExp?'<div class="exp-val">'+_esc(r.explicacion)+'</div>'
@@ -2009,6 +1991,14 @@ function _expandHtml(r){{
   h+='<div><div class="exp-label">Consultas (Calendly)</div>';
   h+=hasCon?_fmtConsultas(r.consultas)
         :'<div class="exp-empty">Sin consultas registradas</div>';
+  h+='</div>';
+  h+='<div><div class="exp-label">Empresa (página web)</div>';
+  h+=hasEmp?'<div class="exp-val">'+_esc(r.empresa)+'</div>'
+        :'<div class="exp-empty">Sin datos</div>';
+  h+='</div>';
+  h+='<div><div class="exp-label">Objeciones o preguntas en R1</div>';
+  h+=hasObj?'<div class="exp-val">'+_esc(r.objeciones)+'</div>'
+        :'<div class="exp-empty">Sin datos</div>';
   h+='</div>';
   if(hasFat){{
 h+='<div class="exp-full"><div class="exp-label">Grabación Fathom</div>';
@@ -2036,41 +2026,15 @@ rows.forEach(function(r,idx){{
     +'<td class="det-td-c" style="text-align:center">'+_esc(r.estado_r1)+'</td>'
     +'<td class="det-td-c" style="text-align:center">'+_esc(r.estado_crm)+'</td>'
     +'<td class="det-td-c" style="text-align:center">'+_esc(r.cc)+'</td>'
-    +'<td class="det-td-c" style="text-align:center;padding:2px 6px"><button class="btn-exp" onclick="event.stopPropagation();openModal('+idx+')">📋</button></td>'
     +'</tr>';
   if(open){{
-    h+='<tr class="exp-tr"><td colspan="8">'+_expandHtml(r)+'</td></tr>';
+    h+='<tr class="exp-tr"><td colspan="7">'+_expandHtml(r)+'</td></tr>';
   }}
 }});
   }}
   document.getElementById('det-body').innerHTML=h;
 }}
 
-function _def(v){{return(!v||v==='nan'||!v.trim());}}
-function field(lbl,val,full){{
-  var cls='modal-field'+(full?' detail-full':'');
-  return '<div class="'+cls+'"><div class="modal-label">'+lbl+'</div>'
-    +(_def(val)?'<div class="modal-empty">Sin datos</div>':'<div class="modal-val">'+_esc(val)+'</div>')
-    +'</div>';
-}}
-function openModal(idx){{
-  var r=_cur[idx];
-  document.getElementById('detail-title').textContent=r.nombre+' · '+r.fecha+' ('+r.cc+')  —  '+r.estado_r1;
-  var h='';
-  h+=field('Empresa (página web)', r.empresa, false);
-  h+=field('Mail', r.mail, false);
-  h+=field('Explicación del estado', r.explicacion, true);
-  h+=field('Objeciones o preguntas en R1', r.objeciones, true);
-  if(!_def(r.fathom)&&r.fathom.startsWith('http')){{
-    h+='<div class="modal-field detail-full"><div class="modal-label">Grabación Fathom</div>'
-      +'<a class="modal-link" href="'+r.fathom+'" target="_blank">▶ Ver grabación →</a></div>';
-  }}
-  document.getElementById('detail-content').innerHTML=h;
-  var panel=document.getElementById('detail-panel');
-  panel.classList.add('open');
-  panel.scrollIntoView({{behavior:'smooth',block:'nearest'}});
-}}
-function closeDetail(){{document.getElementById('detail-panel').classList.remove('open');}}
 
 document.querySelectorAll('td[data-filter]').forEach(function(td){{
   td.onclick=function(){{filterClick(this.dataset.filter);}};
