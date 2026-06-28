@@ -436,7 +436,8 @@ with st.sidebar:
     st.title("🔍 Trazabilidad")
     st.markdown("---")
 
-    vista = st.radio("", ["Día", "Semana", "Mes"], horizontal=True, label_visibility="collapsed")
+    _vista_raw = st.radio("", ["Día", "Sem", "Mes"], horizontal=True, label_visibility="collapsed")
+    vista = "Semana" if _vista_raw == "Sem" else _vista_raw
     st.markdown("")
 
     hoy = date.today()
@@ -964,11 +965,12 @@ with tab_gral:
 
         _lbl_ult = {"Día": "Últ. día", "Semana": "Últ. semana", "Mes": "Últ. mes"}[vista]
         with col_modo:
-            st.markdown("<div style='text-align:right;font-size:0.72rem;color:#94a3b8;margin-bottom:2px'>Resumen</div>", unsafe_allow_html=True)
+            st.markdown("<div style='display:flex;justify-content:flex-end'>", unsafe_allow_html=True)
             _modo_resumen = st.radio(
                 "Resumen", ["Prom.", _lbl_ult],
                 horizontal=True, label_visibility="collapsed", key="modo_resumen"
             )
+            st.markdown("</div>", unsafe_allow_html=True)
         _modo_resumen = "Promedio" if _modo_resumen == "Prom." else _lbl_ult
     
         df_show = df_agg.tail(n_mostrar).copy()
