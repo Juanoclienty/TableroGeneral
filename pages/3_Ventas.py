@@ -715,7 +715,10 @@ _col_src.markdown(
     '<div style="text-align:right;font-size:0.68rem;color:#94a3b8;margin-top:8px">'
     f'Ventas reales, presupuestos reales e Inversión en pauta provienen del '
     f'<a href="https://docs.google.com/spreadsheets/d/{_ID_BBDD}" target="_blank" '
-    f'style="color:#94a3b8;text-decoration:underline">tablero de marketing</a>.'
+    f'style="color:#94a3b8;text-decoration:underline">tablero de marketing</a>. '
+    f'Canal de adquisición (referidos) proviene de la '
+    f'<a href="https://docs.google.com/spreadsheets/d/{_ID_BBDD}/edit#gid=0" target="_blank" '
+    f'style="color:#94a3b8;text-decoration:underline">BBDD Ventas</a>.'
     '</div>',
     unsafe_allow_html=True,
 )
