@@ -5,6 +5,9 @@ on:
     - cron: '0 9 * * *'   # 6am Argentina (UTC-3) = 9am UTC
   workflow_dispatch:        # permite correrlo manualmente desde GitHub
 
+permissions:
+  contents: write
+
 jobs:
   build-cache:
     runs-on: ubuntu-latest
@@ -29,9 +32,12 @@ jobs:
         run: python build_cache.py
 
       - name: Commit and push cache files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/Juanoclienty/TableroGeneral.git
           git add cache/ data/
           git diff --staged --quiet || git commit -m "chore: daily cache refresh [skip ci]"
           git push
