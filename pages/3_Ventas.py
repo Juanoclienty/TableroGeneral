@@ -11,7 +11,7 @@ import datos
 import datos_crm
 import graficos
 
-st.set_page_config(page_title="Ventas (Fecha cohort)", page_icon="💼", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ventas", page_icon="💼", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -75,10 +75,10 @@ except Exception as e:
 
 # ── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
-    st.title("💼 Ventas (Fecha cohort)")
+    st.title("💼 Ventas")
     st.markdown("---")
 
-    vista = st.radio("", ["Mes", "Semana", "Día"], horizontal=True, label_visibility="collapsed")
+    vista = st.radio("", ["Mes", "Sem", "Día"], horizontal=True, label_visibility="collapsed")
     st.markdown("")
 
     fecha_min = df_sem["fecha_ini"].min().date()
@@ -100,7 +100,7 @@ with st.sidebar:
         st.session_state.vt_fecha_desde = fecha_desde
         st.session_state.vt_fecha_hasta = fecha_hasta
 
-        if vista == "Semana":
+        if vista == "Sem":
             c1, c2 = st.columns(2)
             if c1.button("📅 8 sem.", use_container_width=True):
                 ini, fin = _semanas_cerradas_rango(8, 0)
@@ -422,7 +422,7 @@ if not df_vtas.empty:
         def _lbl(p):
             try: return f"{_MESES_ES[p.month - 1]} {p.year}"
             except: return str(p)
-    elif vista == "Semana":
+    elif vista == "Sem":
         df_vtas["_periodo"] = df_vtas["fecha_venta"].apply(_semana_de)
         def _lbl(p):
             try: return f"Sem. {pd.Timestamp(p).strftime('%d/%m')}"
@@ -573,7 +573,7 @@ if ultimos_4:
     if not df_presu.empty:
         if vista == "Mes":
             df_presu["_p"] = df_presu["_fecha"].dt.to_period("M")
-        elif vista == "Semana":
+        elif vista == "Sem":
             df_presu["_p"] = df_presu["_fecha"].apply(_semana_de)
         else:
             df_presu["_p"] = df_presu["_fecha"].dt.normalize()
@@ -585,7 +585,7 @@ if ultimos_4:
     if vista == "Mes":
         _dv_full = datos_crm.calcular_meses_crm(_crm_cards, df_ads)
         _dv_full["_vp"] = _dv_full["fecha_ini"].dt.to_period("M")
-    elif vista == "Semana":
+    elif vista == "Sem":
         _dv_full = datos_crm.calcular_semanas_crm(_crm_cards, df_ads)
         _dv_full["_vp"] = _dv_full["fecha_ini"].dt.normalize()
     else:
@@ -786,7 +786,7 @@ if not df_vista.empty:
         (df_crm_fil["fecha_lead"] <= fh_all)
     ].copy()
 
-    if vista == "Semana":
+    if vista == "Sem":
         df_crm_fil["_pkey"] = df_crm_fil["semana_inicio"]
         df_vista["_pkey"]   = df_vista["semana_inicio"]
     elif vista == "Mes":
@@ -819,7 +819,7 @@ else:
 # ── Header ────────────────────────────────────────────────────
 n_filas   = len(df_vista)
 leads_tot = int(df_vista["leads"].sum()) if not df_vista.empty else 0
-sufijo    = {"Semana": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
+sufijo    = {"Sem": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
 st.caption(f"Vista: **{vista}** · {sufijo.get(vista,'')} · {leads_tot:,} leads")
 
 
@@ -846,7 +846,7 @@ st.markdown("---")
 
 
 # ── Tabla de embudo ───────────────────────────────────────────
-titulo_tabla = {"Semana": "Embudo por semana", "Mes": "Embudo por mes", "Día": "Embudo por día"}
+titulo_tabla = {"Sem": "Embudo por semana", "Mes": "Embudo por mes", "Día": "Embudo por día"}
 st.markdown(f'<p class="section-title">{titulo_tabla[vista]}</p>', unsafe_allow_html=True)
 
 if df_vista.empty:
