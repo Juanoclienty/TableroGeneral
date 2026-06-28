@@ -712,10 +712,10 @@ if ultimos_4:
 
 _col_src, _col_exp = st.columns([3, 1])
 _col_src.markdown(
-    '<div style="text-align:right;font-size:0.68rem;color:#94a3b8;margin-top:8px">'
+    '<div style="font-size:0.68rem;color:#94a3b8;margin-top:8px;line-height:1.8">'
     f'Ventas reales, presupuestos reales e Inversión en pauta provienen del '
     f'<a href="https://docs.google.com/spreadsheets/d/{_ID_BBDD}" target="_blank" '
-    f'style="color:#94a3b8;text-decoration:underline">tablero de marketing</a>. '
+    f'style="color:#94a3b8;text-decoration:underline">tablero de marketing</a>.<br>'
     f'Canal de adquisición (referidos) proviene de la '
     f'<a href="https://docs.google.com/spreadsheets/d/{_ID_BBDD}/edit#gid=0" target="_blank" '
     f'style="color:#94a3b8;text-decoration:underline">BBDD Ventas</a>.'
