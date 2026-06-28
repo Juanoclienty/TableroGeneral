@@ -616,12 +616,18 @@ if ultimos_4:
         inv    = float(vrow.get("inversion", 0))
         pct_gf = (str(round(gf / leads * 100)) + "%") if leads > 0 else "–"
 
-        # Fila 3: CPL / CPL GF / CPE / CPV
+        # Fila 3: CPL / CPL GF / CPE / CPV / CPV Meta
         cpl    = round(inv / leads) if leads > 0 else 0
         cpl_gf = round(inv / gf)    if gf    > 0 else 0
         cpe    = round(inv / n_pre) if n_pre > 0 else 0
         cpv    = round(inv / n_v)   if n_v   > 0 else 0
         tc_real = (str(round(n_v / n_pre * 100)) + "%") if n_pre > 0 else "–"
+        n_ref  = sum(
+            1 for _, r in grp.iterrows()
+            if "referido" in str(_canal_lookup.get(_norm_id_ltv(str(r.get("ID prospecto",""))), "")).lower()
+        )
+        n_v_meta = n_v - n_ref
+        cpv_meta = round(inv / n_v_meta) if n_v_meta > 0 and inv > 0 else 0
 
         ventas_txt  = "venta" if n_v == 1 else "ventas"
         total_str   = _fmt_m(total)
@@ -632,7 +638,8 @@ if ultimos_4:
         cpl_str     = _fmt_m(cpl)
         cpl_gf_str  = _fmt_m(cpl_gf)
         cpe_str     = _fmt_m(cpe)
-        cpv_str     = _fmt_m(cpv)
+        cpv_str      = _fmt_m(cpv)
+        cpv_meta_str = _fmt_m(cpv_meta)
 
         html = (
             '<div style="background:linear-gradient(135deg,#2196F3,#1565C0);'
@@ -659,6 +666,7 @@ if ultimos_4:
             f'<div><div style="opacity:.7">CPL GF</div><div style="font-weight:600">{cpl_gf_str}</div></div>'
             f'<div><div style="opacity:.7">CPE</div><div style="font-weight:600">{cpe_str}</div></div>'
             f'<div><div style="opacity:.7">CPV</div><div style="font-weight:600">{cpv_str}</div></div>'
+            f'<div><div style="opacity:.7">CPV Meta</div><div style="font-weight:600">{cpv_meta_str}</div></div>'
             '</div>'
             '</div>'
         )
