@@ -1709,12 +1709,24 @@ with tab_cc:
             "Fer": "https://docs.google.com/spreadsheets/d/1EDbB-LMLeXFaCJeAifbV9zLNh9R4piO0GYuAeMBupo8/edit?usp=sharing",
         }
         with _col_tit_cc:
-            _link_cc = _LINKS_CC.get(nombre_cc, "")
-            st.markdown(
-                f"<div style='padding-top:28px;font-weight:600'>Detalle por {vista.lower()} · {nombre_cc}</div>"
-                + (f"<div style='font-size:0.75rem;margin-top:2px'><a href='{_link_cc}' target='_blank'>Sheets Seguimiento leads R1 - {nombre_cc}</a></div>" if _link_cc else ""),
-                unsafe_allow_html=True
-            )
+            if nombre_cc == "CC":
+                _links_html = (
+                    "<a href='https://docs.google.com/spreadsheets/d/1Oto16BeUmohfjWlzGeH-Nj0d3RMmZLG17ZSPd93ePA8/edit?usp=sharing' target='_blank'>Sol</a>"
+                    " · "
+                    "<a href='https://docs.google.com/spreadsheets/d/1EDbB-LMLeXFaCJeAifbV9zLNh9R4piO0GYuAeMBupo8/edit?usp=sharing' target='_blank'>Fer</a>"
+                )
+                st.markdown(
+                    f"<div style='padding-top:28px;font-weight:600'>Detalle por {vista.lower()} · CC (Sol + Fer)</div>"
+                    f"<div style='font-size:0.75rem;margin-top:2px'>{_links_html}</div>",
+                    unsafe_allow_html=True
+                )
+            else:
+                _link_cc = _LINKS_CC.get(nombre_cc, "")
+                st.markdown(
+                    f"<div style='padding-top:28px;font-weight:600'>Detalle por {vista.lower()} · {nombre_cc}</div>"
+                    + (f"<div style='font-size:0.75rem;margin-top:2px'><a href='{_link_cc}' target='_blank'>Sheets Seguimiento leads R1 - {nombre_cc}</a></div>" if _link_cc else ""),
+                    unsafe_allow_html=True
+                )
         with _col_sl_cc:
             if n_max_cc > _mins_cc[vista]:
                 st.caption(_labels_cc[vista])
@@ -2007,20 +2019,33 @@ renderDet(_all);
 
         components.html(_html_cc, height=_height, scrolling=True)
 
-    tab_sol, tab_fer = st.tabs(["Perfo Sol", "Perfo Fer"])
-    with tab_sol:
-        try:
-            _df_sol = _cargar_bbdd_sol()
-            _render_perfo_cc(_df_sol, "Sol")
-        except Exception as _e_sol:
-            st.error(f"Error cargando datos de Sol: {_e_sol}")
-    with tab_fer:
+    tab_cc_total, tab_sol, tab_fer = st.tabs(["Perfo CC", "Perfo Sol", "Perfo Fer"])
 
+    try:
+        _df_sol = _cargar_bbdd_sol()
+    except Exception as _e_sol:
+        _df_sol = pd.DataFrame()
+    try:
+        _df_fer = _cargar_bbdd_fer()
+    except Exception as _e_fer:
+        _df_fer = pd.DataFrame()
+
+    with tab_cc_total:
         try:
-            _df_fer = _cargar_bbdd_fer()
+            _df_cc_total = pd.concat([_df_sol, _df_fer], ignore_index=True)
+            _render_perfo_cc(_df_cc_total, "CC")
+        except Exception as _e_cc:
+            st.error(f"Error cargando datos de CC: {_e_cc}")
+    with tab_sol:
+        if _df_sol.empty:
+            st.error("Error cargando datos de Sol.")
+        else:
+            _render_perfo_cc(_df_sol, "Sol")
+    with tab_fer:
+        if _df_fer.empty:
+            st.error("Error cargando datos de Fer.")
+        else:
             _render_perfo_cc(_df_fer, "Fer")
-        except Exception as _e_fer:
-            st.error(f"Error cargando datos de Fer: {_e_fer}")
 
 with tab_closer:
     _ID_SEBA = "17IGWY-VvK8pB_0cN2gSNHrzyTMhndhRS8cWtJDNbBEQ"
