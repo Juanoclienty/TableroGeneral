@@ -111,7 +111,9 @@ def cargar_calendly() -> pd.DataFrame:
 
 
 def cargar_ads() -> pd.DataFrame:
-    df = _leer_cache("sheet_ads.parquet") or _leer_sheet(URL_ADS)
+    df = _leer_cache("sheet_ads.parquet")
+    if df is None:
+        df = _leer_sheet(URL_ADS)
     df["fecha"]         = pd.to_datetime(df["Fecha"], dayfirst=True, errors="coerce")
     df["inversion"]     = _limpiar_monto(df["Inversión total"])
     df["semana_inicio"] = df["fecha"] - pd.to_timedelta(df["fecha"].dt.dayofweek, unit="D")
