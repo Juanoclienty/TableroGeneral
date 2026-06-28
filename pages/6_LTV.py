@@ -154,7 +154,6 @@ with st.sidebar:
     if _fecha_cache:
         st.caption(f"Datos al: {_fecha_cache}")
     st.markdown("---")
-    st.page_link("pages/2_Actualizar_BD.py", label="Actualizar LTV", icon="🔄")
 
 
 # ── Tabla ─────────────────────────────────────────────────────────
