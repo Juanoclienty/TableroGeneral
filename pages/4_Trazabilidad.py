@@ -1913,29 +1913,28 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 .count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px;display:inline-block}}
 .btn-exp{{font-size:0.72rem;padding:2px 8px;border-radius:10px;border:1px solid #cbd5e1;cursor:pointer;background:#f8fafc;color:#475569;margin-left:12px;vertical-align:middle}}
 .btn-exp:hover{{background:#e2e8f0}}
-.modal-overlay{{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:999;justify-content:center;align-items:center}}
-.modal-overlay.open{{display:flex}}
-.modal-box{{background:#fff;border-radius:12px;padding:24px 28px;max-width:540px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18);position:relative}}
-.modal-close{{position:absolute;top:12px;right:16px;font-size:1.2rem;cursor:pointer;color:#94a3b8;border:none;background:none;line-height:1}}
-.modal-close:hover{{color:#1e293b}}
-.modal-title{{font-size:1rem;font-weight:700;color:#1a3a5c;margin-bottom:16px;padding-right:24px}}
-.modal-field{{margin-bottom:14px}}
-.modal-label{{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:600;margin-bottom:3px}}
-.modal-val{{font-size:0.83rem;color:#1e293b;line-height:1.55}}
+.detail-panel{{display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:16px 20px;margin-bottom:14px;position:relative}}
+.detail-panel.open{{display:block}}
+.detail-close{{position:absolute;top:10px;right:14px;font-size:1rem;cursor:pointer;color:#94a3b8;border:none;background:none;line-height:1}}
+.detail-close:hover{{color:#1e293b}}
+.detail-title{{font-size:0.9rem;font-weight:700;color:#1a3a5c;margin-bottom:12px;padding-right:24px}}
+.detail-grid{{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}}
+.detail-full{{grid-column:1/-1}}
+.modal-field{{margin-bottom:0}}
+.modal-label{{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:600;margin-bottom:2px}}
+.modal-val{{font-size:0.82rem;color:#1e293b;line-height:1.5}}
 .modal-empty{{font-size:0.78rem;color:#94a3b8;font-style:italic}}
-.modal-link{{color:#1a3a5c;font-size:0.83rem}}
+.modal-link{{color:#1a3a5c;font-size:0.82rem}}
 </style>
 </head><body>
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal-box" id="modal-box">
-    <button class="modal-close" onclick="closeModalBtn()">✕</button>
-    <div class="modal-title" id="modal-title"></div>
-    <div id="modal-content"></div>
-  </div>
-</div>
 <table style="margin-bottom:12px"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
 <div style="display:flex;align-items:center;margin:10px 0 4px">
 <div class="count" id="det-count"></div>
+</div>
+<div class="detail-panel" id="detail-panel">
+  <button class="detail-close" onclick="closeDetail()">✕</button>
+  <div class="detail-title" id="detail-title"></div>
+  <div class="detail-grid" id="detail-content"></div>
 </div>
 <div class="det-wrap">
 <table class="det-tbl">
@@ -2047,32 +2046,31 @@ rows.forEach(function(r,idx){{
   document.getElementById('det-body').innerHTML=h;
 }}
 
-function _def(v){{return(!v||v==='nan'||v.trim()==='');}}
+function _def(v){{return(!v||v==='nan'||!v.trim());}}
+function field(lbl,val,full){{
+  var cls='modal-field'+(full?' detail-full':'');
+  return '<div class="'+cls+'"><div class="modal-label">'+lbl+'</div>'
+    +(_def(val)?'<div class="modal-empty">Sin datos</div>':'<div class="modal-val">'+_esc(val)+'</div>')
+    +'</div>';
+}}
 function openModal(idx){{
   var r=_cur[idx];
-  document.getElementById('modal-title').textContent=r.nombre+' · '+r.fecha+' · '+r.cc;
+  document.getElementById('detail-title').textContent=r.nombre+' · '+r.fecha+' ('+r.cc+')  —  '+r.estado_r1;
   var h='';
-  h+='<div class="modal-field"><div class="modal-label">Estado R1</div><div class="modal-val">'+_esc(r.estado_r1)+'</div></div>';
-  h+='<div class="modal-field"><div class="modal-label">Explicación del estado</div>';
-  h+=_def(r.explicacion)?'<div class="modal-empty">Sin explicación cargada</div>':'<div class="modal-val">'+_esc(r.explicacion)+'</div>';
-  h+='</div>';
-  h+='<div class="modal-field"><div class="modal-label">Empresa (página web)</div>';
-  h+=_def(r.empresa)?'<div class="modal-empty">Sin datos</div>':'<div class="modal-val">'+_esc(r.empresa)+'</div>';
-  h+='</div>';
-  h+='<div class="modal-field"><div class="modal-label">Objeciones o preguntas en R1</div>';
-  h+=_def(r.objeciones)?'<div class="modal-empty">Sin datos</div>':'<div class="modal-val">'+_esc(r.objeciones)+'</div>';
-  h+='</div>';
+  h+=field('Empresa (página web)', r.empresa, false);
+  h+=field('Mail', r.mail, false);
+  h+=field('Explicación del estado', r.explicacion, true);
+  h+=field('Objeciones o preguntas en R1', r.objeciones, true);
   if(!_def(r.fathom)&&r.fathom.startsWith('http')){{
-    h+='<div class="modal-field"><div class="modal-label">Grabación Fathom</div>';
-    h+='<a class="modal-link" href="'+r.fathom+'" target="_blank">▶ Ver grabación →</a></div>';
+    h+='<div class="modal-field detail-full"><div class="modal-label">Grabación Fathom</div>'
+      +'<a class="modal-link" href="'+r.fathom+'" target="_blank">▶ Ver grabación →</a></div>';
   }}
-  h+='<div class="modal-field"><div class="modal-label">Mail</div><div class="modal-val">'+_esc(r.mail)+'</div></div>';
-  document.getElementById('modal-content').innerHTML=h;
-  document.getElementById('modal-overlay').classList.add('open');
-  window.scrollTo({{top:0,behavior:'instant'}});
+  document.getElementById('detail-content').innerHTML=h;
+  var panel=document.getElementById('detail-panel');
+  panel.classList.add('open');
+  panel.scrollIntoView({{behavior:'smooth',block:'nearest'}});
 }}
-function closeModalBtn(){{document.getElementById('modal-overlay').classList.remove('open');}}
-function closeModal(e){{if(e.target===document.getElementById('modal-overlay'))closeModalBtn();}}
+function closeDetail(){{document.getElementById('detail-panel').classList.remove('open');}}
 
 document.querySelectorAll('td[data-filter]').forEach(function(td){{
   td.onclick=function(){{filterClick(this.dataset.filter);}};
