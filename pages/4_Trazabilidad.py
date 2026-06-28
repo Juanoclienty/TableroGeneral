@@ -289,18 +289,6 @@ def cargar_ventas_crm() -> pd.DataFrame:
         return pd.DataFrame(columns=["fecha_lead", "ventas"])
 
 
-def cargar_ventas_detalle_crm() -> pd.DataFrame:
-    """Ventas ganadas del CRM con detalle por lead (nombre, email, usuario/closer)."""
-    try:
-        import datos_crm as _crm
-        df_crm = _crm.cargar_crm()
-        cols = ["fecha_lead", "Nombre", "Emails", "Usuario"]
-        v = df_crm[df_crm["estado_resumen"] == "5. Venta"][[c for c in cols if c in df_crm.columns]].copy()
-        v["ventas"] = 1
-        return v.reset_index(drop=True)
-    except Exception:
-        return pd.DataFrame(columns=["fecha_lead", "Nombre", "Emails", "Usuario", "ventas"])
-
 
 @st.cache_data(ttl=3600)
 def cargar_gf_trazabilidad() -> pd.DataFrame:
@@ -425,8 +413,7 @@ _obj_v_mes = obj_ventas_mes()
 _obj_v_sem = round(_obj_v_mes / 4.2) if _obj_v_mes else None
 
 # Datos reales de ventas del CRM (para semáforo actual)
-df_ventas        = cargar_ventas_crm()
-df_ventas_detalle = cargar_ventas_detalle_crm()
+df_ventas = cargar_ventas_crm()
 
 # Mismas fuentes que la página de Ventas (para las tarjetas Resumen)
 try:
@@ -990,35 +977,20 @@ with tab_gral:
         df_show = df_agg.tail(n_mostrar).copy()
 
         # Agregar ventas por período para Tasa cierre
-        _venta_tip_data = {}  # {periodo_lbl: [{nombre, mail, closer}]}
         if not df_ventas.empty:
             _dv = df_ventas.copy()
-            _dvd = df_ventas_detalle.copy() if not df_ventas_detalle.empty else pd.DataFrame()
             if vista == "Día":
                 _dv["_vkey"] = _dv["fecha_lead"].dt.normalize().astype(str)
                 df_show["_vkey"] = pd.to_datetime(df_show["fecha"]).dt.normalize().astype(str)
-                if not _dvd.empty: _dvd["_vkey"] = _dvd["fecha_lead"].dt.normalize().astype(str)
             elif vista == "Semana":
                 _dv["_vkey"] = _dv["fecha_lead"].dt.isocalendar().week.astype(int).astype(str)
                 df_show["_vkey"] = df_show["semana"].astype(int).astype(str)
-                if not _dvd.empty: _dvd["_vkey"] = _dvd["fecha_lead"].dt.isocalendar().week.astype(int).astype(str)
             else:
                 _dv["_vkey"] = _dv["fecha_lead"].dt.to_period("M").astype(str)
                 df_show["_vkey"] = df_show["mes"].astype(str)
-                if not _dvd.empty: _dvd["_vkey"] = _dvd["fecha_lead"].dt.to_period("M").astype(str)
             _vgrp = _dv.groupby("_vkey")["ventas"].sum().reset_index(name="_ventas_p")
             df_show = df_show.merge(_vgrp, on="_vkey", how="left")
             df_show["_ventas_p"] = df_show["_ventas_p"].fillna(0).astype(int)
-            # Construir tooltip data por periodo_lbl
-            if not _dvd.empty:
-                for _, _srow in df_show.iterrows():
-                    _plbl = _srow["periodo_lbl"]
-                    _vkey = _srow.get("_vkey", "")
-                    _subs = _dvd[_dvd["_vkey"] == _vkey] if _vkey else pd.DataFrame()
-                    _venta_tip_data[_plbl] = [
-                        {"nombre": r.get("Nombre",""), "mail": r.get("Emails",""), "closer": r.get("Usuario","")}
-                        for _, r in _subs.iterrows()
-                    ]
             df_show = df_show.drop(columns=["_vkey"], errors="ignore")
         else:
             df_show["_ventas_p"] = 0
@@ -1191,7 +1163,7 @@ with tab_gral:
                 unsafe_allow_html=True,
             )
     
-        def _render_combo(grupos, tema="azul", header=True, compacto=False, margin_top=0, margin_bottom=6, col_links=None, tooltip_data=None):
+        def _render_combo(grupos, tema="azul", header=True, compacto=False, margin_top=0, margin_bottom=6, col_links=None):
             """Une varios pares (t1, t2) en una sola tabla, con una fila espaciadora entre grupos."""
             t, thl, th, ths, tdl, td, tds = _estilos_tema(tema, compacto=compacto)
             period_cols  = list(grupos[0][0].columns)
@@ -1231,26 +1203,7 @@ with tab_gral:
                     bgs = t["bgs0"] if i % 2 == 0 else t["bgs1"]
                     row2  = t2.iloc[i]
                     cells = f'<td style="{tdl};background:{bg}">{metric}</td>'
-                    _tip_row = (tooltip_data or {}).get(metric, {})
-                    _n_pcols = len(period_cols)
-                    for _ci, (_col, v) in enumerate(zip(period_cols, row1)):
-                        _prosp = _tip_row.get(_col, []) if _tip_row else []
-                        if _prosp and v:
-                            _tip_items = "".join(
-                                f'<div style="padding:5px 0;border-top:1px solid rgba(255,255,255,0.15)">'
-                                f'<div style="font-weight:600;font-size:0.78rem">{p["nombre"]}</div>'
-                                f'<div style="font-size:0.72rem;opacity:0.85">{p["mail"]}</div>'
-                                f'<div style="font-size:0.72rem;opacity:0.75;font-style:italic">{p["closer"]}</div>'
-                                f'</div>'
-                                for p in _prosp
-                            )
-                            _tip_dir = "ch-tip-right" if _ci < _n_pcols // 2 else ""
-                            cells += (
-                                f'<td style="{td};background:{bg};position:relative" class="ch-cell {_tip_dir}">'
-                                f'{v}<div class="ch-tip">{_tip_items}</div></td>'
-                            )
-                        else:
-                            cells += f'<td style="{td};background:{bg}">{v}</td>'
+                    cells += "".join(f'<td style="{td};background:{bg}">{v}</td>'  for v in row1)
                     cells += "".join(f'<td style="{tds};background:{bgs}">{v}</td>' for v in row2)
                     body  += f"<tr>{cells}</tr>"
     
@@ -1294,7 +1247,7 @@ with tab_gral:
     
         with col_tit2:
             _titulo_fuente(f"Detalle por {vista.lower()}", "Trazabilidad", _URL_DIARIA)
-        _render_combo([_tabla_metricas(metricas_r1), _tabla_metricas(metricas_r2)], tema="azul", margin_bottom=10, col_links=_links_rep, tooltip_data={"Venta (Co)": _venta_tip_data})
+        _render_combo([_tabla_metricas(metricas_r1), _tabla_metricas(metricas_r2)], tema="azul", margin_bottom=10, col_links=_links_rep)
     
         _render_combo(
             [_tabla_ratios(ratios_r1), _tabla_ratios(ratios_r2)],
