@@ -1574,14 +1574,23 @@ with tab_cc:
         _col_est   = _find_col(["estado r1", "estado_r1", "estado"]) or df.columns[4]
         _col_exp   = _find_col(["explic", "explicacion", "explicación"])
         _col_fat   = _find_col(["fathom", "grabacion", "grabación"])
+        _col_emp   = _find_col(["empresa", "web", "pagina"])
+        _col_obj   = _find_col(["objecion", "objeciones", "pregunta"])
+        # Fallback por índice si no se encuentra por nombre
+        if _col_exp is None and len(df.columns) > 6: _col_exp = df.columns[6]
+        if _col_fat is None and len(df.columns) > 7: _col_fat = df.columns[7]
+        if _col_emp is None and len(df.columns) > 8: _col_emp = df.columns[8]
+        if _col_obj is None and len(df.columns) > 9: _col_obj = df.columns[9]
         out = pd.DataFrame()
         out["ID"]        = df[_col_id].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
         out["Mail"]      = df[_col_mail].astype(str)
         out["Fecha R1"]  = df[_col_fecha].astype(str)
         out["Nombre"]    = df[_col_nom].astype(str)
         out["Estado R1"] = df[_col_est].astype(str)
-        out["Explicacion"] = df[_col_exp].astype(str) if _col_exp else ""
-        out["Fathom"]    = df[_col_fat].astype(str) if _col_fat else ""
+        out["Explicacion"] = df[_col_exp].astype(str) if _col_exp is not None else ""
+        out["Fathom"]      = df[_col_fat].astype(str) if _col_fat is not None else ""
+        out["Empresa"]     = df[_col_emp].astype(str) if _col_emp is not None else ""
+        out["Objeciones"]  = df[_col_obj].astype(str) if _col_obj is not None else ""
         out = out[out["ID"].notna() & (out["ID"] != "") & (out["ID"] != "nan")]
         hoy = pd.Timestamp.today()
         def _parse_r1(s):
@@ -1596,7 +1605,7 @@ with tab_cc:
                 return pd.NaT
             return pd.to_datetime(s, dayfirst=True, errors="coerce")
         out["_fecha"] = out["Fecha R1"].apply(_parse_r1)
-        return out[["ID", "Mail", "Fecha R1", "_fecha", "Nombre", "Estado R1", "Explicacion", "Fathom"]].copy()
+        return out[["ID", "Mail", "Fecha R1", "_fecha", "Nombre", "Estado R1", "Explicacion", "Fathom", "Empresa", "Objeciones"]].copy()
 
     @st.cache_data(ttl=3600)
     def _cargar_consultas_crm():
@@ -1760,6 +1769,8 @@ with tab_cc:
                 "fathom":      str(r.get("Fathom", "") or ""),
                 "consultas":   str(_consultas_map.get(_rid, "") or ""),
                 "cc":          str(r.get("_cc", nombre_cc) or nombre_cc),
+                "empresa":     str(r.get("Empresa", "") or ""),
+                "objeciones":  str(r.get("Objeciones", "") or ""),
             })
         _det_json = _json.dumps(_det_rows, ensure_ascii=False)
 
@@ -1899,11 +1910,33 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 .exp-link{{color:#1a3a5c;font-size:0.78rem;text-decoration:none}}
 .exp-link:hover{{text-decoration:underline}}
 .exp-empty{{color:#94a3b8;font-style:italic;font-size:0.75rem}}
-.count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px}}
+.count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px;display:inline-block}}
+.btn-exp{{font-size:0.72rem;padding:2px 8px;border-radius:10px;border:1px solid #cbd5e1;cursor:pointer;background:#f8fafc;color:#475569;margin-left:12px;vertical-align:middle}}
+.btn-exp:hover{{background:#e2e8f0}}
+.modal-overlay{{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:999;justify-content:center;align-items:center}}
+.modal-overlay.open{{display:flex}}
+.modal-box{{background:#fff;border-radius:12px;padding:24px 28px;max-width:540px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18);position:relative}}
+.modal-close{{position:absolute;top:12px;right:16px;font-size:1.2rem;cursor:pointer;color:#94a3b8;border:none;background:none;line-height:1}}
+.modal-close:hover{{color:#1e293b}}
+.modal-title{{font-size:1rem;font-weight:700;color:#1a3a5c;margin-bottom:16px;padding-right:24px}}
+.modal-field{{margin-bottom:14px}}
+.modal-label{{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:600;margin-bottom:3px}}
+.modal-val{{font-size:0.83rem;color:#1e293b;line-height:1.55}}
+.modal-empty{{font-size:0.78rem;color:#94a3b8;font-style:italic}}
+.modal-link{{color:#1a3a5c;font-size:0.83rem}}
 </style>
 </head><body>
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-box" id="modal-box">
+    <button class="modal-close" onclick="closeModalBtn()">✕</button>
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
 <table style="margin-bottom:12px"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
+<div style="display:flex;align-items:center;margin:10px 0 4px">
 <div class="count" id="det-count"></div>
+</div>
 <div class="det-wrap">
 <table class="det-tbl">
 <thead><tr>
@@ -1914,6 +1947,7 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 <th class="det-th" style="text-align:center" onclick="sortDet(4)">Estado R1 <span id="arr4"></span></th>
 <th class="det-th" style="text-align:center" onclick="sortDet(5)">Estado CRM <span id="arr5"></span></th>
 <th class="det-th" style="text-align:center" onclick="sortDet(6)">CC <span id="arr6"></span></th>
+<th class="det-th" style="text-align:center;width:44px"></th>
 </tr></thead>
 <tbody id="det-body"></tbody>
 </table>
@@ -1990,7 +2024,7 @@ function renderDet(rows){{
   for(var i=0;i<7;i++)document.getElementById('arr'+i).textContent=_sort===i?(_dir>0?' ↑':' ↓'):'';
   var h='';
   if(!rows.length){{
-h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
+h='<tr><td colspan="8" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
   }}else{{
 rows.forEach(function(r,idx){{
   var open=(_openIdx===idx);
@@ -2003,14 +2037,41 @@ rows.forEach(function(r,idx){{
     +'<td class="det-td-c" style="text-align:center">'+_esc(r.estado_r1)+'</td>'
     +'<td class="det-td-c" style="text-align:center">'+_esc(r.estado_crm)+'</td>'
     +'<td class="det-td-c" style="text-align:center">'+_esc(r.cc)+'</td>'
+    +'<td class="det-td-c" style="text-align:center;padding:2px 6px"><button class="btn-exp" onclick="event.stopPropagation();openModal('+idx+')">📋</button></td>'
     +'</tr>';
   if(open){{
-    h+='<tr class="exp-tr"><td colspan="7">'+_expandHtml(r)+'</td></tr>';
+    h+='<tr class="exp-tr"><td colspan="8">'+_expandHtml(r)+'</td></tr>';
   }}
 }});
   }}
   document.getElementById('det-body').innerHTML=h;
 }}
+
+function _def(v){{return(!v||v==='nan'||v.trim()==='');}}
+function openModal(idx){{
+  var r=_cur[idx];
+  document.getElementById('modal-title').textContent=r.nombre+' · '+r.fecha+' · '+r.cc;
+  var h='';
+  h+='<div class="modal-field"><div class="modal-label">Estado R1</div><div class="modal-val">'+_esc(r.estado_r1)+'</div></div>';
+  h+='<div class="modal-field"><div class="modal-label">Explicación del estado</div>';
+  h+=_def(r.explicacion)?'<div class="modal-empty">Sin explicación cargada</div>':'<div class="modal-val">'+_esc(r.explicacion)+'</div>';
+  h+='</div>';
+  h+='<div class="modal-field"><div class="modal-label">Empresa (página web)</div>';
+  h+=_def(r.empresa)?'<div class="modal-empty">Sin datos</div>':'<div class="modal-val">'+_esc(r.empresa)+'</div>';
+  h+='</div>';
+  h+='<div class="modal-field"><div class="modal-label">Objeciones o preguntas en R1</div>';
+  h+=_def(r.objeciones)?'<div class="modal-empty">Sin datos</div>':'<div class="modal-val">'+_esc(r.objeciones)+'</div>';
+  h+='</div>';
+  if(!_def(r.fathom)&&r.fathom.startsWith('http')){{
+    h+='<div class="modal-field"><div class="modal-label">Grabación Fathom</div>';
+    h+='<a class="modal-link" href="'+r.fathom+'" target="_blank">▶ Ver grabación →</a></div>';
+  }}
+  h+='<div class="modal-field"><div class="modal-label">Mail</div><div class="modal-val">'+_esc(r.mail)+'</div></div>';
+  document.getElementById('modal-content').innerHTML=h;
+  document.getElementById('modal-overlay').classList.add('open');
+}}
+function closeModalBtn(){{document.getElementById('modal-overlay').classList.remove('open');}}
+function closeModal(e){{if(e.target===document.getElementById('modal-overlay'))closeModalBtn();}}
 
 document.querySelectorAll('td[data-filter]').forEach(function(td){{
   td.onclick=function(){{filterClick(this.dataset.filter);}};
