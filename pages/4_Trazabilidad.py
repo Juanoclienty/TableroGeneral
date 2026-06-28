@@ -962,8 +962,9 @@ with tab_gral:
         else:
             n_mostrar = n_max
 
+        _lbl_ult = {"Día": "Últ. día", "Semana": "Últ. semana", "Mes": "Últ. mes"}[vista]
         _modo_resumen = col_modo.radio(
-            "Resumen", ["Promedio", "Últ. semana"],
+            "Resumen", ["Promedio", _lbl_ult],
             horizontal=False, label_visibility="collapsed", key="modo_resumen"
         )
     
@@ -1067,7 +1068,8 @@ with tab_gral:
                 unsafe_allow_html=True,
             )
     
-        _lbl_resumen = "Promedio" if _modo_resumen == "Promedio" else "Últ. sem."
+        _lbl_resumen = "Promedio" if _modo_resumen == "Promedio" else _lbl_ult
+        _es_ult = (_modo_resumen != "Promedio")
 
         def _tabla_metricas(metricas):
             filas1, filas2 = [], []
@@ -1079,7 +1081,7 @@ with tab_gral:
                     val = int(r[col_key]) if col_key in r.index and pd.notna(r[col_key]) else 0
                     vals.append(val)
                     row1[r["periodo_lbl"]] = "" if val == 0 else f"{_icon(val, objetivo)} {val}"
-                resumen = vals[-1] if _modo_resumen == "Últ. semana" and vals else (round(sum(vals) / len(vals)) if vals else 0)
+                resumen = vals[-1] if _es_ult and vals else (round(sum(vals) / len(vals)) if vals else 0)
                 pct     = round(resumen / objetivo * 100) if objetivo > 0 else 0
                 row2[_lbl_resumen] = "" if resumen == 0 else f"{_icon(resumen, objetivo)} {resumen}"
                 row2["Objetivo"]   = str(objetivo)
@@ -1100,7 +1102,7 @@ with tab_gral:
                     ratio = round(num / den * 100) if den > 0 else 0
                     ratio_vals.append(ratio)
                     row1[r["periodo_lbl"]] = "" if ratio == 0 else f"{ratio}%"
-                res_ratio  = ratio_vals[-1] if _modo_resumen == "Últ. semana" and ratio_vals else (round(sum(ratio_vals) / len(ratio_vals)) if ratio_vals else 0)
+                res_ratio  = ratio_vals[-1] if _es_ult and ratio_vals else (round(sum(ratio_vals) / len(ratio_vals)) if ratio_vals else 0)
                 obj_ratio  = round(obj_num / obj_den * 100) if obj_den > 0 else 0
                 pct_ratio  = round(res_ratio / obj_ratio * 100) if obj_ratio > 0 else 0
                 row2[_lbl_resumen] = "" if res_ratio == 0 else f"{res_ratio}%"
@@ -1121,7 +1123,7 @@ with tab_gral:
                     val = int(r[col_key]) if col_key in r.index and pd.notna(r[col_key]) else 0
                     vals.append(val)
                     row1[r["periodo_lbl"]] = "" if val == 0 else str(val)
-                resumen = vals[-1] if _modo_resumen == "Últ. semana" and vals else (round(sum(vals) / len(vals)) if vals else 0)
+                resumen = vals[-1] if _es_ult and vals else (round(sum(vals) / len(vals)) if vals else 0)
                 row2[_lbl_resumen] = "" if resumen == 0 else str(resumen)
                 row2["Objetivo"]   = ""
                 row2["% Cumpl."]   = ""
