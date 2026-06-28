@@ -953,14 +953,19 @@ with tab_gral:
         defaults = {"Día": min(7, n_max), "Semana": min(6, n_max), "Mes": min(4, n_max)}
         mins     = {"Día": min(3, n_max),  "Semana": min(4, n_max),  "Mes": 1}
     
-        col_tit2, col_slider = st.columns([3, 3])
-    
+        col_tit2, col_slider, col_modo = st.columns([3, 3, 2])
+
         if n_max > mins[vista]:
             n_mostrar = col_slider.slider(
                 labels[vista], min_value=mins[vista], max_value=n_max, value=defaults[vista],
             )
         else:
             n_mostrar = n_max
+
+        _modo_resumen = col_modo.radio(
+            "Resumen", ["Promedio", "Últ. semana"],
+            horizontal=False, label_visibility="collapsed", key="modo_resumen"
+        )
     
         df_show = df_agg.tail(n_mostrar).copy()
 
@@ -1062,6 +1067,8 @@ with tab_gral:
                 unsafe_allow_html=True,
             )
     
+        _lbl_resumen = "Promedio" if _modo_resumen == "Promedio" else "Últ. sem."
+
         def _tabla_metricas(metricas):
             filas1, filas2 = [], []
             for label, col_key, objetivo in metricas:
@@ -1072,11 +1079,11 @@ with tab_gral:
                     val = int(r[col_key]) if col_key in r.index and pd.notna(r[col_key]) else 0
                     vals.append(val)
                     row1[r["periodo_lbl"]] = "" if val == 0 else f"{_icon(val, objetivo)} {val}"
-                promedio = round(sum(vals) / len(vals)) if vals else 0
-                pct      = round(promedio / objetivo * 100) if objetivo > 0 else 0
-                row2["Promedio"]  = "" if promedio == 0 else f"{_icon(promedio, objetivo)} {promedio}"
-                row2["Objetivo"]  = str(objetivo)
-                row2["% Cumpl."]  = f"{pct}%" if pct else ""
+                resumen = vals[-1] if _modo_resumen == "Últ. semana" and vals else (round(sum(vals) / len(vals)) if vals else 0)
+                pct     = round(resumen / objetivo * 100) if objetivo > 0 else 0
+                row2[_lbl_resumen] = "" if resumen == 0 else f"{_icon(resumen, objetivo)} {resumen}"
+                row2["Objetivo"]   = str(objetivo)
+                row2["% Cumpl."]   = f"{pct}%" if pct else ""
                 filas1.append(row1)
                 filas2.append(row2)
             return pd.DataFrame(filas1).set_index("Métrica"), pd.DataFrame(filas2)
@@ -1093,12 +1100,12 @@ with tab_gral:
                     ratio = round(num / den * 100) if den > 0 else 0
                     ratio_vals.append(ratio)
                     row1[r["periodo_lbl"]] = "" if ratio == 0 else f"{ratio}%"
-                prom_ratio = round(sum(ratio_vals) / len(ratio_vals)) if ratio_vals else 0
+                res_ratio  = ratio_vals[-1] if _modo_resumen == "Últ. semana" and ratio_vals else (round(sum(ratio_vals) / len(ratio_vals)) if ratio_vals else 0)
                 obj_ratio  = round(obj_num / obj_den * 100) if obj_den > 0 else 0
-                pct_ratio  = round(prom_ratio / obj_ratio * 100) if obj_ratio > 0 else 0
-                row2["Promedio"]  = "" if prom_ratio == 0 else f"{prom_ratio}%"
-                row2["Objetivo"]  = f"{obj_ratio}%" if obj_ratio else ""
-                row2["% Cumpl."]  = f"{pct_ratio}%" if obj_ratio else ""
+                pct_ratio  = round(res_ratio / obj_ratio * 100) if obj_ratio > 0 else 0
+                row2[_lbl_resumen] = "" if res_ratio == 0 else f"{res_ratio}%"
+                row2["Objetivo"]   = f"{obj_ratio}%" if obj_ratio else ""
+                row2["% Cumpl."]   = f"{pct_ratio}%" if obj_ratio else ""
                 filas1.append(row1)
                 filas2.append(row2)
             return pd.DataFrame(filas1).set_index("Métrica"), pd.DataFrame(filas2)
@@ -1114,10 +1121,10 @@ with tab_gral:
                     val = int(r[col_key]) if col_key in r.index and pd.notna(r[col_key]) else 0
                     vals.append(val)
                     row1[r["periodo_lbl"]] = "" if val == 0 else str(val)
-                promedio = round(sum(vals) / len(vals)) if vals else 0
-                row2["Promedio"]  = "" if promedio == 0 else str(promedio)
-                row2["Objetivo"]  = ""
-                row2["% Cumpl."]  = ""
+                resumen = vals[-1] if _modo_resumen == "Últ. semana" and vals else (round(sum(vals) / len(vals)) if vals else 0)
+                row2[_lbl_resumen] = "" if resumen == 0 else str(resumen)
+                row2["Objetivo"]   = ""
+                row2["% Cumpl."]   = ""
                 filas1.append(row1)
                 filas2.append(row2)
             return pd.DataFrame(filas1).set_index("Métrica"), pd.DataFrame(filas2)
