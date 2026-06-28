@@ -596,6 +596,12 @@ if ultimos_4:
     def _fmt_m(v): return "$ {:,.0f}".format(v) if v > 0 else "–"
     def _fmt_n(v): return str(int(v)) if v > 0 else "–"
 
+    _canal_lookup = {}
+    if not df_bbdd.empty and "Canal de adquisicion" in df_bbdd.columns:
+        _tmp = df_bbdd[["ID prospecto", "Canal de adquisicion"]].copy()
+        _tmp["_id_norm"] = _tmp["ID prospecto"].apply(_norm_id_ltv)
+        _canal_lookup = _tmp.set_index("_id_norm")["Canal de adquisicion"].to_dict()
+
     _links_ventas = _cargar_links_ventas()
 
     cols_cards = st.columns(len(ultimos_4))
