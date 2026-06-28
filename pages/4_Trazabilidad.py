@@ -1759,6 +1759,7 @@ with tab_cc:
                 "explicacion": str(r.get("Explicacion", "") or ""),
                 "fathom":      str(r.get("Fathom", "") or ""),
                 "consultas":   str(_consultas_map.get(_rid, "") or ""),
+                "cc":          str(r.get("_cc", nombre_cc) or nombre_cc),
             })
         _det_json = _json.dumps(_det_rows, ensure_ascii=False)
 
@@ -1906,12 +1907,13 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 <div class="det-wrap">
 <table class="det-tbl">
 <thead><tr>
-<th class="det-th" onclick="sortDet(0)">ID <span id="arr0"></span></th>
-<th class="det-th" onclick="sortDet(1)">Mail <span id="arr1"></span></th>
-<th class="det-th" onclick="sortDet(2)">Fecha R1 <span id="arr2"></span></th>
-<th class="det-th" onclick="sortDet(3)">Nombre <span id="arr3"></span></th>
-<th class="det-th" onclick="sortDet(4)">Estado R1 <span id="arr4"></span></th>
-<th class="det-th" onclick="sortDet(5)">Estado CRM <span id="arr5"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(0)">ID <span id="arr0"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(1)">Mail <span id="arr1"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(2)">Fecha R1 <span id="arr2"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(3)">Nombre <span id="arr3"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(4)">Estado R1 <span id="arr4"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(5)">Estado CRM <span id="arr5"></span></th>
+<th class="det-th" style="text-align:center" onclick="sortDet(6)">CC <span id="arr6"></span></th>
 </tr></thead>
 <tbody id="det-body"></tbody>
 </table>
@@ -1921,7 +1923,7 @@ var _all={_det_json};
 var _cur=_all.slice();
 var _sort=-1,_dir=1;
 var _openIdx=-1;
-var _KEYS=['id','mail','fecha','nombre','estado_r1','estado_crm'];
+var _KEYS=['id','mail','fecha','nombre','estado_r1','estado_crm','cc'];
 
 function filterClick(filter){{
   var parts={{}};
@@ -1985,24 +1987,25 @@ h+='<a class="exp-link" href="'+r.fathom+'" target="_blank">▶ Ver grabación �
 
 function renderDet(rows){{
   document.getElementById('det-count').textContent=rows.length+' registros · BBDD R1 {nombre_cc}';
-  for(var i=0;i<6;i++)document.getElementById('arr'+i).textContent=_sort===i?(_dir>0?' ↑':' ↓'):'';
+  for(var i=0;i<7;i++)document.getElementById('arr'+i).textContent=_sort===i?(_dir>0?' ↑':' ↓'):'';
   var h='';
   if(!rows.length){{
-h='<tr><td colspan="6" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
+h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
   }}else{{
 rows.forEach(function(r,idx){{
   var open=(_openIdx===idx);
   var cls='det-tr'+(open?' active':'');
   h+='<tr class="'+cls+'" onclick="toggleRow('+idx+')">'
-    +'<td class="det-td">'+_esc(r.id)+'</td>'
+    +'<td class="det-td" style="text-align:center">'+_esc(r.id)+'</td>'
     +'<td class="det-td">'+_esc(r.mail)+'</td>'
-    +'<td class="det-td-c">'+_esc(r.fecha)+'</td>'
-    +'<td class="det-td">'+_esc(r.nombre)+'</td>'
-    +'<td class="det-td-c">'+_esc(r.estado_r1)+'</td>'
-    +'<td class="det-td-c">'+_esc(r.estado_crm)+'</td>'
+    +'<td class="det-td-c" style="text-align:center">'+_esc(r.fecha)+'</td>'
+    +'<td class="det-td" style="text-align:center">'+_esc(r.nombre)+'</td>'
+    +'<td class="det-td-c" style="text-align:center">'+_esc(r.estado_r1)+'</td>'
+    +'<td class="det-td-c" style="text-align:center">'+_esc(r.estado_crm)+'</td>'
+    +'<td class="det-td-c" style="text-align:center">'+_esc(r.cc)+'</td>'
     +'</tr>';
   if(open){{
-    h+='<tr class="exp-tr"><td colspan="6">'+_expandHtml(r)+'</td></tr>';
+    h+='<tr class="exp-tr"><td colspan="7">'+_expandHtml(r)+'</td></tr>';
   }}
 }});
   }}
@@ -2023,11 +2026,13 @@ renderDet(_all);
 
     try:
         _df_sol = _cargar_bbdd_sol()
-    except Exception as _e_sol:
+        _df_sol["_cc"] = "Sol"
+    except Exception:
         _df_sol = pd.DataFrame()
     try:
         _df_fer = _cargar_bbdd_fer()
-    except Exception as _e_fer:
+        _df_fer["_cc"] = "Fer"
+    except Exception:
         _df_fer = pd.DataFrame()
 
     with tab_cc_total:
