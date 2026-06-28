@@ -31,49 +31,42 @@ st.markdown("""
 st.markdown('<h1 class="main-title">Dashboard Clienty</h1>', unsafe_allow_html=True)
 st.markdown('<p class="main-sub">Seleccioná la sección a la que querés ir</p>', unsafe_allow_html=True)
 
-col1, col2 = st.columns(2)
+perfil = st.session_state.get("perfil", "")
 
-with col1:
-    st.markdown("""
-    <div class="card">
-        <div class="card-icon">📈</div>
-        <div class="card-title">Marketing</div>
-        <div class="card-desc">Leads, CPL, GF/BF/PF, inversión y objetivos por semana, mes o día</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.page_link("pages/1_Marketing.py", label="Ir a Marketing", use_container_width=True)
+_TODAS = [
+    ("Marketing",       "📈", "Leads, CPL, GF/BF/PF, inversión y objetivos por semana, mes o día",   "pages/1_Marketing.py",         "Ir a Marketing"),
+    ("Ventas",          "💼", "Embudo de ventas, conversión por etapa y análisis de cohortes",         "pages/3_Ventas.py",            "Ir a Ventas"),
+    ("Trazabilidad",    "🔍", "Seguimiento detallado del recorrido de cada lead",                      "pages/4_Trazabilidad.py",      "Ir a Trazabilidad"),
+    ("VGF",             "🎯", "Análisis de VGF",                                                       "pages/5_VGF.py",               "Ir a VGF"),
+    ("LTV",             "💰", "Lifetime value de clientes",                                            "pages/6_LTV.py",               "Ir a LTV"),
+    ("CS",              "🤝", "Customer success y seguimiento de clientes",                            "pages/7_CS.py",                "Ir a CS"),
+    ("T90",             "📊", "Análisis de primeros 90 días",                                          "pages/8_T90.py",               "Ir a T90"),
+    ("Est. Resultados", "📋", "Estado de resultados financiero",                                       "pages/9_Estado_Resultados.py", "Ir a Est. Resultados"),
+    ("Histórico",       "📅", "Histórico de bajas y ventas",                                           "pages/10_Historico.py",        "Ir a Histórico"),
+]
 
-with col2:
-    st.markdown("""
-    <div class="card">
-        <div class="card-icon">💼</div>
-        <div class="card-title">Ventas (Fecha cohort)</div>
-        <div class="card-desc">Embudo de ventas, conversión por etapa y análisis de cohortes</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.page_link("pages/3_Ventas.py", label="Ir a Ventas", use_container_width=True)
+_PERFIL_PAGINAS = {
+    "mkt_vtas": {"Marketing", "Ventas", "Trazabilidad", "T90"},
+    "finanzas":  {"LTV", "Est. Resultados", "T90"},
+    "cs":        {"CS", "T90"},
+    "completo":  None,
+}
 
-col3, col4 = st.columns(2)
+permitidas = _PERFIL_PAGINAS.get(perfil)
+cards = [(t, i, d, f, l) for t, i, d, f, l in _TODAS if permitidas is None or t in permitidas]
 
-with col3:
-    st.markdown("""
-    <div class="card">
-        <div class="card-icon">🔍</div>
-        <div class="card-title">Trazabilidad</div>
-        <div class="card-desc">Seguimiento detallado del recorrido de cada lead</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.page_link("pages/4_Trazabilidad.py", label="Ir a Trazabilidad", use_container_width=True)
-
-with col4:
-    st.markdown("""
-    <div class="card">
-        <div class="card-icon">🔄</div>
-        <div class="card-title">Actualizar base de datos</div>
-        <div class="card-desc">Procesa Calendly y actualiza BBDD_Calendly_trabajada en Google Sheets</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.page_link("pages/2_Actualizar_BD.py", label="Ir a Actualizar BD", use_container_width=True)
+for idx in range(0, len(cards), 2):
+    cols = st.columns(2)
+    for ci, (titulo, icono, desc, archivo, label) in enumerate(cards[idx:idx+2]):
+        with cols[ci]:
+            st.markdown(f"""
+            <div class="card">
+                <div class="card-icon">{icono}</div>
+                <div class="card-title">{titulo}</div>
+                <div class="card-desc">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.page_link(archivo, label=label, use_container_width=True)
 
 st.markdown("---")
 st.caption("Clienty CRM · Dashboard interno · v0.3")
