@@ -1996,12 +1996,14 @@ function _expandHtml(r){{
   h+=hasEmp?'<div class="exp-val">'+_esc(r.empresa)+'</div>'
         :'<div class="exp-empty">Sin datos</div>';
   h+='</div>';
+  h+='<div></div>';
   h+='<div><div class="exp-label">Objeciones o preguntas en R1</div>';
   h+=hasObj?'<div class="exp-val">'+_esc(r.objeciones)+'</div>'
         :'<div class="exp-empty">Sin datos</div>';
   h+='</div>';
+  h+='<div></div>';
   if(hasFat){{
-h+='<div class="exp-full"><div class="exp-label">Grabación Fathom</div>';
+h+='<div><div class="exp-label">Grabación Fathom</div>';
 h+='<a class="exp-link" href="'+r.fathom+'" target="_blank">▶ Ver grabación →</a></div>';
   }}
   h+='</div>';
