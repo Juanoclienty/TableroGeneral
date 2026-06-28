@@ -963,10 +963,13 @@ with tab_gral:
             n_mostrar = n_max
 
         _lbl_ult = {"Día": "Últ. día", "Semana": "Últ. semana", "Mes": "Últ. mes"}[vista]
-        _modo_resumen = col_modo.radio(
-            "Resumen", ["Promedio", _lbl_ult],
-            horizontal=False, label_visibility="collapsed", key="modo_resumen"
-        )
+        with col_modo:
+            st.markdown("<div style='text-align:right;font-size:0.72rem;color:#94a3b8;margin-bottom:2px'>Resumen</div>", unsafe_allow_html=True)
+            _modo_resumen = st.radio(
+                "Resumen", ["Prom.", _lbl_ult],
+                horizontal=True, label_visibility="collapsed", key="modo_resumen"
+            )
+        _modo_resumen = "Promedio" if _modo_resumen == "Prom." else _lbl_ult
     
         df_show = df_agg.tail(n_mostrar).copy()
 
