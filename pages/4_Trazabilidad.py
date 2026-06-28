@@ -1315,9 +1315,11 @@ with tab_gral:
                 _prosp = _get_prospectos(_cat, _key_col_ch, _key_val)
                 _tip   = _ch_tooltip_html(_prosp) if _n else ""
                 _cell_style = f"text-align:center;{_WP};{_BASE_TD_ch};background:{_bg};position:relative"
+                _n_cols = len(list(df_show["periodo_lbl"]))
+                _tip_cls = "ch-cell ch-tip-right" if _ri2 < _n_cols // 2 else "ch-cell"
                 if _tip:
                     _cells_ch += (
-                        f'<td style="{_cell_style}" class="ch-cell">'
+                        f'<td style="{_cell_style}" class="{_tip_cls}">'
                         f'{_n}{_tip}</td>'
                     )
                 else:
@@ -1363,6 +1365,7 @@ with tab_gral:
             'transform:translateY(-50%);background:#1e293b;color:#fff;'
             'border-radius:8px;padding:10px 14px;min-width:200px;max-width:280px;'
             'box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:normal;text-align:left}'
+            '.ch-tip-right .ch-tip{right:auto;left:calc(100% + 8px)}'
             '.ch-cell:hover .ch-tip{display:block}'
             '</style>'
             '<table style="table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:4px">'
