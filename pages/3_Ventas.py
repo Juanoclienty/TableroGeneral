@@ -609,8 +609,14 @@ if ultimos_4:
         grp    = df_vtas[df_vtas["_periodo"] == periodo]
         total  = grp["monto_num"].sum()
         n_v    = len(grp)
-        ticket = round(total / n_v) if n_v > 0 else 0
         label  = _lbl(periodo)
+
+        # $ Imp.: suma de LTV I; los sin dato usan $600 como estimado
+        _LTV_I_DEFAULT = 600
+        imp_total = sum(
+            _ltv_lookup.get(_norm_id_ltv(str(r.get("ID prospecto",""))), {}).get("impl", 0) or _LTV_I_DEFAULT
+            for _, r in grp.iterrows()
+        )
 
         # Fila 1
         n_pre  = int(_presu_por_periodo.get(periodo, 0) or 0)
@@ -637,7 +643,7 @@ if ultimos_4:
 
         ventas_txt  = "venta" if n_v == 1 else "ventas"
         total_str   = _fmt_m(total)
-        ticket_str  = _fmt_m(ticket)
+        imp_str     = _fmt_m(imp_total)
         n_pre_str   = _fmt_n(n_pre)
         leads_str   = _fmt_n(leads)
         inv_str     = _fmt_m(inv)
@@ -657,8 +663,8 @@ if ultimos_4:
             'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:4px">'
             f'<div><div style="opacity:.7">Presupuestos</div><div style="font-weight:600">{n_pre_str}</div></div>'
             f'<div><div style="opacity:.7">TC Real</div><div style="font-weight:600">{tc_real}</div></div>'
-            f'<div><div style="opacity:.7">Total</div><div style="font-weight:600">{total_str}</div></div>'
-            f'<div><div style="opacity:.7">Tkt medio</div><div style="font-weight:600">{ticket_str}</div></div>'
+            f'<div><div style="opacity:.7">$ recu.</div><div style="font-weight:600">{total_str}</div></div>'
+            f'<div><div style="opacity:.7">$ Imp.</div><div style="font-weight:600">{imp_str}</div></div>'
             '</div>'
             '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
             'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:4px">'
@@ -718,7 +724,8 @@ _col_src.markdown(
     f'style="color:#94a3b8;text-decoration:underline">tablero de marketing</a>.<br>'
     f'Canal de adquisición (referidos) proviene de la '
     f'<a href="https://docs.google.com/spreadsheets/d/{_ID_BBDD}/edit#gid=0" target="_blank" '
-    f'style="color:#94a3b8;text-decoration:underline">BBDD Ventas</a>.'
+    f'style="color:#94a3b8;text-decoration:underline">BBDD Ventas</a>.<br>'
+    f'$ Imp. = suma de LTV Implementación por venta; ventas sin factura cargada se estiman en $ 600.'
     '</div>',
     unsafe_allow_html=True,
 )
