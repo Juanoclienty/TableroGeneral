@@ -8,7 +8,7 @@ import base64
 import urllib.request
 import urllib.error
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 ID_CALENDLY_TRAB = "1jtP9lYjVRnxFkvd0kN4xV5B6AQPEeFxgtxIRh5v-cgs"
 _CREDS_PATH      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
@@ -273,10 +273,10 @@ def _leads_to_df(leads: list) -> pd.DataFrame:
 # ── Caché local (Parquet) ─────────────────────────────────────
 
 def _cache_vigente() -> bool:
-    if not os.path.exists(_CACHE_FILE) or not os.path.exists(_CACHE_DATE_FILE):
+    if not os.path.exists(_CACHE_FILE):
         return False
-    with open(_CACHE_DATE_FILE) as f:
-        return f.read().strip() == date.today().isoformat()
+    edad_horas = (datetime.now().timestamp() - os.path.getmtime(_CACHE_FILE)) / 3600
+    return edad_horas < 24
 
 def limpiar_cache():
     for f in [_CACHE_FILE, _CACHE_DATE_FILE]:
