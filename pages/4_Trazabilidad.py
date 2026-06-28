@@ -2069,6 +2069,7 @@ function openModal(idx){{
   h+='<div class="modal-field"><div class="modal-label">Mail</div><div class="modal-val">'+_esc(r.mail)+'</div></div>';
   document.getElementById('modal-content').innerHTML=h;
   document.getElementById('modal-overlay').classList.add('open');
+  window.scrollTo({{top:0,behavior:'instant'}});
 }}
 function closeModalBtn(){{document.getElementById('modal-overlay').classList.remove('open');}}
 function closeModal(e){{if(e.target===document.getElementById('modal-overlay'))closeModalBtn();}}
