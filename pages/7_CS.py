@@ -1511,7 +1511,6 @@ function filterClick(filter) {{
     if(key==='riesgo')document.getElementById('f-riesgo').value=val;
   }});
   applyFilters();
-  document.getElementById('ob-tbl-body').scrollIntoView({{behavior:'smooth',block:'start'}});
 }}
 
 function sortOb(i) {{
