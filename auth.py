@@ -69,8 +69,15 @@ def _verificar_password(plain: str, hashed: str) -> bool:
         return False
 
 
+_PERFILES_ABIERTOS = {
+    "Perfil.mkt.vtas": ("mkt_vtas",  "Mkt y Ventas"),
+    "Perfil.CS":        ("cs",        "CS"),
+    "Perfil.finanzas":  ("finanzas",  "Finanzas"),
+}
+
+
 def _cargar_usuarios() -> dict:
-    """Lee usuarios desde st.secrets['usuarios']."""
+    """Lee usuarios con contraseña desde st.secrets['usuarios']."""
     try:
         return dict(st.secrets.get("usuarios", {}))
     except Exception:
@@ -80,6 +87,8 @@ def _cargar_usuarios() -> dict:
 def login() -> bool:
     """
     Muestra pantalla de login si no hay sesión activa.
+    - Perfiles abiertos: solo nombre de usuario, sin contraseña.
+    - Perfil completo: usuario + contraseña.
     Retorna True si el usuario está autenticado.
     """
     if st.session_state.get("autenticado"):
@@ -116,22 +125,32 @@ def login() -> bool:
     with col:
         st.markdown('<div class="login-box">', unsafe_allow_html=True)
         st.markdown('<div class="login-title">Clienty Dashboard</div>', unsafe_allow_html=True)
-        st.markdown('<div class="login-sub">Ingresá tus credenciales para continuar</div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-sub">Ingresá tu usuario para continuar</div>', unsafe_allow_html=True)
 
-        usuario = st.text_input("Usuario", placeholder="tu_usuario")
-        password = st.text_input("Contraseña", type="password", placeholder="••••••••")
+        usuario  = st.text_input("Usuario", placeholder="tu_usuario")
+        password = st.text_input("Contraseña", type="password", placeholder="Solo para perfil completo")
 
         if st.button("Ingresar", use_container_width=True, type="primary"):
-            usuarios = _cargar_usuarios()
-            datos = usuarios.get(usuario)
-            if datos and _verificar_password(password, str(datos.get("password", ""))):
+            # Perfiles abiertos (sin contraseña)
+            if usuario in _PERFILES_ABIERTOS:
+                perfil, nombre = _PERFILES_ABIERTOS[usuario]
                 st.session_state["autenticado"] = True
                 st.session_state["usuario"]     = usuario
-                st.session_state["nombre"]      = str(datos.get("nombre", usuario))
-                st.session_state["perfil"]      = str(datos.get("perfil", "mkt_vtas"))
+                st.session_state["nombre"]      = nombre
+                st.session_state["perfil"]      = perfil
                 st.rerun()
             else:
-                st.error("Usuario o contraseña incorrectos.")
+                # Usuarios con contraseña (perfil completo)
+                usuarios = _cargar_usuarios()
+                datos = usuarios.get(usuario)
+                if datos and _verificar_password(password, str(datos.get("password", ""))):
+                    st.session_state["autenticado"] = True
+                    st.session_state["usuario"]     = usuario
+                    st.session_state["nombre"]      = str(datos.get("nombre", usuario))
+                    st.session_state["perfil"]      = str(datos.get("perfil", "completo"))
+                    st.rerun()
+                else:
+                    st.error("Usuario o contraseña incorrectos.")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
