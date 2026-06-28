@@ -1,0 +1,1025 @@
+{
+  "data": {
+    "boards": [
+      {
+        "items_page": {
+          "items": [
+            {
+              "id": "9202023494",
+              "name": "El Garage de Steve",
+              "group": {
+                "id": "group_mkrjp1ye",
+                "title": "Bajas"
+              },
+              "column_values": [
+                {
+                  "id": "subelementos",
+                  "text": null,
+                  "value": null,
+                  "type": "subtasks"
+                },
+                {
+                  "id": "formula_mm34h4q5",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "id8__1",
+                  "text": "11795135",
+                  "value": "\"11795135\"",
+                  "type": "text"
+                },
+                {
+                  "id": "estado_mkmsvvqn",
+                  "text": "BAJA",
+                  "value": "{\"index\":3,\"post_id\":null,\"changed_at\":\"2025-06-17T14:09:47.375Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "color_mkrbv7mj",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto4",
+                  "text": "Roberto Cayetano Egea",
+                  "value": "\"Roberto Cayetano Egea\"",
+                  "type": "text"
+                },
+                {
+                  "id": "fecha5",
+                  "text": "2025-05-22",
+                  "value": "{\"date\":\"2025-05-22\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "dup__of_mes__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "personas2",
+                  "text": "Juana Micheo",
+                  "value": "{\"personsAndTeams\":[{\"id\":63058028,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "multiple_person_mkpdxkr5",
+                  "text": "Guido Mareco",
+                  "value": "{\"changed_at\":\"2025-05-21T14:52:43.181Z\",\"personsAndTeams\":[{\"id\":63058026,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "n_meros7",
+                  "text": "1200",
+                  "value": "\"1200\"",
+                  "type": "numbers"
+                },
+                {
+                  "id": "texto",
+                  "text": "Nicolás",
+                  "value": "\"Nicolás\"",
+                  "type": "text"
+                },
+                {
+                  "id": "contact_details",
+                  "text": "nicoegea93@gmail.com",
+                  "value": "{\"text\":\"nicoegea93@gmail.com\",\"email\":\"nicoegea93@gmail.com\"}",
+                  "type": "email"
+                },
+                {
+                  "id": "status0",
+                  "text": "",
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "status7",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "rubro_mkmttagz",
+                  "text": "Hogar",
+                  "value": "\"Hogar\"",
+                  "type": "text"
+                },
+                {
+                  "id": "pain__1",
+                  "text": "Datos de clientes desorganizados en múltiples plataformas Falta de seguimiento automatizado con clientes potenciales Dificultad para gestionar el inventario en múltiples segmentos del negocio",
+                  "value": "\"Datos de clientes desorganizados en múltiples plataformas Falta de seguimiento automatizado con clientes potenciales Dificultad para gestionar el inventario en múltiples segmentos del negocio\"",
+                  "type": "text"
+                },
+                {
+                  "id": "color_mm1a9e2w",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto_largo7",
+                  "text": "nada",
+                  "value": "{\"text\":\"nada\"}",
+                  "type": "long_text"
+                },
+                {
+                  "id": "f_rmula8",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "pa_s",
+                  "text": "Argentina",
+                  "value": "{\"countryCode\":\"AR\",\"countryName\":\"Argentina\"}",
+                  "type": "country"
+                },
+                {
+                  "id": "tel_fono",
+                  "text": "541124958069",
+                  "value": "{\"phone\":\"541124958069\",\"countryShortName\":\"AR\"}",
+                  "type": "phone"
+                },
+                {
+                  "id": "tags",
+                  "text": "Sebas",
+                  "value": "{\"tag_ids\":[23361461]}",
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas03",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas_1",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "rating1",
+                  "text": "2",
+                  "value": "{\"rating\":2}",
+                  "type": "rating"
+                },
+                {
+                  "id": "dup__of_calidad",
+                  "text": "3",
+                  "value": "{\"rating\":3}",
+                  "type": "rating"
+                },
+                {
+                  "id": "fecha1",
+                  "text": "2025-06-02",
+                  "value": "{\"date\":\"2025-06-02\",\"changed_at\":\"2025-06-03T16:38:38.175Z\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "estado__1",
+                  "text": "Problema wapi",
+                  "value": "{\"index\":15,\"post_id\":null,\"changed_at\":\"2025-06-02T13:44:50.433Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "f_rmula__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "enlace_mkmtdb0f",
+                  "text": "https://elgaragedesteve.clienty.co",
+                  "value": "{\"url\":\"https://elgaragedesteve.clienty.co\",\"text\":\"https://elgaragedesteve.clienty.co\",\"changed_at\":null}",
+                  "type": "link"
+                },
+                {
+                  "id": "tag_mkrmc0d6",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                }
+              ]
+            },
+            {
+              "id": "8791390291",
+              "name": "confortwilly",
+              "group": {
+                "id": "group_mkrjp1ye",
+                "title": "Bajas"
+              },
+              "column_values": [
+                {
+                  "id": "subelementos",
+                  "text": null,
+                  "value": null,
+                  "type": "subtasks"
+                },
+                {
+                  "id": "formula_mm34h4q5",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "id8__1",
+                  "text": "3749068",
+                  "value": "\"3749068\"",
+                  "type": "text"
+                },
+                {
+                  "id": "estado_mkmsvvqn",
+                  "text": "OB",
+                  "value": "{\"index\":0,\"invalid\":false,\"changed_at\":\"2025-03-26T20:41:33.954Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "color_mkrbv7mj",
+                  "text": "Pide la baja",
+                  "value": "{\"index\":2,\"post_id\":null,\"changed_at\":\"2025-05-27T13:08:20.518Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "texto4",
+                  "text": "Hotubowski Jonatan Daniel",
+                  "value": "\"Hotubowski Jonatan Daniel\"",
+                  "type": "text"
+                },
+                {
+                  "id": "fecha5",
+                  "text": "2025-04-01",
+                  "value": "{\"date\":\"2025-04-01\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "dup__of_mes__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "personas2",
+                  "text": "Melina",
+                  "value": "{\"personsAndTeams\":[{\"id\":62731736,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "multiple_person_mkpdxkr5",
+                  "text": "Guido Mareco",
+                  "value": "{\"changed_at\":\"2025-03-26T20:41:36.380Z\",\"personsAndTeams\":[{\"id\":63058026,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "n_meros7",
+                  "text": "1200",
+                  "value": "\"1200\"",
+                  "type": "numbers"
+                },
+                {
+                  "id": "texto",
+                  "text": "Maria",
+                  "value": "\"Maria\"",
+                  "type": "text"
+                },
+                {
+                  "id": "contact_details",
+                  "text": "puntoonline@confortwilly.com",
+                  "value": "{\"text\":\"puntoonline@confortwilly.com\",\"email\":\"puntoonline@confortwilly.com\"}",
+                  "type": "email"
+                },
+                {
+                  "id": "status0",
+                  "text": "★★",
+                  "value": "{\"index\":2,\"post_id\":null,\"changed_at\":\"2025-03-27T21:20:10.138Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "status7",
+                  "text": "B2C",
+                  "value": "{\"index\":2,\"post_id\":null,\"changed_at\":\"2025-04-01T15:50:06.447Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "rubro_mkmttagz",
+                  "text": "Hogar",
+                  "value": "\"Hogar\"",
+                  "type": "text"
+                },
+                {
+                  "id": "pain__1",
+                  "text": "Pierden ventas por falta de organización y seguimiento.",
+                  "value": "\"Pierden ventas por falta de organización y seguimiento.\"",
+                  "type": "text"
+                },
+                {
+                  "id": "color_mm1a9e2w",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto_largo7",
+                  "text": "nada",
+                  "value": "{\"text\":\"nada\"}",
+                  "type": "long_text"
+                },
+                {
+                  "id": "f_rmula8",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "pa_s",
+                  "text": "Argentina",
+                  "value": "{\"countryCode\":\"AR\",\"countryName\":\"Argentina\"}",
+                  "type": "country"
+                },
+                {
+                  "id": "tel_fono",
+                  "text": "5491144398107",
+                  "value": "{\"phone\":\"5491144398107\",\"countryShortName\":\"AR\"}",
+                  "type": "phone"
+                },
+                {
+                  "id": "tags",
+                  "text": "Sebas",
+                  "value": "{\"tag_ids\":[23361461]}",
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas03",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas_1",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "rating1",
+                  "text": "1",
+                  "value": "{\"rating\":1}",
+                  "type": "rating"
+                },
+                {
+                  "id": "dup__of_calidad",
+                  "text": "3",
+                  "value": "{\"rating\":3}",
+                  "type": "rating"
+                },
+                {
+                  "id": "fecha1",
+                  "text": "2025-06-03",
+                  "value": "{\"date\":\"2025-06-03\",\"changed_at\":\"2025-06-03T17:57:01.662Z\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "estado__1",
+                  "text": "Problema wapi",
+                  "value": "{\"index\":15,\"post_id\":null,\"changed_at\":\"2025-06-03T15:46:43.201Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "f_rmula__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "enlace_mkmtdb0f",
+                  "text": "https://confortwilly.clienty.co",
+                  "value": "{\"url\":\"https://confortwilly.clienty.co\",\"text\":\"https://confortwilly.clienty.co\",\"changed_at\":\"2025-04-29T20:05:39.930Z\"}",
+                  "type": "link"
+                },
+                {
+                  "id": "tag_mkrmc0d6",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                }
+              ]
+            },
+            {
+              "id": "8509476908",
+              "name": "Grievas",
+              "group": {
+                "id": "group_mkrjp1ye",
+                "title": "Bajas"
+              },
+              "column_values": [
+                {
+                  "id": "subelementos",
+                  "text": null,
+                  "value": null,
+                  "type": "subtasks"
+                },
+                {
+                  "id": "formula_mm34h4q5",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "id8__1",
+                  "text": "9776235",
+                  "value": "\"9776235\"",
+                  "type": "text"
+                },
+                {
+                  "id": "estado_mkmsvvqn",
+                  "text": "OB",
+                  "value": "{\"index\":0,\"invalid\":false,\"changed_at\":\"2025-02-18T18:59:14.309Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "color_mkrbv7mj",
+                  "text": "Pide la baja",
+                  "value": "{\"index\":2,\"post_id\":null,\"changed_at\":\"2025-05-27T19:42:38.814Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "texto4",
+                  "text": "",
+                  "value": null,
+                  "type": "text"
+                },
+                {
+                  "id": "fecha5",
+                  "text": "2025-03-03",
+                  "value": "{\"date\":\"2025-03-03\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "dup__of_mes__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "personas2",
+                  "text": "Melina",
+                  "value": "{\"personsAndTeams\":[{\"id\":62731736,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "multiple_person_mkpdxkr5",
+                  "text": "Guido Mareco",
+                  "value": "{\"changed_at\":\"2025-03-26T16:20:08.552Z\",\"personsAndTeams\":[{\"id\":63058026,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "n_meros7",
+                  "text": "1200",
+                  "value": "\"1200\"",
+                  "type": "numbers"
+                },
+                {
+                  "id": "texto",
+                  "text": "María",
+                  "value": "\"María\"",
+                  "type": "text"
+                },
+                {
+                  "id": "contact_details",
+                  "text": "emymol@hotmail.com",
+                  "value": "{\"text\":\"emymol@hotmail.com\",\"email\":\"emymol@hotmail.com\"}",
+                  "type": "email"
+                },
+                {
+                  "id": "status0",
+                  "text": "★★★ Buyer",
+                  "value": "{\"index\":1,\"post_id\":null,\"changed_at\":\"2025-02-18T20:55:00.050Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "status7",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "rubro_mkmttagz",
+                  "text": "Maquinaria e insumos",
+                  "value": "\"Maquinaria e insumos\"",
+                  "type": "text"
+                },
+                {
+                  "id": "pain__1",
+                  "text": "seguimiento de clientes",
+                  "value": "\"seguimiento de clientes\"",
+                  "type": "text"
+                },
+                {
+                  "id": "color_mm1a9e2w",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto_largo7",
+                  "text": "no integracion con redes",
+                  "value": "{\"text\":\"no integracion con redes\"}",
+                  "type": "long_text"
+                },
+                {
+                  "id": "f_rmula8",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "pa_s",
+                  "text": "Argentina",
+                  "value": "{\"countryCode\":\"AR\",\"countryName\":\"Argentina\"}",
+                  "type": "country"
+                },
+                {
+                  "id": "tel_fono",
+                  "text": "541126550714",
+                  "value": "{\"phone\":\"541126550714\",\"countryShortName\":\"AR\"}",
+                  "type": "phone"
+                },
+                {
+                  "id": "tags",
+                  "text": "Meli",
+                  "value": "{\"tag_ids\":[23361463]}",
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas03",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas_1",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "rating1",
+                  "text": "3",
+                  "value": "{\"rating\":3}",
+                  "type": "rating"
+                },
+                {
+                  "id": "dup__of_calidad",
+                  "text": "2",
+                  "value": "{\"rating\":2}",
+                  "type": "rating"
+                },
+                {
+                  "id": "fecha1",
+                  "text": "2025-06-03",
+                  "value": "{\"date\":\"2025-06-03\",\"changed_at\":\"2025-06-03T18:00:58.560Z\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "estado__1",
+                  "text": "Problema wapi",
+                  "value": "{\"index\":15,\"post_id\":null,\"changed_at\":\"2025-06-03T15:48:06.401Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "f_rmula__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "enlace_mkmtdb0f",
+                  "text": "https://grievas.clienty.co",
+                  "value": "{\"url\":\"https://grievas.clienty.co\",\"text\":\"https://grievas.clienty.co\",\"changed_at\":\"2025-04-29T20:05:54.976Z\"}",
+                  "type": "link"
+                },
+                {
+                  "id": "tag_mkrmc0d6",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                }
+              ]
+            },
+            {
+              "id": "7251426735",
+              "name": "Palta sagrada",
+              "group": {
+                "id": "group_mkrjp1ye",
+                "title": "Bajas"
+              },
+              "column_values": [
+                {
+                  "id": "subelementos",
+                  "text": null,
+                  "value": null,
+                  "type": "subtasks"
+                },
+                {
+                  "id": "formula_mm34h4q5",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "id8__1",
+                  "text": "2216861",
+                  "value": "\"2216861\"",
+                  "type": "text"
+                },
+                {
+                  "id": "estado_mkmsvvqn",
+                  "text": "POB",
+                  "value": "{\"index\":1,\"post_id\":null,\"changed_at\":\"2025-05-12T20:35:56.816Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "color_mkrbv7mj",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto4",
+                  "text": "PALTA SAGRADA S.A.",
+                  "value": "\"PALTA SAGRADA S.A.\"",
+                  "type": "text"
+                },
+                {
+                  "id": "fecha5",
+                  "text": "2024-08-22",
+                  "value": "{\"date\":\"2024-08-22\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "dup__of_mes__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "personas2",
+                  "text": "Marcos Colil",
+                  "value": "{\"changed_at\":\"2025-04-15T17:58:05.633Z\",\"personsAndTeams\":[{\"id\":63058027,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "multiple_person_mkpdxkr5",
+                  "text": "Marcos Colil",
+                  "value": "{\"changed_at\":\"2025-04-24T15:02:58.586Z\",\"personsAndTeams\":[{\"id\":63058027,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "n_meros7",
+                  "text": "1200",
+                  "value": "\"1200\"",
+                  "type": "numbers"
+                },
+                {
+                  "id": "texto",
+                  "text": "Guillermo",
+                  "value": "\"Guillermo\"",
+                  "type": "text"
+                },
+                {
+                  "id": "contact_details",
+                  "text": "gap@paltasagrada.com",
+                  "value": "{\"text\":\"gap@paltasagrada.com\",\"email\":\"gap@paltasagrada.com\"}",
+                  "type": "email"
+                },
+                {
+                  "id": "status0",
+                  "text": "★★★ Buyer",
+                  "value": "{\"index\":1,\"post_id\":null,\"changed_at\":\"2024-08-19T18:24:54.269Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "status7",
+                  "text": "Ambos",
+                  "value": "{\"index\":0,\"post_id\":null,\"changed_at\":\"2024-08-19T18:25:20.771Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "rubro_mkmttagz",
+                  "text": "Alimentos",
+                  "value": "\"Alimentos\"",
+                  "type": "text"
+                },
+                {
+                  "id": "pain__1",
+                  "text": "wapi, email marketing",
+                  "value": "\"wapi, email marketing\"",
+                  "type": "text"
+                },
+                {
+                  "id": "color_mm1a9e2w",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto_largo7",
+                  "text": "nada",
+                  "value": "{\"text\":\"nada\"}",
+                  "type": "long_text"
+                },
+                {
+                  "id": "f_rmula8",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "pa_s",
+                  "text": "Argentina",
+                  "value": "{\"countryCode\":\"AR\",\"countryName\":\"Argentina\"}",
+                  "type": "country"
+                },
+                {
+                  "id": "tel_fono",
+                  "text": "541131256572",
+                  "value": "{\"phone\":\"541131256572\",\"countryShortName\":\"AR\"}",
+                  "type": "phone"
+                },
+                {
+                  "id": "tags",
+                  "text": "pablo",
+                  "value": "{\"tag_ids\":[23361482]}",
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas03",
+                  "text": "FBADS",
+                  "value": "{\"tag_ids\":[23361484]}",
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas_1",
+                  "text": "13",
+                  "value": "{\"tag_ids\":[23361524]}",
+                  "type": "tags"
+                },
+                {
+                  "id": "rating1",
+                  "text": "3",
+                  "value": "{\"rating\":3}",
+                  "type": "rating"
+                },
+                {
+                  "id": "dup__of_calidad",
+                  "text": "2",
+                  "value": "{\"rating\":2}",
+                  "type": "rating"
+                },
+                {
+                  "id": "fecha1",
+                  "text": "2025-06-03",
+                  "value": "{\"date\":\"2025-06-03\",\"changed_at\":\"2025-06-03T21:14:00.806Z\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "estado__1",
+                  "text": "No le gusto el producto",
+                  "value": "{\"index\":10,\"post_id\":null,\"changed_at\":\"2025-05-30T13:10:05.992Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "f_rmula__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "enlace_mkmtdb0f",
+                  "text": "https://paltasagrada.clienty.co - https://paltasagrada.clienty.co/",
+                  "value": "{\"url\":\"https://paltasagrada.clienty.co/\",\"text\":\"https://paltasagrada.clienty.co\",\"changed_at\":\"2025-07-28T18:31:37.659Z\"}",
+                  "type": "link"
+                },
+                {
+                  "id": "tag_mkrmc0d6",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                }
+              ]
+            },
+            {
+              "id": "6967794336",
+              "name": "Personal Travel",
+              "group": {
+                "id": "group_mkrjp1ye",
+                "title": "Bajas"
+              },
+              "column_values": [
+                {
+                  "id": "subelementos",
+                  "text": null,
+                  "value": null,
+                  "type": "subtasks"
+                },
+                {
+                  "id": "formula_mm34h4q5",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "id8__1",
+                  "text": "1008659",
+                  "value": "\"1008659\"",
+                  "type": "text"
+                },
+                {
+                  "id": "estado_mkmsvvqn",
+                  "text": "POB",
+                  "value": "{\"index\":1,\"post_id\":null,\"changed_at\":\"2025-02-02T23:19:18.948Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "color_mkrbv7mj",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto4",
+                  "text": "PERSONAL TRAVEL SRL",
+                  "value": "\"PERSONAL TRAVEL SRL\"",
+                  "type": "text"
+                },
+                {
+                  "id": "fecha5",
+                  "text": "2024-02-05",
+                  "value": "{\"date\":\"2024-02-05\",\"changed_at\":\"2024-02-05T12:44:42.926Z\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "dup__of_mes__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "personas2",
+                  "text": "Juana Micheo",
+                  "value": "{\"changed_at\":\"2024-11-21T16:22:08.633Z\",\"personsAndTeams\":[{\"id\":63058028,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "multiple_person_mkpdxkr5",
+                  "text": "Marcos Colil",
+                  "value": "{\"changed_at\":\"2025-03-26T16:21:26.828Z\",\"personsAndTeams\":[{\"id\":63058027,\"kind\":\"person\"}]}",
+                  "type": "people"
+                },
+                {
+                  "id": "n_meros7",
+                  "text": "1",
+                  "value": "\"1\"",
+                  "type": "numbers"
+                },
+                {
+                  "id": "texto",
+                  "text": "Ana",
+                  "value": "\"Ana\"",
+                  "type": "text"
+                },
+                {
+                  "id": "contact_details",
+                  "text": "gerencia@personaltravel.com.uy",
+                  "value": "{\"text\":\"gerencia@personaltravel.com.uy\",\"email\":\"gerencia@personaltravel.com.uy\",\"changed_at\":\"2021-12-23T13:32:48.427Z\"}",
+                  "type": "email"
+                },
+                {
+                  "id": "status0",
+                  "text": "★★★ Buyer",
+                  "value": "{\"index\":1,\"post_id\":null,\"changed_at\":\"2024-07-29T22:38:59.515Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "status7",
+                  "text": "B2C",
+                  "value": "{\"index\":2,\"post_id\":null,\"changed_at\":\"2024-07-29T22:39:02.338Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "rubro_mkmttagz",
+                  "text": "Turismo",
+                  "value": "\"Turismo\"",
+                  "type": "text"
+                },
+                {
+                  "id": "pain__1",
+                  "text": "",
+                  "value": "\"\"",
+                  "type": "text"
+                },
+                {
+                  "id": "color_mm1a9e2w",
+                  "text": null,
+                  "value": null,
+                  "type": "status"
+                },
+                {
+                  "id": "texto_largo7",
+                  "text": "",
+                  "value": null,
+                  "type": "long_text"
+                },
+                {
+                  "id": "f_rmula8",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "pa_s",
+                  "text": "Uruguay",
+                  "value": "{\"changed_at\":\"2021-12-23T13:32:54.805Z\",\"countryCode\":\"UY\",\"countryName\":\"Uruguay\"}",
+                  "type": "country"
+                },
+                {
+                  "id": "tel_fono",
+                  "text": "59899545196",
+                  "value": "{\"phone\":\"59899545196\",\"changed_at\":\"2021-12-23T13:33:16.680Z\",\"countryShortName\":\"UY\"}",
+                  "type": "phone"
+                },
+                {
+                  "id": "tags",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas03",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "etiquetas_1",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                },
+                {
+                  "id": "rating1",
+                  "text": "",
+                  "value": null,
+                  "type": "rating"
+                },
+                {
+                  "id": "dup__of_calidad",
+                  "text": "",
+                  "value": null,
+                  "type": "rating"
+                },
+                {
+                  "id": "fecha1",
+                  "text": "2025-06-03",
+                  "value": "{\"date\":\"2025-06-03\",\"changed_at\":\"2025-06-03T21:14:47.083Z\"}",
+                  "type": "date"
+                },
+                {
+                  "id": "estado__1",
+                  "text": "Problema wapi",
+                  "value": "{\"index\":15,\"post_id\":null,\"changed_at\":\"2025-06-03T20:35:29.940Z\"}",
+                  "type": "status"
+                },
+                {
+                  "id": "f_rmula__1",
+                  "text": "",
+                  "value": null,
+                  "type": "formula"
+                },
+                {
+                  "id": "enlace_mkmtdb0f",
+                  "text": "https://personaltravel.clienty.co",
+                  "value": "{\"url\":\"https://personaltravel.clienty.co\",\"text\":\"https://personaltravel.clienty.co\",\"changed_at\":\"2025-04-29T20:09:21.058Z\"}",
+                  "type": "link"
+                },
+                {
+                  "id": "tag_mkrmc0d6",
+                  "text": "",
+                  "value": null,
+                  "type": "tags"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "extensions": {
+    "request_id": "ee5cc16e-8677-99e7-8673-cc468b316b92"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "weekly": {
+    "2026-06-15": {
+      "Clientes en OB": 37,
+      "OB en SLA (≤30d)": 15,
+      "OB fuera de SLA (>30d)": 13
+    }
+  },
+  "monthly": {}
+}

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v1.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v1.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v2.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v2.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v3.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v3.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v4.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v4.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v5.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v5.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v6.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v6.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v7.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v7.date\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v8.parquet\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\cache\\\\df_crm_v8.date\")",
+      "Bash(pip install *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('C:/Users/rjuan/dashboard/pages/8_T90.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(curl -s \"https://docs.google.com/spreadsheets/d/1YqA-KxXDdWK6Xj0ftQ6Z5MUEDWpJq9rLzoa_KvqIBdk/gviz/tq?tqx=out:csv&sheet=Comentarios%20forecast\")",
+      "Read(//c/Users/rjuan/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/9d546099-d6da-4ced-bd7c-8bc20f57163c/83ecc027-6ad1-427c-a728-4c90014ef692/skills/xlsx/**)",
+      "Bash(curl -s \"https://docs.google.com/spreadsheets/d/1Oto16BeUmohfjWlzGeH-Nj0d3RMmZLG17ZSPd93ePA8/gviz/tq?tqx=out:csv&sheet=BBDD_R1\")",
+      "Bash(curl -s \"https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M/gviz/tq?tqx=out:csv&sheet=bbdd_presupuestos\")",
+      "Bash(where streamlit *)",
+      "Bash(python -m streamlit --version)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(python -m py_compile \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\pages\\\\4_Trazabilidad.py\")",
+      "Bash(python -m py_compile \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\pages\\\\9_Estado_Resultados.py\")",
+      "Bash(python -m py_compile \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\pages\\\\7_CS.py\")",
+      "Bash(python -m py_compile \"C:/Users/rjuan/dashboard/pages/3_Ventas.py\")",
+      "Bash(python -m py_compile \"C:/Users/rjuan/dashboard/pages/4_Trazabilidad.py\")",
+      "Bash(python -m py_compile \"C:/Users/rjuan/dashboard/pages/9_Estado_Resultados.py\")",
+      "Bash(grep -n \"min-width\\\\|font-size.*0\\\\\\\\.7\\\\|font-size.*0\\\\\\\\.8\\\\|padding:5px\\\\|padding:6px\\\\|white-space:nowrap\" \"C:\\\\Users\\\\rjuan\\\\dashboard\\\\pages\\\\9_Estado_Resultados.py\")",
+      "Bash(pip freeze *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)"
+    ]
+  }
+}
