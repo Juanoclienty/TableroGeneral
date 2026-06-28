@@ -86,9 +86,14 @@ _URL_HIST = f"https://docs.google.com/spreadsheets/d/{_ID_HIST}/edit?usp=sharing
 @st.cache_data(ttl=3600)
 def _cargar_tabla_hist() -> dict:
     """Devuelve {(year, month): {ventas, publicidad, cpv}} desde el sheet Histórico."""
-    url = f"https://docs.google.com/spreadsheets/d/{_ID_HIST}/gviz/tq?tqx=out:csv"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    df  = pd.read_csv(io.StringIO(urllib.request.urlopen(req, timeout=15).read().decode("utf-8")))
+    import os
+    _cache_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", "historico.parquet")
+    if os.path.exists(_cache_path):
+        df = pd.read_parquet(_cache_path)
+    else:
+        url = f"https://docs.google.com/spreadsheets/d/{_ID_HIST}/gviz/tq?tqx=out:csv"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        df  = pd.read_csv(io.StringIO(urllib.request.urlopen(req, timeout=15).read().decode("utf-8")))
     # parse "MM/YYYY" → (year, month)
     out = {}
     for _, row in df.iterrows():

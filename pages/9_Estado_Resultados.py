@@ -43,8 +43,23 @@ def _pct(v, base):
 # ── loaders ──────────────────────────────────────────────────────────────────
 
 def _fetch_full(sheet_id, tab):
-    """Fetch all rows including grouped/hidden via range parameter."""
-    import urllib.parse as _up
+    """Fetch all rows — reads from local parquet cache if available."""
+    import os, pandas as pd, urllib.parse as _up
+    _cache_names = {
+        "Real 2026":                  "er_Real_2026.parquet",
+        "Real 2025":                  "er_Real_2025.parquet",
+        "Unificado real 2025-2026":   "er_Unificado_real_2025_2026.parquet",
+    }
+    cache_file = _cache_names.get(tab)
+    if cache_file:
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", cache_file)
+        if os.path.exists(path):
+            df = pd.read_parquet(path)
+            # reconstruct rows as list of lists (header + data)
+            rows = [list(df.columns)]
+            for _, row in df.iterrows():
+                rows.append([str(v) if v == v else "" for v in row])
+            return rows
     url = (f"https://docs.google.com/spreadsheets/d/{sheet_id}"
            f"/gviz/tq?tqx=out:csv&sheet={_up.quote(tab)}&range=A1:Z300")
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})

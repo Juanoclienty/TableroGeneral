@@ -80,19 +80,28 @@ def _merge_ads_y_costos(df: pd.DataFrame, ads_grp: pd.DataFrame, key: str) -> pd
 # FUNCIONES DE CARGA
 # ============================================================
 
+def _leer_cache(filename: str):
+    """Lee un parquet pre-cacheado si existe, sino retorna None."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", filename)
+    if os.path.exists(path):
+        return pd.read_parquet(path)
+    return None
+
+
 def cargar_calendly() -> pd.DataFrame:
-    # Lee la sheet trabajada (tiene "Tipo calendly" ya mapeado)
-    try:
-        from google.oauth2.service_account import Credentials
-        import gspread
-        creds = Credentials.from_service_account_file(
-            _CREDS_PATH,
-            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
-        )
-        ws = gspread.authorize(creds).open_by_key(ID_CALENDLY_TRAB).get_worksheet(0)
-        df = pd.DataFrame(ws.get_all_records())
-    except Exception:
-        df = _leer_sheet(URL_CALENDLY)
+    df = _leer_cache("sheet_calendly.parquet")
+    if df is None:
+        try:
+            from google.oauth2.service_account import Credentials
+            import gspread
+            creds = Credentials.from_service_account_file(
+                _CREDS_PATH,
+                scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+            )
+            ws = gspread.authorize(creds).open_by_key(ID_CALENDLY_TRAB).get_worksheet(0)
+            df = pd.DataFrame(ws.get_all_records())
+        except Exception:
+            df = _leer_sheet(URL_CALENDLY)
 
     df["fecha_lead"]    = pd.to_datetime(df.get("Fecha Lead"), dayfirst=True, errors="coerce")
     df["semana_inicio"] = df["fecha_lead"] - pd.to_timedelta(df["fecha_lead"].dt.dayofweek, unit="D")
@@ -102,7 +111,7 @@ def cargar_calendly() -> pd.DataFrame:
 
 
 def cargar_ads() -> pd.DataFrame:
-    df = _leer_sheet(URL_ADS)
+    df = _leer_cache("sheet_ads.parquet") or _leer_sheet(URL_ADS)
     df["fecha"]         = pd.to_datetime(df["Fecha"], dayfirst=True, errors="coerce")
     df["inversion"]     = _limpiar_monto(df["Inversión total"])
     df["semana_inicio"] = df["fecha"] - pd.to_timedelta(df["fecha"].dt.dayofweek, unit="D")
