@@ -94,6 +94,15 @@ def login() -> bool:
     if st.session_state.get("autenticado"):
         return True
 
+    # En local saltear login automáticamente con perfil completo
+    import os
+    if os.environ.get("STREAMLIT_SHARING_MODE") != "streamlit_sharing":
+        st.session_state["autenticado"] = True
+        st.session_state["usuario"]     = "local"
+        st.session_state["nombre"]      = "Local"
+        st.session_state["perfil"]      = "completo"
+        return True
+
     st.markdown("""
     <style>
     section[data-testid="stSidebar"] { display: none !important; }
