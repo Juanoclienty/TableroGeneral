@@ -2,6 +2,7 @@
 app.py — Shell de navegación del Dashboard Clienty.
 """
 import streamlit as st
+from auth import login, logout, paginas_para_perfil, usuario_actual
 
 st.set_page_config(
     page_title="Clienty — Hub",
@@ -10,12 +11,22 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Ocultar "Actualizar BD" del sidebar + evitar colapso en reruns
+# ── Autenticación ─────────────────────────────────────────────────────────────
+if not login():
+    st.stop()
+
+# ── Sidebar: usuario + logout ─────────────────────────────────────────────────
+u = usuario_actual()
+with st.sidebar:
+    st.markdown(f"**{u['nombre']}**")
+    st.caption(u["perfil"].replace("_", " ").title())
+    if st.button("Cerrar sesión", use_container_width=True):
+        logout()
+
+# ── Navegación según perfil ───────────────────────────────────────────────────
 st.markdown("""
 <style>
 li:has(a[href*="Actualizar_BD"]) { display: none !important; }
-
-/* Mantener sidebar visible aunque aria-expanded sea false */
 section[data-testid="stSidebar"][aria-expanded="false"] {
     margin-left: 0 !important;
     visibility: visible !important;
@@ -26,18 +37,5 @@ section[data-testid="stSidebar"][aria-expanded="false"] > div {
 </style>
 """, unsafe_allow_html=True)
 
-pg = st.navigation([
-    st.Page("home.py",                   title="app",          icon="🏠", default=True),
-    st.Page("pages/1_Marketing.py",      title="Marketing",    icon="📈"),
-    st.Page("pages/3_Ventas.py",         title="Ventas",       icon="💼"),
-    st.Page("pages/4_Trazabilidad.py",   title="Trazabilidad", icon="🔍"),
-    st.Page("pages/5_VGF.py",            title="VGF",          icon="🎯"),
-    st.Page("pages/6_LTV.py",            title="LTV",          icon="💰"),
-    st.Page("pages/7_CS.py",             title="CS",           icon="🤝"),
-    st.Page("pages/8_T90.py",               title="T90",            icon="📊"),
-    st.Page("pages/9_Estado_Resultados.py", title="Est. Resultados", icon="📋"),
-    st.Page("pages/10_Historico.py",        title="Histórico",       icon="📅"),
-    st.Page("pages/2_Actualizar_BD.py",     title="Actualizar BD",   icon="🔄"),
-])
-
+pg = st.navigation(paginas_para_perfil(u["perfil"]))
 pg.run()
