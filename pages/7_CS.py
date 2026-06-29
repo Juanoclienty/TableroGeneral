@@ -1294,7 +1294,7 @@ with tab_ob:
             _etapas_all = list(_df_ob["etapa"].unique())
             _etapas = [e for e in _ETAPA_ORDER if e in _etapas_all] + \
                       [e for e in sorted(_etapas_all) if e not in _ETAPA_ORDER]
-            _ob_json    = _json_ob.dumps(_df_ob.to_dict(orient="records"), ensure_ascii=False)
+            _ob_json    = _json_ob.dumps(_df_ob.to_dict(orient="records"), ensure_ascii=True)
 
             # ── helpers de celda ────────────────────────────────
             def _td_num(n, filt, cls_bg, bold=False):
