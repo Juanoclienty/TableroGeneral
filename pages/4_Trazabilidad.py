@@ -2341,7 +2341,7 @@ with tab_closer:
 
         # body_combined is now built in JS — keep period labels for JS
         _periods_list = [_p_strs[p] for p in _periodos]
-        _periods_json = _json.dumps(_periods_list, ensure_ascii=False)
+        _periods_json = _json.dumps(_periods_list, ensure_ascii=True)
         _n_cols_js    = len(_periodos) + 3
 
         _det_rows = []
@@ -2360,7 +2360,7 @@ with tab_closer:
                 "cc":          str(_cc_lkp.get(str(r.get("ID","") or "").strip(), "") or ""),
             })
 
-        _det_json  = _json.dumps(_det_rows, ensure_ascii=False)
+        _det_json  = _json.dumps(_det_rows, ensure_ascii=True).replace("</", "<\\/")
         _total_r   = len(_det_rows)
         _n_blue    = 5
         _n_green   = 4
@@ -2413,13 +2413,15 @@ td[data-filter]:hover{{opacity:.75}}
 <tbody id="det-body"></tbody>
 </table>
 </div>
+<script id="d-all" type="application/json">{_det_json}</script>
+<script id="d-per" type="application/json">{_periods_json}</script>
 <script>
-var _all={_det_json};
+var _all=JSON.parse(document.getElementById('d-all').textContent);
 var _cur=_all.slice();
 var _openIdx=-1;
 var _ccFilter='all';
 var _tableFilter=null;
-var _periods={_periods_json};
+var _periods=JSON.parse(document.getElementById('d-per').textContent);
 var _nCols={_n_cols_js};
 
 function _esc(s){{return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}}
