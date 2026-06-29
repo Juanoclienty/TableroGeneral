@@ -683,12 +683,41 @@ def cargar_presupuestos_semanas() -> dict:
     return {ts.normalize(): int(c) for ts, c in counts.items()}
 
 
-_BOARD_OB    = "18390960078"
-_GROUP_OB    = "topics"
-_COL_INICIO  = "date_mkyq9yq5"
-_COL_ETAPA   = "color_mkzdxkxs"
-_COL_ESTRAT  = "personas_mkm2txzr"
-_COL_RIESGO  = "color_mkyxb835"
+_BOARD_OB          = "18390960078"
+_GROUP_OB          = "topics"
+_COL_INICIO        = "date_mkyq9yq5"
+_COL_ETAPA         = "color_mkzdxkxs"
+_COL_ESTRAT        = "personas_mkm2txzr"
+_COL_RIESGO        = "color_mkyxb835"
+_COL_MOTIVO_RIESGO = "color_mm168av2"
+_COL_NOTAS         = "long_text_mm1ye19k"
+_COL_RUBRO         = "reflejo6"
+_COL_SUBRUBRO      = "text_mm16rqy6"
+_COL_COM_LLAMADO   = "long_text_mm25mjnq"
+_COL_CARGA_AUTO    = "carga_autom_tica"
+_COL_WAPBOT        = "color_mm0q5wwf"
+_COL_BOT           = "date_mm1chftg"
+_COL_COM_BOT       = "long_text_mm25afqz"
+_COL_BBDD          = "bbdd"
+_COL_OB1           = "estado_mkkfw7ch"
+_COL_DISENO        = "color_mkyaf45s"
+_COL_COM_GRAFICO   = "long_text_mm253sey"
+_COL_ESTADOS       = "dup__of_cambia_estados__1"
+_COL_OB2           = "color_mks7k4q0"
+_COL_OB2_SEC       = "color_mkyavnp7"
+_COL_AUTOMATIONS   = "estado"
+_COL_OB3           = "color_mm1gen1n"
+_COL_CAP_VEND      = "estado_mkkfmnt6"
+_COL_OB4           = "estado_mkkf9qbv"
+_COL_OB5           = "color_mkyxnbyd"
+_COL_M1            = "color_mkyxjwt1"
+_COL_VENDEDORES    = "estado__1"
+_COL_B2B           = "dup__of_rubro"
+_COL_TIPO_CLI      = "dup__of_b2b___b2c"
+_COL_LINK_DRIVE    = "enlace__1"
+_COL_LINK_CRM      = "dup__of_mes_mkn1krsj"
+_COL_PAIN          = "dup__of_contras__1"
+_COL_COM_FINALES   = "long_text_mkyxrph7"
 
 
 @_st.cache_data(ttl=86400, show_spinner=False)
@@ -746,7 +775,16 @@ def cargar_ob_detalle() -> "pd.DataFrame":
     Devuelve un DataFrame con una fila por cliente en OB.
     Columnas: nombre, estratega, etapa, dias, sla
     """
-    cols_ids = [_COL_INICIO, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO]
+    cols_ids = [
+        _COL_INICIO, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
+        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_RUBRO, _COL_SUBRUBRO,
+        _COL_COM_LLAMADO, _COL_CARGA_AUTO, _COL_WAPBOT, _COL_BOT, _COL_COM_BOT,
+        _COL_BBDD, _COL_OB1, _COL_DISENO, _COL_COM_GRAFICO, _COL_ESTADOS,
+        _COL_OB2, _COL_OB2_SEC, _COL_AUTOMATIONS, _COL_OB3, _COL_CAP_VEND,
+        _COL_OB4, _COL_OB5, _COL_M1,
+        _COL_VENDEDORES, _COL_B2B, _COL_TIPO_CLI, _COL_LINK_DRIVE,
+        _COL_LINK_CRM, _COL_PAIN, _COL_COM_FINALES,
+    ]
     fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ id text }}'
     q = (
         f'{{ boards(ids: [{_BOARD_OB}]) {{'
@@ -783,14 +821,44 @@ def cargar_ob_detalle() -> "pd.DataFrame":
         sla = None
         if dias is not None:
             sla = "≤30d" if dias <= 30 else ">30d"
+        def _cv(col): return cv.get(col, "") or ""
         filas.append({
-            "nombre":    item.get("name", ""),
-            "estratega": estratega,
-            "etapa":     etapa,
-            "inicio":    inicio or "—",
-            "dias":      dias if dias is not None else "—",
-            "sla":       sla or "Sin fecha",
-            "riesgo":    riesgo,
+            "nombre":        item.get("name", ""),
+            "estratega":     estratega,
+            "etapa":         etapa,
+            "inicio":        inicio or "—",
+            "dias":          dias if dias is not None else "—",
+            "sla":           sla or "Sin fecha",
+            "riesgo":        riesgo,
+            "motivo_riesgo": _cv(_COL_MOTIVO_RIESGO),
+            "notas":         _cv(_COL_NOTAS),
+            "rubro":         _cv(_COL_RUBRO),
+            "subrubro":      _cv(_COL_SUBRUBRO),
+            "com_llamado":   _cv(_COL_COM_LLAMADO),
+            "carga_auto":    _cv(_COL_CARGA_AUTO),
+            "wapbot":        _cv(_COL_WAPBOT),
+            "bot":           _cv(_COL_BOT),
+            "com_bot":       _cv(_COL_COM_BOT),
+            "bbdd":          _cv(_COL_BBDD),
+            "ob1":           _cv(_COL_OB1),
+            "diseno":        _cv(_COL_DISENO),
+            "com_grafico":   _cv(_COL_COM_GRAFICO),
+            "estados":       _cv(_COL_ESTADOS),
+            "ob2":           _cv(_COL_OB2),
+            "ob2_sec":       _cv(_COL_OB2_SEC),
+            "automations":   _cv(_COL_AUTOMATIONS),
+            "ob3":           _cv(_COL_OB3),
+            "cap_vend":      _cv(_COL_CAP_VEND),
+            "ob4":           _cv(_COL_OB4),
+            "ob5":           _cv(_COL_OB5),
+            "m1":            _cv(_COL_M1),
+            "vendedores":    _cv(_COL_VENDEDORES),
+            "b2b":           _cv(_COL_B2B),
+            "tipo_cli":      _cv(_COL_TIPO_CLI),
+            "link_drive":    _cv(_COL_LINK_DRIVE),
+            "link_crm":      _cv(_COL_LINK_CRM),
+            "pain":          _cv(_COL_PAIN),
+            "com_finales":   _cv(_COL_COM_FINALES),
         })
     return pd.DataFrame(filas)
 
