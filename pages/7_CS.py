@@ -378,7 +378,7 @@ _DET_DIV = (
 )
 
 _IFRAME_JS_TMPL = """
-var _SKEYS=['fis','fbs','mr','ltv','ltvi','rec'];
+var _SKEYS=['fis','fbs','mr','ltv','ltvi','tkt','rec'];
 var _lastRows=[], _sortIdx=-1, _sortDir=1;
 function _ivl(m){
   if(m==null)return null;
@@ -430,13 +430,20 @@ function renderDet(rows){
       +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(2)">Meses'+_arr(2)+'</th>'
       +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(3)">LTV T'+_arr(3)+'</th>'
       +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(4)">LTV I'+_arr(4)+'</th>'
-      +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(5)">Recurrente'+_arr(5)+'</th>'
+      +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(5)">Tkt Prom'+_arr(5)+'</th>'
+      +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(6)">Recurrente'+_arr(6)+'</th>'
       +'</tr></thead><tbody>';
     for(var i=0;i<rows.length;i++){
       var r=rows[i],bg=i%2?'#fff':'#f8f9fa';
       var ltvStr =r.ltv !=null?'$'+r.ltv.toLocaleString('es-AR'):'-';
       var ltviStr=r.ltvi!=null?'$'+r.ltvi.toLocaleString('es-AR'):'-';
       var recStr =r.rec !=null?'$'+r.rec.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2}):'-';
+      var tktStr='-';
+      if(r.ltv!=null&&r.mr!=null){
+        var mFloor=Math.max(1,Math.floor(r.mr));
+        var tkt=Math.round((r.ltv-(r.ltvi||0))/mFloor);
+        tktStr='$'+tkt.toLocaleString('es-AR');
+      }
       h+='<tr style="background:'+bg+'">'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee">'+(r.id||'-')+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee">'+r.nom+'</td>'
@@ -445,6 +452,7 @@ function renderDet(rows){
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+(r.mr!=null?Math.round(r.mr*10)/10+'m':'-')+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+ltvStr+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+ltviStr+'</td>'
+        +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+tktStr+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+recStr+'</td>'
         +'</tr>';
     }
