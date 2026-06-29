@@ -1987,7 +1987,7 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 .count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px;display:inline-block}}
 </style>
 </head><body>
-<table style="margin-bottom:12px"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
+<table style="margin-bottom:12px;width:100%;table-layout:auto"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
 <div style="display:flex;align-items:center;margin:10px 0 4px">
 <div class="count" id="det-count"></div>
 </div>
