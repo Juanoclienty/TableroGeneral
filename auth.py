@@ -129,32 +129,39 @@ def login() -> bool:
     with col:
         st.markdown('<div class="login-box">', unsafe_allow_html=True)
         st.markdown('<div class="login-title">Clienty Dashboard</div>', unsafe_allow_html=True)
-        st.markdown('<div class="login-sub">Ingresá tu usuario para continuar</div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-sub">Seleccioná tu perfil para continuar</div>', unsafe_allow_html=True)
 
-        usuario  = st.text_input("Usuario", placeholder="tu_usuario")
-        password = st.text_input("Contraseña", type="password", placeholder="Solo para perfil completo")
-
-        if st.button("Ingresar", use_container_width=True, type="primary"):
-            # Perfiles abiertos (sin contraseña)
-            if usuario in _PERFILES_ABIERTOS:
-                perfil, nombre = _PERFILES_ABIERTOS[usuario]
+        # Botones de un click para perfiles abiertos
+        _LABELS = {
+            "Perfil.mkt.vtas": "📈  Mkt y Ventas",
+            "Perfil.CS":       "🤝  CS",
+            "Perfil.finanzas": "💰  Finanzas",
+        }
+        for key, label in _LABELS.items():
+            if st.button(label, use_container_width=True):
+                perfil, nombre = _PERFILES_ABIERTOS[key]
                 st.session_state["autenticado"] = True
-                st.session_state["usuario"]     = usuario
+                st.session_state["usuario"]     = key
                 st.session_state["nombre"]      = nombre
                 st.session_state["perfil"]      = perfil
                 st.rerun()
+
+        st.markdown("<hr style='margin:20px 0;border-color:#f0f0f0'>", unsafe_allow_html=True)
+
+        # Login con contraseña para perfil completo
+        usuario  = st.text_input("Usuario", placeholder="usuario")
+        password = st.text_input("Contraseña", type="password", placeholder="contraseña")
+        if st.button("Ingresar", use_container_width=True, type="primary"):
+            usuarios = _cargar_usuarios()
+            datos = usuarios.get(usuario)
+            if datos and _verificar_password(password, str(datos.get("password", ""))):
+                st.session_state["autenticado"] = True
+                st.session_state["usuario"]     = usuario
+                st.session_state["nombre"]      = str(datos.get("nombre", usuario))
+                st.session_state["perfil"]      = str(datos.get("perfil", "completo"))
+                st.rerun()
             else:
-                # Usuarios con contraseña (perfil completo)
-                usuarios = _cargar_usuarios()
-                datos = usuarios.get(usuario)
-                if datos and _verificar_password(password, str(datos.get("password", ""))):
-                    st.session_state["autenticado"] = True
-                    st.session_state["usuario"]     = usuario
-                    st.session_state["nombre"]      = str(datos.get("nombre", usuario))
-                    st.session_state["perfil"]      = str(datos.get("perfil", "completo"))
-                    st.rerun()
-                else:
-                    st.error("Usuario o contraseña incorrectos.")
+                st.error("Usuario o contraseña incorrectos.")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
