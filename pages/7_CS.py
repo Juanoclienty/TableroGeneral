@@ -1783,7 +1783,102 @@ with tab_baj:
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     st.markdown("### Bajas por cohorte de baja")
 
+    # ══════════════════════════════════════════════════════════
+    #  TABLA 1: Cohorte de baja × intervalo de duración
+    # ══════════════════════════════════════════════════════════
+
+    st.markdown("#### Por cohorte de baja e intervalo de duración")
+
+    _col_lbl1, _col_rad1, _ = st.columns([1, 2, 6])
+    with _col_lbl1:
+        st.markdown(
+            '<div style="padding-top:8px;font-size:0.85rem;color:#444">Agrupar por:</div>',
+            unsafe_allow_html=True,
+        )
+    with _col_rad1:
+        _gran1 = st.radio(
+            "", ["Mes", "Trimestre"],
+            horizontal=True, key="gran_coh1", label_visibility="collapsed",
+        )
+
+    st.markdown(
+        '<div style="font-size:0.7rem;color:#999;margin-bottom:4px">'
+        "Cohorte = mes en que se dio de baja &nbsp;·&nbsp; "
+        "Intervalos: <b>0</b> ≤ 0m &nbsp;·&nbsp; <b>0-3</b> = 1-3m &nbsp;·&nbsp; "
+        "<b>+3</b> = 3-6m &nbsp;·&nbsp; <b>+6</b> = 6-12m &nbsp;·&nbsp; <b>+12</b> > 12m &nbsp;·&nbsp; "
+        "Desde 2022 · Click en el año para expandir"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    _html_c1, _h_c1 = _cohorte_html(
+        df_bajas,
+        granularity="trimestre" if _gran1 == "Trimestre" else "mes",
+    )
+    components.html(_html_c1, height=_h_c1, scrolling=False)
+
+    # ══════════════════════════════════════════════════════════
+    #  TABLA 2: Cohorte de VENTA × bajas (Monday)
+    # ══════════════════════════════════════════════════════════
+
+    st.markdown(
+        '<div style="margin-top:8px"></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("#### Por cohorte de ingreso")
+
+    _col_lbl2, _col_rad2, _ = st.columns([1, 2, 6])
+    with _col_lbl2:
+        st.markdown(
+            '<div style="padding-top:8px;font-size:0.85rem;color:#444">Agrupar por:</div>',
+            unsafe_allow_html=True,
+        )
+    with _col_rad2:
+        _gran2 = st.radio(
+            "", ["Mes", "Trimestre"],
+            horizontal=True, key="gran_coh2", label_visibility="collapsed",
+        )
+
+    st.markdown(
+        '<div style="font-size:0.7rem;color:#999;margin-bottom:4px">'
+        "Cohorte = mes de la venta (BBDD_Ventas) &nbsp;·&nbsp; "
+        "Bajas: clientes de ese cohorte dados de baja en Monday &nbsp;·&nbsp; "
+        "% sobre ventas: proporción respecto al total de ventas del cohorte"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    if not df_ventas_cs.empty:
+        _html_c2, _h_c2 = _cohorte_ventas_html(
+            df_bajas,
+            df_ventas_cs,
+            df_activos,
+            granularity="trimestre" if _gran2 == "Trimestre" else "mes",
+        )
+        components.html(_html_c2, height=_h_c2, scrolling=False)
+    else:
+        st.info("Sin datos de ventas disponibles.")
+
+    st.markdown(
+        '<div style="text-align:right;font-size:0.68rem;color:#94a3b8;margin-top:4px">'
+        'Fuente: BBDD_Ventas (cohortes) · Monday.com (bajas) · '
+        'Matcheo por ID CRM · Un cliente = primera venta'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    _xlsx_bytes = _export_cohorte_excel(
+        df_bajas, df_ventas_cs, df_activos, _gran1, _gran2
+    )
+    st.download_button(
+        label="⬇️ Exportar cohortes a Excel",
+        data=_xlsx_bytes,
+        file_name=f"cohortes_cs_{date.today().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
     # ── Filtros ───────────────────────────────────────────────
+    st.markdown('<div style="margin-top:32px"></div>', unsafe_allow_html=True)
     _fc_r, _fc_y, _fc_b2b = st.columns(3)
 
     _rubros_baj_opc = ["Todos"] + sorted(
@@ -1895,99 +1990,5 @@ with tab_baj:
             "Tipo de cliente": st.column_config.TextColumn("Tipo de cliente", width=None),
             "B2B - B2C":   st.column_config.TextColumn("B2B - B2C",   width=None),
         },
-    )
-
-    # ══════════════════════════════════════════════════════════
-    #  TABLA 1: Cohorte de baja × intervalo de duración
-    # ══════════════════════════════════════════════════════════
-
-    st.markdown("#### Por cohorte de baja e intervalo de duración")
-
-    _col_lbl1, _col_rad1, _ = st.columns([1, 2, 6])
-    with _col_lbl1:
-        st.markdown(
-            '<div style="padding-top:8px;font-size:0.85rem;color:#444">Agrupar por:</div>',
-            unsafe_allow_html=True,
-        )
-    with _col_rad1:
-        _gran1 = st.radio(
-            "", ["Mes", "Trimestre"],
-            horizontal=True, key="gran_coh1", label_visibility="collapsed",
-        )
-
-    st.markdown(
-        '<div style="font-size:0.7rem;color:#999;margin-bottom:4px">'
-        "Cohorte = mes en que se dio de baja &nbsp;·&nbsp; "
-        "Intervalos: <b>0</b> ≤ 0m &nbsp;·&nbsp; <b>0-3</b> = 1-3m &nbsp;·&nbsp; "
-        "<b>+3</b> = 3-6m &nbsp;·&nbsp; <b>+6</b> = 6-12m &nbsp;·&nbsp; <b>+12</b> > 12m &nbsp;·&nbsp; "
-        "Desde 2022 · Click en el año para expandir"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    _html_c1, _h_c1 = _cohorte_html(
-        df_bajas,
-        granularity="trimestre" if _gran1 == "Trimestre" else "mes",
-    )
-    components.html(_html_c1, height=_h_c1, scrolling=False)
-
-    # ══════════════════════════════════════════════════════════
-    #  TABLA 2: Cohorte de VENTA × bajas (Monday)
-    # ══════════════════════════════════════════════════════════
-
-    st.markdown(
-        '<div style="margin-top:8px"></div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown("#### Por cohorte de ingreso")
-
-    _col_lbl2, _col_rad2, _ = st.columns([1, 2, 6])
-    with _col_lbl2:
-        st.markdown(
-            '<div style="padding-top:8px;font-size:0.85rem;color:#444">Agrupar por:</div>',
-            unsafe_allow_html=True,
-        )
-    with _col_rad2:
-        _gran2 = st.radio(
-            "", ["Mes", "Trimestre"],
-            horizontal=True, key="gran_coh2", label_visibility="collapsed",
-        )
-
-    st.markdown(
-        '<div style="font-size:0.7rem;color:#999;margin-bottom:4px">'
-        "Cohorte = mes de la venta (BBDD_Ventas) &nbsp;·&nbsp; "
-        "Bajas: clientes de ese cohorte dados de baja en Monday &nbsp;·&nbsp; "
-        "% sobre ventas: proporción respecto al total de ventas del cohorte"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    if not df_ventas_cs.empty:
-        _html_c2, _h_c2 = _cohorte_ventas_html(
-            df_bajas,
-            df_ventas_cs,
-            df_activos,
-            granularity="trimestre" if _gran2 == "Trimestre" else "mes",
-        )
-        components.html(_html_c2, height=_h_c2, scrolling=False)
-    else:
-        st.info("Sin datos de ventas disponibles.")
-
-    st.markdown(
-        '<div style="text-align:right;font-size:0.68rem;color:#94a3b8;margin-top:4px">'
-        'Fuente: BBDD_Ventas (cohortes) · Monday.com (bajas) · '
-        'Matcheo por ID CRM · Un cliente = primera venta'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    _xlsx_bytes = _export_cohorte_excel(
-        df_bajas, df_ventas_cs, df_activos, _gran1, _gran2
-    )
-    st.download_button(
-        label="⬇️ Exportar cohortes a Excel",
-        data=_xlsx_bytes,
-        file_name=f"cohortes_cs_{date.today().strftime('%Y%m%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
