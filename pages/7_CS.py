@@ -1514,7 +1514,7 @@ tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
 </div>
 
 <script>
-var obData   = {_ob_json};
+var obData   = __OB_JSON_PLACEHOLDER__;
 var _allRows = obData.slice();
 var _curRows = obData.slice();
 var _obSort  = -1, _obDir = 1;
@@ -1696,6 +1696,7 @@ renderOb(_allRows);
 </script>
 </body></html>"""
 
+            _html_ob = _html_ob.replace("__OB_JSON_PLACEHOLDER__", _ob_json)
             st.components.v1.html(_html_ob, height=_ob_height, scrolling=True)
 
     except Exception as _ob_e:
