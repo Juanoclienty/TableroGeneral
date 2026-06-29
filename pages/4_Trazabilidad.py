@@ -2522,7 +2522,15 @@ document.querySelectorAll('td[data-filter]').forEach(function(td){{
         _height = 40 + (_n_cols + 10) * 30 + _total_r * 28 + 80
         components.html(_html_cl, height=max(800, min(_height, 4000)), scrolling=True)
 
-    tab_seba, tab_ro = st.tabs(["Perfo Seba", "Perfo Ro"])
+    tab_closer, tab_seba, tab_ro = st.tabs(["Perfo Closer", "Perfo Seba", "Perfo Ro"])
+    with tab_closer:
+        try:
+            _df_seba_cl = _cargar_bbdd_seba()
+            _df_ro_cl   = _cargar_bbdd_ro()
+            _df_all_cl  = pd.concat([_df_seba_cl, _df_ro_cl], ignore_index=True)
+            _render_perfo_closer(_df_all_cl, "Closer")
+        except Exception as _e_cl:
+            st.error(f"Error cargando datos: {_e_cl}")
     with tab_seba:
         try:
             _render_perfo_closer(_cargar_bbdd_seba(), "Seba")
