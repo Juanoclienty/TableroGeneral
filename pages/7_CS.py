@@ -1278,12 +1278,22 @@ with tab_ob:
             _df_ob["etapa"] = _df_ob["etapa"].str.replace(
                 r"OB 2 \(secuencias?\)", "OB 2 (sec)", regex=True
             )
+            _df_ob["etapa"] = _df_ob["etapa"].str.replace(
+                "Nurturing", "Nurt.", regex=False
+            )
 
             st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
             st.markdown("### Onboarding")
 
             _estrategas = sorted(_df_ob["estratega"].unique())
-            _etapas     = sorted(_df_ob["etapa"].unique())
+            # Orden manual: OB3 antes que OB4
+            _ETAPA_ORDER = [
+                "Inicial (llamado)", "OB 1 (gráfico)", "OB 2 (sec)",
+                "OB3 (Practica)", "OB 4 (Nurt.)", "Por cerrar", "Sin etapa",
+            ]
+            _etapas_all = list(_df_ob["etapa"].unique())
+            _etapas = [e for e in _ETAPA_ORDER if e in _etapas_all] + \
+                      [e for e in sorted(_etapas_all) if e not in _ETAPA_ORDER]
             _ob_json    = _json_ob.dumps(_df_ob.to_dict(orient="records"), ensure_ascii=False)
 
             # ── helpers de celda ────────────────────────────────
