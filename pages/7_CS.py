@@ -1169,7 +1169,7 @@ def _kpi(lbl, val, sub=""):
 
 # ── Tabs ──────────────────────────────────────────────────────────
 
-tab_act, tab_baj = st.tabs(["✅ Activos", "📉 Bajas"])
+tab_act, tab_ob, tab_baj = st.tabs(["Resumen", "OB", "📉 Bajas"])
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1254,7 +1254,9 @@ with tab_act:
     with _col_rubro:
         st.markdown(_tabla_html(_df_rubro, "Rubro"), unsafe_allow_html=True)
 
-    # ── Tablas OB ─────────────────────────────────────────────────
+    # (OB movido a tab_ob)
+
+with tab_ob:
     try:
         import datos_crm as _dcrm
         import json as _json_ob
@@ -1561,8 +1563,7 @@ renderOb(_allRows);
     except Exception as _ob_e:
         st.exception(_ob_e)
 
-    st.markdown('<div style="margin-top:18px"></div>', unsafe_allow_html=True)
-
+with tab_act:
     _fc1, _fc2, _fc3 = st.columns([2, 1, 1])
     _buscar_a = _fc1.text_input("🔍 Buscar nombre o ID", "", key="buscar_activos")
 
