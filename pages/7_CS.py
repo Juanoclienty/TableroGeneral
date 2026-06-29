@@ -1771,12 +1771,26 @@ with tab_baj:
 
     _card_cols = st.columns(len(_meses_baj))
     for _i, (_col_c, _mes_c) in enumerate(zip(_card_cols, _meses_baj)):
-        _grp_c  = _df_baj_cards[_df_baj_cards["_mes"] == _mes_c]
+        _grp_c   = _df_baj_cards[_df_baj_cards["_mes"] == _mes_c]
         _n_baj_c = len(_grp_c)
-        _lbl_c  = pd.Timestamp(_mes_c.start_time).strftime("%B %Y").capitalize()
-        _ma_c   = _grp_c["Meses activos"].dropna().mean()
-        _ma_str_c = f"{int(round(_ma_c))} meses" if pd.notna(_ma_c) else "–"
+        _lbl_c   = pd.Timestamp(_mes_c.start_time).strftime("%B %Y").capitalize()
+        _ma_vals = _grp_c["Meses activos"].dropna()
         _baj_txt = "baja" if _n_baj_c == 1 else "bajas"
+
+        # Mediana
+        _mediana = _ma_vals.median() if len(_ma_vals) > 0 else None
+        _med_str = f"{int(round(_mediana))} m" if pd.notna(_mediana) else "–"
+
+        # Promedio truncado al 5% de cada cola
+        if len(_ma_vals) >= 10:
+            from scipy.stats import trim_mean as _trim_mean
+            _prom_trunc = _trim_mean(_ma_vals.values, 0.05)
+        elif len(_ma_vals) > 0:
+            _prom_trunc = _ma_vals.mean()
+        else:
+            _prom_trunc = None
+        _prom_str = f"{int(round(_prom_trunc))} m" if _prom_trunc is not None else "–"
+
         _html_c = (
             '<div style="background:linear-gradient(135deg,#2196F3,#1565C0);'
             'border-radius:12px;padding:20px 16px 14px;text-align:center;color:white;margin-bottom:6px">'
@@ -1785,7 +1799,8 @@ with tab_baj:
             f'<div style="font-size:0.78rem;opacity:.85;margin-bottom:6px">{_baj_txt}</div>'
             '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
             'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:4px">'
-            f'<div><div style="opacity:.7">Meses prom.</div><div style="font-weight:600">{_ma_str_c}</div></div>'
+            f'<div><div style="opacity:.7">Tiempo Perm. mediana</div><div style="font-weight:600">{_med_str}</div></div>'
+            f'<div><div style="opacity:.7">Tiempo Perm. prom.</div><div style="font-weight:600">{_prom_str}</div></div>'
             '</div>'
             '</div>'
         )
