@@ -22,6 +22,7 @@ with st.sidebar:
     st.caption(u["perfil"].replace("_", " ").title())
     if st.button("Cerrar sesión", use_container_width=True):
         logout()
+        st.rerun()
 
 # ── Navegación según perfil ───────────────────────────────────────────────────
 st.markdown("""
