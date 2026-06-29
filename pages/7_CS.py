@@ -1585,10 +1585,13 @@ function _lnk(v,label){{
   return'<a href="'+v+'" target="_blank">'+(label||v)+'</a>';
 }}
 function _txt(v){{return v?('<span class="exp-val text-block">'+v+'</span>'):'<span style="color:#94a3b8">—</span>';}}
+var _notaStore={{}};
+var _notaIdx=0;
 function _nota(title,v){{
   if(!v)return'<span style="color:#94a3b8;font-size:0.77rem">—</span>';
-  var safe=v.replace(/'/g,"&#39;").replace(/\n/g,"\\n");
-  return'<button class="ver-nota" onclick="event.stopPropagation();openModal(\''+title+'\',\''+safe+'\'.replace(/\\\\n/g,\'\\n\'))">Ver nota →</button>';
+  var k='n'+(++_notaIdx);
+  _notaStore[k]={{t:title,v:v}};
+  return'<button class="ver-nota" onclick="event.stopPropagation();var d=_notaStore[\''+k+'\'];openModal(d.t,d.v)">Ver nota →</button>';
 }}
 function _fld(lbl,val,isTag,isLink,linkLabel){{
   var vhtml=isLink?'<span class="exp-val">'+_lnk(val,linkLabel)+'</span>':
