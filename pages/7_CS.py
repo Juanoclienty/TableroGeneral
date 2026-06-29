@@ -1261,7 +1261,7 @@ with tab_act:
         _df_ob = _dcrm.cargar_ob_detalle()
 
         if not _df_ob.empty:
-            _ALIAS = {"Melina": "Meli", "julispinelli": "Juli"}
+            _ALIAS = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}
             _df_ob["estratega"] = _df_ob["estratega"].replace(_ALIAS)
             _ETAPA_ALIAS = {
                 "OB 3 practica en vivo + Bot": "OB 3 Practica",
