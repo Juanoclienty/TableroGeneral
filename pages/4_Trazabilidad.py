@@ -2213,13 +2213,14 @@ with tab_closer:
             )
             grp_col = "_mes"
 
-        _BUCKET_MAP = {
-            "R2 Cancelada":      "r2_cancelada",
-            "Reagendar R2":      "r2_reagendada",
-            "Buyer sin interes": "bsi",
-            "Follow Clienty":    "follow_clienty",
-        }
-        df_bbdd["_bucket"] = df_bbdd["Estado"].map(_BUCKET_MAP).fillna("otros")
+        def _map_bucket(s):
+            s = str(s).strip().lower()
+            if "cancelad" in s:  return "r2_cancelada"
+            if "reagend" in s:   return "r2_reagendada"
+            if "buyer" in s or "sin inter" in s: return "bsi"
+            if "follow" in s:    return "follow_clienty"
+            return "otros"
+        df_bbdd["_bucket"] = df_bbdd["Estado"].apply(_map_bucket)
 
         _periodos_all = sorted(df_bbdd[grp_col].unique())
         _lbl_map_all  = df_bbdd.groupby(grp_col)["_lbl"].first().to_dict()
