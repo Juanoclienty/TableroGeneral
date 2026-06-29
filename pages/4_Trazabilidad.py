@@ -2525,7 +2525,7 @@ document.querySelectorAll('td[data-filter]').forEach(function(td){{
 </body></html>"""
 
         _height = 40 + (_n_cols + 10) * 30 + _total_r * 28 + 80
-        components.html(_html_cl, height=max(800, min(_height, 4000)), scrolling=True)
+        components.html(_html_cl, height=max(200, _height), scrolling=False)
 
     tab_closer, tab_seba, tab_ro = st.tabs(["Perfo Closer", "Perfo Seba", "Perfo Ro"])
     with tab_closer:
