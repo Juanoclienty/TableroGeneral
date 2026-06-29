@@ -1454,8 +1454,27 @@ tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
 .tag.done{{background:#d1fae5;color:#065f46}}
 .tag.pend{{background:#fee2e2;color:#991b1b}}
 .tag.medio{{background:#fef3c7;color:#92400e}}
+/* Modal */
+.modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center}}
+.modal-overlay.active{{display:flex}}
+.modal-box{{background:#fff;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.25);width:90%;max-width:820px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}}
+.modal-header{{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#1a3a5c;color:#fff;font-weight:600;font-size:0.88rem}}
+.modal-close{{cursor:pointer;font-size:1.2rem;line-height:1;background:none;border:none;color:#fff;padding:0 4px}}
+.modal-close:hover{{color:#fbbf24}}
+.modal-body{{padding:18px 22px;overflow-y:auto;font-size:0.82rem;color:#1e293b;white-space:pre-wrap;line-height:1.6}}
+.ver-nota{{color:#2563eb;cursor:pointer;font-size:0.75rem;text-decoration:underline;background:none;border:none;padding:0;margin-top:2px}}
+.ver-nota:hover{{color:#1d4ed8}}
 </style>
 </head><body>
+<div id="nota-modal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="modal-title">Nota</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
 
 <div class="layout">
   <div class="col-sla">
@@ -1566,6 +1585,11 @@ function _lnk(v,label){{
   return'<a href="'+v+'" target="_blank">'+(label||v)+'</a>';
 }}
 function _txt(v){{return v?('<span class="exp-val text-block">'+v+'</span>'):'<span style="color:#94a3b8">—</span>';}}
+function _nota(title,v){{
+  if(!v)return'<span style="color:#94a3b8;font-size:0.77rem">—</span>';
+  var safe=v.replace(/'/g,"&#39;").replace(/\n/g,"\\n");
+  return'<button class="ver-nota" onclick="event.stopPropagation();openModal(\''+title+'\',\''+safe+'\'.replace(/\\\\n/g,\'\\n\'))">Ver nota →</button>';
+}}
 function _fld(lbl,val,isTag,isLink,linkLabel){{
   var vhtml=isLink?'<span class="exp-val">'+_lnk(val,linkLabel)+'</span>':
             isTag?'<span class="exp-val">'+_tag(val)+'</span>':
@@ -1585,16 +1609,14 @@ function _expHtml(r){{
   );
   var s2=_sect('Riesgo y notas',
     _fld('Riesgo',r.riesgo,true)+_fld('Motivo',r.motivo_riesgo,true)+
-    '<div class="exp-row-item"><span class="exp-lbl">Notas</span></div>'+
-    _txt(r.notas)+
-    '<div style="margin-top:6px"><div class="exp-row-item"><span class="exp-lbl">Com. llamado</span></div>'+
-    _txt(r.com_llamado)+'</div>'
+    _fld('Notas','')+_nota('Notas — '+r.nombre,r.notas)+
+    '<div style="margin-top:6px">'+_fld('Com. llamado','')+_nota('Comentarios llamado — '+r.nombre,r.com_llamado)+'</div>'
   );
   var s3=_sect('Progreso OB',
     _fld('1. Carga auto.',r.carga_auto,true)+_fld('1. BBDD',r.bbdd,true)+
     _fld('1. Diseño flujo',r.diseno,true)+_fld('1. Est.|Etiq.|Can.',r.estados,true)+
     _fld('OB 1 - Gráfico',r.ob1,true)+
-    '<div class="exp-row-item"><span class="exp-lbl">Com. gráfico</span></div>'+_txt(r.com_grafico)+
+    _fld('Com. gráfico','')+_nota('Comentarios gráfico — '+r.nombre,r.com_grafico)+
     '<div style="margin-top:4px">'+
     _fld('OB 2 - API',r.ob2,true)+_fld('OB 2 - Sec.',r.ob2_sec,true)+
     _fld('2. Automatiz.',r.automations,true)+
@@ -1604,12 +1626,21 @@ function _expHtml(r){{
   );
   var s4=_sect('WapBot y comentarios',
     _fld('WapBot',r.wapbot,true)+_fld('BOT (fecha)',r.bot)+
-    '<div class="exp-row-item"><span class="exp-lbl">Com. bot</span></div>'+_txt(r.com_bot)+
-    '<div style="margin-top:6px"><div class="exp-row-item"><span class="exp-lbl">Com. finales</span></div>'+
-    _txt(r.com_finales)+'</div>'
+    _fld('Com. bot','')+_nota('Comentarios WapBot — '+r.nombre,r.com_bot)+
+    '<div style="margin-top:6px">'+_fld('Com. finales','')+_nota('Comentarios finales — '+r.nombre,r.com_finales)+'</div>'
   );
   return'<div class="exp-inner">'+s1+s2+s3+s4+'</div>';
 }}
+
+function openModal(title, text){{
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').textContent=text;
+  document.getElementById('nota-modal').classList.add('active');
+}}
+function closeModal(){{
+  document.getElementById('nota-modal').classList.remove('active');
+}}
+document.addEventListener('keydown',function(e){{if(e.key==='Escape')closeModal();}});
 
 var _openIdx=null;
 function toggleRow(idx){{
