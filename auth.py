@@ -79,7 +79,8 @@ _PERFILES_ABIERTOS = {
 def _cargar_usuarios() -> dict:
     """Lee usuarios con contraseña desde st.secrets['usuarios']."""
     try:
-        return dict(st.secrets.get("usuarios", {}))
+        sec = st.secrets["usuarios"]
+        return {k: dict(v) for k, v in sec.items()}
     except Exception:
         return {}
 
