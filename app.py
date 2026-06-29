@@ -22,8 +22,8 @@ with st.sidebar:
     st.caption(u["perfil"].replace("_", " ").title())
     if st.button("Cerrar sesión", use_container_width=True):
         st.session_state.clear()
-        st.markdown('<meta http-equiv="refresh" content="0">', unsafe_allow_html=True)
-        st.stop()
+        st.query_params["logout"] = "1"
+        st.rerun()
 
 # ── Navegación según perfil ───────────────────────────────────────────────────
 st.markdown("""

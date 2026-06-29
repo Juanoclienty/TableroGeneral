@@ -91,6 +91,10 @@ def login() -> bool:
     - Perfil completo: usuario + contraseña.
     Retorna True si el usuario está autenticado.
     """
+    if st.query_params.get("logout") == "1":
+        st.session_state.clear()
+        st.query_params.clear()
+
     if st.session_state.get("autenticado"):
         return True
 
