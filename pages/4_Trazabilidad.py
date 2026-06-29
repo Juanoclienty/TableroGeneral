@@ -2173,7 +2173,6 @@ with tab_closer:
         return lkp
 
     def _render_perfo_closer(df_bbdd, nombre_closer):
-        import json as _json
         import datos_crm as _crm_cl
         _cc_lkp = _cargar_cc_lookup(_ID_SOL, _ID_FER)
         _df_crm_cl = _crm_cl.cargar_crm()[["id", "Estado"]].copy()
@@ -2339,255 +2338,65 @@ with tab_closer:
             row += "</tr>"
             body_v += row
 
-        # body_combined is now built in JS — keep period labels for JS
-        _periods_list = [_p_strs[p] for p in _periodos]
-        _periods_json = _json.dumps(_periods_list, ensure_ascii=True)
-        _n_cols_js    = len(_periodos) + 3
+        # ── Tabla semáforo (server-side) ────────────────────────────
+        _SEP_ROW = f'<tr><td colspan="{_n_cols}" style="padding:2px 0;background:#fff;border:none"></td></tr>'
+        _tbl_style = "table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:8px"
+        st.markdown(
+            f'<div style="overflow-x:auto"><table style="{_tbl_style}">'
+            f'<thead>{header}</thead>'
+            f'<tbody>{body_b}{_SEP_ROW}{body_v}</tbody>'
+            f'</table></div>',
+            unsafe_allow_html=True,
+        )
 
-        _det_rows = []
-        for _, r in df_bbdd.sort_values("_fecha", ascending=False).iterrows():
-            p_str = str(_p_strs.get(r[grp_col], "") or "")
-            _det_rows.append({
-                "id":      str(r.get("ID","") or ""),
-                "nombre":  (str(r.get("Nombre","") or "") + " " + str(r.get("Apellido","") or "")).strip(),
-                "empresa": str(r.get("Empresa","") or ""),
-                "fecha":   str(r.get("Fecha R2","") or ""),
-                "estado":  str(r.get("Estado","") or ""),
-                "bucket":  str(r.get("_bucket","") or ""),
-                "periodo": p_str,
-                "porque":      str(r.get("Porque","") or ""),
-                "estado_crm":  str(_crm_estado_cl.get(str(r.get("ID","") or "").strip(), "") or ""),
-                "cc":          str(_cc_lkp.get(str(r.get("ID","") or "").strip(), "") or ""),
-            })
+        # ── Tabla detalle (server-side) ───────────────────────────
+        _chip_styles = {
+            "r2_cancelada":   ("R2 Cancelada", "#fee2e2", "#b91c1c"),
+            "r2_reagendada":  ("Reagendada",   "#fef3c7", "#92400e"),
+            "bsi":            ("BSI",          "#ede9fe", "#5b21b6"),
+            "follow_clienty": ("Follow",       "#d1fae5", "#065f46"),
+            "otros":          ("Otros",        "#f1f5f9", "#475569"),
+        }
+        def _chip(bk):
+            lbl, bg, fg = _chip_styles.get(bk, ("?", "#f1f5f9", "#475569"))
+            return (f'<span style="display:inline-block;padding:1px 7px;border-radius:9px;'
+                    f'font-size:0.72rem;font-weight:600;background:{bg};color:{fg}">{lbl}</span>')
 
-        _det_json  = _json.dumps(_det_rows, ensure_ascii=True).replace("</", "<\\/")
-        _total_r   = len(_det_rows)
-        _n_blue    = 5
-        _n_green   = 4
-        _height    = 40 + (_n_blue + _n_green + 2) * 30 + 50 + _total_r * 31 + 80
+        def _esc_html(s):
+            return str(s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
 
-        _html_cl = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<style>
-body{{margin:0;padding:0;font-family:system-ui,sans-serif}}
-.wrap-t{{overflow-x:auto;margin-bottom:10px}}
-table{{border-collapse:collapse;width:100%}}
-.det-wrap{{overflow-x:auto}}
-.det-table{{border-collapse:collapse;width:100%;font-size:0.82rem}}
-.det-table th{{background:#1a3a5c;color:white;padding:4px 10px;text-align:left;position:sticky;top:0;z-index:2}}
-.det-table td{{padding:3px 10px;border-bottom:1px solid #e2e8f0}}
-.det-tr{{cursor:pointer;transition:background .15s}}
-.det-tr:hover{{background:#f0f7ff}}
-.det-tr.active{{background:#dbeafe}}
-.exp-tr td{{background:#f8faff;padding:10px 16px;border-bottom:2px solid #93c5fd}}
-.exp-grid{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}
-.exp-label{{font-size:0.7rem;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px}}
-.exp-val{{font-size:0.83rem;color:#1e293b;line-height:1.5}}
-.exp-empty{{font-size:0.83rem;color:#94a3b8;font-style:italic}}
-td[data-filter]{{cursor:pointer;transition:opacity .15s}}
-td[data-filter]:hover{{opacity:.75}}
-.chip{{display:inline-block;padding:1px 7px;border-radius:9px;font-size:0.72rem;font-weight:600;margin-left:4px}}
-.chip-canc{{background:#fee2e2;color:#b91c1c}}
-.chip-reag{{background:#fef3c7;color:#92400e}}
-.chip-bsi{{background:#ede9fe;color:#5b21b6}}
-.chip-fol{{background:#d1fae5;color:#065f46}}
-.chip-otros{{background:#f1f5f9;color:#475569}}
-</style>
-</head><body>
-<div class="wrap-t">
-<table><thead>{header}</thead><tbody id="summary-body"></tbody></table>
-</div>
-<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px">
-  <div id="det-info" style="font-size:0.78rem;color:#64748b">{_total_r} registros · BBDD R2 {nombre_closer}</div>
-  <div style="display:flex;gap:6px">
-    <button onclick="filterCC('all')"  id="btn-all" style="font-size:0.72rem;padding:2px 10px;border-radius:12px;border:1px solid #cbd5e1;cursor:pointer;background:#1a3a5c;color:white;font-weight:600">Todos</button>
-    <button onclick="filterCC('Sol')"  id="btn-sol" style="font-size:0.72rem;padding:2px 10px;border-radius:12px;border:1px solid #cbd5e1;cursor:pointer;background:white;color:#475569">Sol</button>
-    <button onclick="filterCC('Fer')"  id="btn-fer" style="font-size:0.72rem;padding:2px 10px;border-radius:12px;border:1px solid #cbd5e1;cursor:pointer;background:white;color:#475569">Fer</button>
-  </div>
-</div>
-<div class="det-wrap">
-<table class="det-table">
-<thead><tr>
-  <th>ID</th><th>Fecha R2</th><th>Nombre</th><th>Empresa</th><th>Estado</th><th>Estado CRM</th><th>CC</th>
-</tr></thead>
-<tbody id="det-body"></tbody>
-</table>
-</div>
-<script id="d-all" type="application/json">{_det_json}</script>
-<script id="d-per" type="application/json">{_periods_json}</script>
-<script>
-var _all=JSON.parse(document.getElementById('d-all').textContent);
-var _cur=_all.slice();
-var _openIdx=-1;
-var _ccFilter='all';
-var _tableFilter=null;
-var _periods=JSON.parse(document.getElementById('d-per').textContent);
-var _nCols={_n_cols_js};
+        _df_det = df_bbdd.sort_values("_fecha", ascending=False)
+        _total_r = len(_df_det)
+        _TH = "background:#1a3a5c;color:white;padding:4px 10px;text-align:left;font-size:0.82rem"
+        _TD_det = "padding:3px 10px;border-bottom:1px solid #e2e8f0;font-size:0.82rem"
+        det_hdr = f'<tr><th style="{_TH}">ID</th><th style="{_TH}">Fecha R2</th><th style="{_TH}">Nombre</th><th style="{_TH}">Empresa</th><th style="{_TH}">Estado</th><th style="{_TH}">Estado CRM</th><th style="{_TH}">CC</th></tr>'
+        det_body = ""
+        for _, r in _df_det.iterrows():
+            _id  = _esc_html(r.get("ID",""))
+            _nom = _esc_html((str(r.get("Nombre","") or "") + " " + str(r.get("Apellido","") or "")).strip())
+            _emp = _esc_html(r.get("Empresa",""))
+            _fec = _esc_html(r.get("Fecha R2",""))
+            _bk  = str(r.get("_bucket","") or "otros")
+            _ecrm = _esc_html(_crm_estado_cl.get(str(r.get("ID","") or "").strip(), ""))
+            _cc  = _esc_html(_cc_lkp.get(str(r.get("ID","") or "").strip(), ""))
+            det_body += (
+                f'<tr style="border-bottom:1px solid #e2e8f0">'
+                f'<td style="{_TD_det}">{_id}</td>'
+                f'<td style="{_TD_det}">{_fec}</td>'
+                f'<td style="{_TD_det}">{_nom}</td>'
+                f'<td style="{_TD_det}">{_emp}</td>'
+                f'<td style="{_TD_det}">{_chip(_bk)}</td>'
+                f'<td style="{_TD_det};color:#475569">{_ecrm}</td>'
+                f'<td style="{_TD_det};font-weight:600;color:#1a3a5c">{_cc}</td>'
+                f'</tr>'
+            )
 
-function _esc(s){{return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}}
-
-var _chipCls={{'r2_cancelada':'chip-canc','r2_reagendada':'chip-reag','bsi':'chip-bsi','follow_clienty':'chip-fol','otros':'chip-otros'}};
-var _bucketLbl={{'r2_cancelada':'R2 Cancelada','r2_reagendada':'Reagendada','bsi':'BSI','follow_clienty':'Follow Clienty','otros':'Otros'}};
-
-var _BKT_COLS=['r2_cancelada','r2_reagendada','bsi','follow_clienty'];
-
-function _ccRows(){{
-  return _all.filter(function(r){{return _ccFilter==='all'||r.cc===_ccFilter;}});
-}}
-
-function rebuildSummary(){{
-  var src=_ccRows();
-  var bgs=['#d6eaf8','#eef6fc'];
-  var bgss=['#a9cce3','#bcd9ec'];
-  var gbgs=['#d7f0e3','#eef9f3'];
-  var gbgss=['#a3d9bd','#bdeace'];
-  var TD='font-size:0.83rem;padding:2px 8px;border:1px solid #e2e8f0;overflow:hidden';
-  var TDr='font-size:0.72rem;padding:2px 8px;border:1px solid #e2e8f0;overflow:hidden';
-
-  function agg(p){{
-    var sub=src.filter(function(r){{return r.periodo===p;}});
-    var rc=sub.filter(function(r){{return r.bucket==='r2_cancelada';}}).length;
-    var rr=sub.filter(function(r){{return r.bucket==='r2_reagendada';}}).length;
-    var rb=sub.filter(function(r){{return r.bucket==='bsi';}}).length;
-    var rf=sub.filter(function(r){{return r.bucket==='follow_clienty';}}).length;
-    return{{lbl:p,rc:rc,rr:rr,rb:rb,rf:rf,rt:rc+rr+rb+rf}};
-  }}
-
-  var data=_periods.map(agg);
-  var h='';
-
-  var METRICS=[
-    {{lbl:'R2 Total',   key:'rt',  bucket:null,          bold:true}},
-    {{lbl:'R2 Cancelada',  key:'rc', bucket:'r2_cancelada',  bold:false}},
-    {{lbl:'R2 Reagendada', key:'rr', bucket:'r2_reagendada', bold:false}},
-    {{lbl:'Buyer Sin Interés',key:'rb',bucket:'bsi',         bold:false}},
-    {{lbl:'Follow Clienty', key:'rf', bucket:'follow_clienty',bold:false}},
-  ];
-
-  METRICS.forEach(function(m,mi){{
-    var bg=bgs[mi%2];var bgs2=bgss[mi%2];
-    var fw=m.bold?'font-weight:700;':'';
-    var tot=data.reduce(function(a,d){{return a+d[m.key];}},0);
-    var prom=data.length?Math.round(tot/data.length):0;
-    var filtTot=m.bucket?'bucket:'+m.bucket:'metrica:r2_total';
-    h+='<tr>';
-    h+='<td style="'+TD+';'+fw+'background:'+bg+';text-align:left">'+_esc(m.lbl)+'</td>';
-    data.forEach(function(d){{
-      var v=d[m.key];
-      var oc=v?(m.bucket?'data-filter="periodo:'+d.lbl+'|bucket:'+m.bucket+'"':'data-filter="periodo:'+d.lbl+'"'):'';
-      var cellBg=v?bgs2:bg;
-      h+='<td style="'+TD+';'+fw+'background:'+cellBg+';text-align:center;'+(oc?'cursor:pointer;':'')'" '+oc+'>'+( v||'')+'</td>';
-    }});
-    h+='<td style="'+TD+';'+fw+'background:'+bgs2+';text-align:center" '+(tot?'data-filter="'+filtTot+'"':'')+'>'+( tot||'')+'</td>';
-    h+='<td style="'+TD+';'+fw+'background:'+bgs2+';text-align:center">'+( prom||'')+'</td>';
-    h+='</tr>';
-  }});
-
-  h+='<tr><td colspan="'+_nCols+'" style="padding:2px 0;background:#fff;border:none"></td></tr>';
-
-  var RATIOS=[
-    {{lbl:'% Cancelada',     key:'rc'}},
-    {{lbl:'% Reagendada',    key:'rr'}},
-    {{lbl:'% BSI',           key:'rb'}},
-    {{lbl:'% Follow Clienty',key:'rf'}},
-  ];
-  RATIOS.forEach(function(r,ri){{
-    var bg=gbgs[ri%2];var bgs2=gbgss[ri%2];
-    var tot_n=data.reduce(function(a,d){{return a+d[r.key];}},0);
-    var tot_d=data.reduce(function(a,d){{return a+d.rt;}},0);
-    function pct(n,d){{return d?Math.round(n/d*100)+'%':'';}}
-    h+='<tr>';
-    h+='<td style="'+TDr+';background:'+bg+';text-align:left">'+_esc(r.lbl)+'</td>';
-    data.forEach(function(d){{
-      h+='<td style="'+TDr+';background:'+bg+';text-align:center">'+pct(d[r.key],d.rt)+'</td>';
-    }});
-    h+='<td style="'+TDr+';background:'+bgs2+';text-align:center">'+pct(tot_n,tot_d)+'</td>';
-    h+='<td style="'+TDr+';background:'+bgs2+';text-align:center"></td>';
-    h+='</tr>';
-  }});
-
-  document.getElementById('summary-body').innerHTML=h;
-  document.querySelectorAll('td[data-filter]').forEach(function(td){{
-    td.onclick=function(){{filterClick(this.dataset.filter);}};
-  }});
-}}
-
-function _applyFilters(){{
-  _openIdx=-1;
-  var rows=_ccRows().filter(function(r){{
-    if(_tableFilter){{
-      var f=_tableFilter;
-      if(f.periodo&&r.periodo!==f.periodo)return false;
-      if(f.bucket&&r.bucket!==f.bucket)return false;
-      if(f.metrica==='r2_total')return _BKT_COLS.indexOf(r.bucket)>=0;
-    }}
-    return true;
-  }});
-  renderDet(rows);
-}}
-
-function filterCC(cc){{
-  _ccFilter=cc;
-  _tableFilter=null;
-  ['all','sol','fer'].forEach(function(k){{
-    var btn=document.getElementById('btn-'+k);
-    if(btn){{btn.style.background='white';btn.style.color='#475569';btn.style.fontWeight='normal';}}
-  }});
-  var active=document.getElementById('btn-'+cc.toLowerCase());
-  if(active){{active.style.background='#1a3a5c';active.style.color='white';active.style.fontWeight='600';}}
-  rebuildSummary();
-  _applyFilters();
-}}
-
-function _expandHtml(r){{
-  var hasPor=r.porque && r.porque!=='nan' && r.porque.trim();
-  var h='<div class="exp-grid">';
-  h+='<div><div class="exp-label">Explicación Closer</div>';
-  h+=hasPor?'<div class="exp-val">'+_esc(r.porque)+'</div>':'<div class="exp-empty">Sin explicación</div>';
-  h+='</div>';
-  h+='<div><div class="exp-label">Notas Closer</div><div class="exp-empty">Sin notas registradas</div></div>';
-  h+='</div>';
-  return h;
-}}
-
-function toggleRow(idx){{_openIdx=(_openIdx===idx)?-1:idx;renderDet(_cur);}}
-
-function renderDet(rows){{
-  _cur=rows;
-  var h='';
-  rows.forEach(function(r,idx){{
-    var open=(_openIdx===idx);
-    var bk=r.bucket||'otros';
-    var chip='<span class="chip '+(_chipCls[bk]||'chip-otros')+'">'+(_bucketLbl[bk]||bk)+'</span>';
-    h+='<tr class="det-tr'+(open?' active':'')+'" onclick="toggleRow('+idx+')">';
-    h+='<td>'+_esc(r.id)+'</td>';
-    h+='<td>'+_esc(r.fecha)+'</td>';
-    h+='<td>'+_esc(r.nombre)+'</td>';
-    h+='<td>'+_esc(r.empresa)+'</td>';
-    h+='<td>'+chip+'</td>';
-    h+='<td style="color:#475569">'+_esc(r.estado_crm||'')+'</td>';
-    h+='<td style="font-weight:600;color:#1a3a5c">'+_esc(r.cc||'')+'</td>';
-    h+='</tr>';
-    if(open){{h+='<tr class="exp-tr"><td colspan="7">'+_expandHtml(r)+'</td></tr>';}}
-  }});
-  document.getElementById('det-body').innerHTML=h;
-  document.getElementById('det-info').textContent=rows.length+' registros · BBDD R2 {nombre_closer}';
-}}
-
-function filterClick(filter){{
-  var parts=filter.split('|');
-  var fmap={{}};
-  parts.forEach(function(p){{var kv=p.split(':');fmap[kv[0]]=kv.slice(1).join(':');}});
-  _tableFilter=fmap;
-  _applyFilters();
-}}
-
-rebuildSummary();
-renderDet(_all);
-</script>
-</body></html>"""
-
-        components.html(_html_cl, height=max(600, min(_height, 2000)), scrolling=True)
+        st.markdown(
+            f'<div style="font-size:0.78rem;color:#64748b;margin-bottom:4px">{_total_r} registros · BBDD R2 {nombre_closer}</div>'
+            f'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+            f'<thead>{det_hdr}</thead><tbody>{det_body}</tbody></table></div>',
+            unsafe_allow_html=True,
+        )
 
     tab_seba, tab_ro = st.tabs(["Perfo Seba", "Perfo Ro"])
     with tab_seba:
