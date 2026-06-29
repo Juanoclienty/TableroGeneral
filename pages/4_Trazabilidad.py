@@ -965,13 +965,20 @@ with tab_gral:
             n_mostrar = n_max
 
         _lbl_ult = {"Día": "Últ. día", "Semana": "Últ. semana", "Mes": "Últ. mes"}[vista]
+        st.markdown(
+            '<style>'
+            'div[data-testid="stRadio"][aria-label="Resumen"] {'
+            '  display:flex;justify-content:flex-end'
+            '}'
+            'div[data-testid="stRadio"] label p{font-size:0.72rem!important}'
+            '</style>',
+            unsafe_allow_html=True,
+        )
         with col_modo:
-            st.markdown("<div style='display:flex;justify-content:flex-end'>", unsafe_allow_html=True)
             _modo_resumen = st.radio(
                 "Resumen", ["Prom.", _lbl_ult],
                 horizontal=True, label_visibility="collapsed", key="modo_resumen"
             )
-            st.markdown("</div>", unsafe_allow_html=True)
         _modo_resumen = "Promedio" if _modo_resumen == "Prom." else _lbl_ult
     
         df_show = df_agg.tail(n_mostrar).copy()
@@ -1156,10 +1163,11 @@ with tab_gral:
     
         def _titulo_fuente(titulo, tab_nombre, url):
             st.markdown(
-                f'<h3 style="margin-bottom:4px">{titulo} '
+                f'<h3 style="margin-bottom:2px;line-height:1.2">{titulo}</h3>'
+                f'<div style="margin-bottom:6px">'
                 f'<a href="{url}" target="_blank" '
-                f'style="font-size:0.68rem;color:#94a3b8;font-weight:normal">'
-                f'· {tab_nombre} →</a></h3>',
+                f'style="font-size:0.68rem;color:#94a3b8;font-weight:normal;text-decoration:none">'
+                f'· {tab_nombre} →</a></div>',
                 unsafe_allow_html=True,
             )
     
