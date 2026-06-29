@@ -1312,8 +1312,8 @@ with tab_ob:
                         f'text-align:center;white-space:nowrap;{_b}">{txt}</td>')
 
             # ── Tabla SLA ────────────────────────────────────────
-            _sla_cols = ["≤30d", ">30d", "Sin fecha", "Total"]
-            _sla_cls  = {"≤30d": "c-n", ">30d": "c-n", "Sin fecha": "c-n", "Total": "c-n"}
+            _sla_cols = ["-30d", "+30d", "Sin fecha", "Total"]
+            _sla_cls  = {"-30d": "c-n", "+30d": "c-n", "Sin fecha": "c-n", "Total": "c-n"}
 
             _thead_sla = (
                 '<tr>'
@@ -1327,14 +1327,16 @@ with tab_ob:
 
             def _sla_data_row(est, sub, is_total=False):
                 vals = {
-                    "≤30d":      int((sub["sla"] == "≤30d").sum()),
-                    ">30d":      int((sub["sla"] == ">30d").sum()),
+                    "-30d":      int((sub["sla"] == "≤30d").sum()),
+                    "+30d":      int((sub["sla"] == ">30d").sum()),
                     "Sin fecha": int((sub["sla"] == "Sin fecha").sum()),
                     "Total":     len(sub),
                 }
                 row = _td_lbl(est, bold=is_total)
+                _sla_val_map = {"-30d": "≤30d", "+30d": ">30d", "Sin fecha": "Sin fecha", "Total": "Total"}
                 for col in _sla_cols:
-                    filt = f"sla:{col}" if is_total else f"est:{est}|sla:{col}"
+                    _fv = _sla_val_map.get(col, col)
+                    filt = f"sla:{_fv}" if is_total else f"est:{est}|sla:{_fv}"
                     row += _td_num(vals[col], filt, _sla_cls[col], bold=is_total)
                 cls = ' class="yr-row"' if is_total else ""
                 return f"<tr{cls}>{row}</tr>"
