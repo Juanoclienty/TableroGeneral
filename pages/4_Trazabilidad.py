@@ -965,19 +965,24 @@ with tab_gral:
             n_mostrar = n_max
 
         _lbl_ult = {"Día": "Últ. día", "Semana": "Últ. semana", "Mes": "Últ. mes"}[vista]
-        st.markdown(
-            '<style>'
-            'div[data-testid="stRadio"][aria-label="Resumen"] {'
-            '  display:flex;justify-content:flex-end'
-            '}'
-            'div[data-testid="stRadio"] label p{font-size:0.72rem!important}'
-            '</style>',
-            unsafe_allow_html=True,
-        )
         with col_modo:
+            st.markdown(
+                '<style>'
+                'div[data-testid="column"]:last-child div[data-testid="stRadio"]{'
+                '  display:flex;justify-content:flex-end;margin-top:-4px'
+                '}'
+                'div[data-testid="column"]:last-child div[data-testid="stRadio"] > div{'
+                '  gap:2px'
+                '}'
+                'div[data-testid="column"]:last-child div[data-testid="stRadio"] label p{'
+                '  font-size:0.72rem!important'
+                '}'
+                '</style>',
+                unsafe_allow_html=True,
+            )
             _modo_resumen = st.radio(
                 "Resumen", ["Prom.", _lbl_ult],
-                horizontal=True, label_visibility="collapsed", key="modo_resumen"
+                horizontal=False, label_visibility="collapsed", key="modo_resumen"
             )
         _modo_resumen = "Promedio" if _modo_resumen == "Prom." else _lbl_ult
     
