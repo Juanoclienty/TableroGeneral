@@ -1748,7 +1748,7 @@ with tab_cc:
         _defaults_cc = {"Día": min(7, n_max_cc), "Semana": min(6, n_max_cc), "Mes": n_max_cc}
         _mins_cc     = {"Día": min(3, n_max_cc), "Semana": min(4, n_max_cc), "Mes": 1}
 
-        _col_tit_cc, _col_sl_cc = st.columns([2, 4])
+        _col_tit_cc, _col_sl_cc, _col_modo_cc = st.columns([2, 3, 1])
         _LINKS_CC = {
             "Sol": "https://docs.google.com/spreadsheets/d/1Oto16BeUmohfjWlzGeH-Nj0d3RMmZLG17ZSPd93ePA8/edit?usp=sharing",
             "Fer": "https://docs.google.com/spreadsheets/d/1EDbB-LMLeXFaCJeAifbV9zLNh9R4piO0GYuAeMBupo8/edit?usp=sharing",
@@ -1783,6 +1783,29 @@ with tab_cc:
                 )
             else:
                 n_mostrar_cc = n_max_cc
+
+        _lbl_ult_cc = {"Día": "Últ. día", "Semana": "Últ. semana", "Mes": "Últ. mes"}[vista]
+        with _col_modo_cc:
+            st.markdown(
+                '<style>'
+                'div[data-testid="column"]:last-child div[data-testid="stRadio"]{'
+                '  display:flex;justify-content:flex-end;margin-top:-4px'
+                '}'
+                'div[data-testid="column"]:last-child div[data-testid="stRadio"] > div{'
+                '  gap:2px'
+                '}'
+                'div[data-testid="column"]:last-child div[data-testid="stRadio"] label p{'
+                '  font-size:0.72rem!important'
+                '}'
+                '</style>',
+                unsafe_allow_html=True,
+            )
+            _modo_cc = st.radio(
+                "ResumenCC", ["Prom.", _lbl_ult_cc],
+                horizontal=False, label_visibility="collapsed", key=f"modo_cc_{nombre_cc}_{vista}"
+            )
+        _es_ult_cc    = (_modo_cc != "Prom.")
+        _lbl_res_cc   = "Promedio" if not _es_ult_cc else _lbl_ult_cc
 
         df_show_cc = df_agg_cc.tail(n_mostrar_cc)
         _shown_periodos = set(df_show_cc["_periodo_str"].tolist())
@@ -1824,25 +1847,32 @@ with tab_cc:
         _bgs  = ["#d6eaf8", "#eef6fc"]
         _bgss = ["#a9cce3", "#bcd9ec"]
 
+        _WO = "width:72px;min-width:72px;max-width:72px"
+
+        def _icon_cc(v, o):
+            if not o: return ""
+            return "🟢" if v >= o else ("🟡" if v >= o * 0.7 else "🔴")
+
         # Encabezado compartido
         def _build_hdr(hdr_bg, hdr_fg):
             h = f'<th style="text-align:left;color:{hdr_fg};background:{hdr_bg};{_WM};{_TH}">Métrica</th>'
             for _, r in df_show_cc.iterrows():
                 h += f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WP};{_TH}">{r["_lbl"]}</th>'
-            h += (f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WS};{_TH}">Total</th>'
-                  f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WS};{_TH}">Promedio</th>')
+            h += (f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WS};{_TH}">{_lbl_res_cc}</th>'
+                  f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_TH}">Objetivo</th>'
+                  f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_TH}">% Cumpl.</th>')
             return h
 
-        # Tabla azul
+        # Tabla azul — (lbl, col, filt_total, objetivo_o_0)
         _METRICAS_CC = [
-            ("Leads",             "leads",            "metrica:leads"),
-            ("Llamado Cancelado",  "llamado_cancelado","estado_r1:Llamado Cancelado"),
-            ("Reagendar R1",       "reagendar_r1",     "estado_r1:Reagendar R1"),
-            ("Filtrado en R1",     "filtrado_en_r1",   "estado_r1:Filtrado en R1"),
-            ("Follow podcast",     "follow_podcast",   "estado_r1:Follow podcast"),
+            ("Leads",             "leads",             "metrica:leads",                obj["Leads"]),
+            ("Llamado Cancelado",  "llamado_cancelado", "estado_r1:Llamado Cancelado",  0),
+            ("Reagendar R1",       "reagendar_r1",      "estado_r1:Reagendar R1",       0),
+            ("Filtrado en R1",     "filtrado_en_r1",    "estado_r1:Filtrado en R1",     obj["R1"]),
+            ("Follow podcast",     "follow_podcast",    "estado_r1:Follow podcast",     obj["Follow"]),
         ]
         body_b = ""
-        for i, (lbl, col, filt_total) in enumerate(_METRICAS_CC):
+        for i, (lbl, col, filt_total, obj_val) in enumerate(_METRICAS_CC):
             bg  = _bgs[i % 2]; bgs = _bgss[i % 2]
             vals = [int(r[col]) if col in df_show_cc.columns and pd.notna(r[col]) else 0
                     for _, r in df_show_cc.iterrows()]
@@ -1851,11 +1881,16 @@ with tab_cc:
                 p_str = str(row_p["_periodo_str"])
                 filt = f"periodo:{p_str}|{filt_total}" if filt_total != "metrica:leads" else f"periodo:{p_str}"
                 onclick = f' data-filter="{filt}"' if v else ""
-                cells += f'<td style="text-align:center;{_WP};{_TD};background:{bg}"{onclick}>{v if v else ""}</td>'
-            _tot = sum(vals); _prom = round(_tot / len(vals)) if vals else 0
+                _icn = f"{_icon_cc(v, obj_val)} " if obj_val else ""
+                cells += f'<td style="text-align:center;{_WP};{_TD};background:{bg}"{onclick}>{(_icn+str(v)) if v else ""}</td>'
+            _tot = sum(vals)
+            _res = vals[-1] if _es_ult_cc and vals else (round(_tot / len(vals)) if vals else 0)
+            _pct = round(_res / obj_val * 100) if obj_val else 0
+            _icn_res = f"{_icon_cc(_res, obj_val)} " if obj_val else ""
             tot_onclick = f' data-filter="{filt_total}"' if _tot else ""
-            cells += (f'<td style="text-align:center;font-weight:500;{_WS};{_TD};background:{bgs}"{tot_onclick}>{_tot if _tot else ""}</td>'
-                      f'<td style="text-align:center;font-weight:500;{_WS};{_TD};background:{bgs}">{_prom if _prom else ""}</td>')
+            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_TD};background:{bgs}"{tot_onclick}>{(_icn_res+str(_res)) if _res else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TD};background:#f8fafc;color:#64748b">{obj_val if obj_val else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TD};background:#f8fafc;color:#64748b">{"" if not _pct else str(_pct)+"%"}</td>'
             body_b += f"<tr>{cells}</tr>"
 
         # Tabla R2/Presupuesto — mismo color azul que tabla superior
@@ -1875,16 +1910,18 @@ with tab_cc:
                 p_str = str(row_p["_periodo_str"])
                 onclick = f' data-filter="periodo:{p_str}|bucket:{col}"' if v else ""
                 cells += f'<td style="text-align:center;{_WP};{_TDv};background:{bg}"{onclick}>{v if v else ""}</td>'
-            _tot = sum(vals); _prom = round(_tot / len(vals)) if vals else 0
+            _tot = sum(vals)
+            _res = vals[-1] if _es_ult_cc and vals else (round(_tot / len(vals)) if vals else 0)
             tot_onclick = f' data-filter="bucket:{col}"' if _tot else ""
-            cells += (f'<td style="text-align:center;font-weight:500;{_WS};{_TDv};background:{bgs}"{tot_onclick}>{_tot if _tot else ""}</td>'
-                      f'<td style="text-align:center;font-weight:500;{_WS};{_TDv};background:{bgs}">{_prom if _prom else ""}</td>')
+            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_TDv};background:{bgs}"{tot_onclick}>{_res if _res else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TDv};background:#f8fafc"></td>'
+            cells += f'<td style="text-align:center;{_WO};{_TDv};background:#f8fafc"></td>'
             body_v += f"<tr>{cells}</tr>"
 
         # Ratios — fila separadora + filas en verde
         _bg_ratio  = ["#d7f0e3", "#eef9f3"]
         _bgs_ratio = ["#a3d9bd", "#bdeace"]
-        _n_cols = len(df_show_cc) + 3  # métrica + períodos + Total + Promedio
+        _n_cols = len(df_show_cc) + 5  # métrica + períodos + Resumen + Objetivo + % Cumpl.
         _sep_row = f'<tr><td colspan="{_n_cols}" style="padding:2px 0;background:#fff;border:none"></td></tr>'
         body_v += _sep_row
 
@@ -1912,7 +1949,8 @@ with tab_cc:
                 cells += f'<td style="text-align:center;{_WP};{_TDr};background:{bg}">{v}</td>'
             tot_v = _pct(nums_sum, dens_sum)
             cells += (f'<td style="text-align:center;font-weight:500;{_WS};{_TDr};background:{bgs}">{tot_v}</td>'
-                      f'<td style="text-align:center;font-weight:500;{_WS};{_TDr};background:{bgs}"></td>')
+                      f'<td style="text-align:center;{_WO};{_TDr};background:#f8fafc"></td>'
+                      f'<td style="text-align:center;{_WO};{_TDr};background:#f8fafc"></td>')
             body_v += f"<tr>{cells}</tr>"
 
         # Insertar el mismo separador entre tabla azul y R2/ratios
