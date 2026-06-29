@@ -148,20 +148,25 @@ def login() -> bool:
 
         st.markdown("<hr style='margin:20px 0;border-color:#f0f0f0'>", unsafe_allow_html=True)
 
-        # Login con contraseña para perfil completo
-        usuario  = st.text_input("Usuario", placeholder="usuario")
-        password = st.text_input("Contraseña", type="password", placeholder="contraseña")
-        if st.button("Ingresar", use_container_width=True, type="primary"):
-            usuarios = _cargar_usuarios()
-            datos = usuarios.get(usuario)
-            if datos and _verificar_password(password, str(datos.get("password", ""))):
-                st.session_state["autenticado"] = True
-                st.session_state["usuario"]     = usuario
-                st.session_state["nombre"]      = str(datos.get("nombre", usuario))
-                st.session_state["perfil"]      = str(datos.get("perfil", "completo"))
+        # Botón perfil completo que expande el formulario
+        if not st.session_state.get("_show_login_form"):
+            if st.button("🔐  Perfil completo", use_container_width=True):
+                st.session_state["_show_login_form"] = True
                 st.rerun()
-            else:
-                st.error("Usuario o contraseña incorrectos.")
+        else:
+            usuario  = st.text_input("Usuario", placeholder="usuario")
+            password = st.text_input("Contraseña", type="password", placeholder="contraseña")
+            if st.button("Ingresar", use_container_width=True, type="primary"):
+                usuarios = _cargar_usuarios()
+                datos = usuarios.get(usuario)
+                if datos and _verificar_password(password, str(datos.get("password", ""))):
+                    st.session_state["autenticado"] = True
+                    st.session_state["usuario"]     = usuario
+                    st.session_state["nombre"]      = str(datos.get("nombre", usuario))
+                    st.session_state["perfil"]      = str(datos.get("perfil", "completo"))
+                    st.rerun()
+                else:
+                    st.error("Usuario o contraseña incorrectos.")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
