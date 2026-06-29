@@ -1783,8 +1783,9 @@ with tab_baj:
 
         # Promedio truncado al 5% de cada cola
         if len(_ma_vals) >= 10:
-            from scipy.stats import trim_mean as _trim_mean
-            _prom_trunc = _trim_mean(_ma_vals.values, 0.05)
+            _sv = sorted(_ma_vals.values)
+            _cut = max(1, int(len(_sv) * 0.05))
+            _prom_trunc = sum(_sv[_cut:-_cut]) / len(_sv[_cut:-_cut])
         elif len(_ma_vals) > 0:
             _prom_trunc = _ma_vals.mean()
         else:
