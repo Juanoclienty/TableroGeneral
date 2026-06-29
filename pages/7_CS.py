@@ -1415,10 +1415,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgro
 .layout{{display:flex;gap:20px;align-items:flex-start;margin-bottom:20px}}
 .col-sla{{flex:0 0 26%}}
 .col-riesgo{{flex:0 0 26%}}
-.col-riesgo .tbl-title{{height:3rem}}
 .col-etapa{{flex:1;overflow-x:auto}}
 .col-sla table, .col-riesgo table, .col-etapa table{{table-layout:fixed;width:100%}}
-.tbl-title{{font-size:0.82rem;font-weight:600;color:#1e293b;margin-bottom:5px;height:2.4rem;display:flex;align-items:flex-end}}
+.tbl-title{{font-size:0.82rem;font-weight:600;color:#1e293b;margin-bottom:5px;height:1.6rem;display:flex;align-items:flex-end}}
 .wrap{{border:1px solid #c8ccd0;border-radius:4px;overflow:hidden}}
 table{{border-collapse:collapse;width:100%;table-layout:auto}}
 .h-n{{background:#1a3a5c;color:#fff;font-weight:bold;padding:6px 4px;text-align:center;border:1px dotted #9ab;font-size:0.72rem}}
