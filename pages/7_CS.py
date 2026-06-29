@@ -1750,6 +1750,39 @@ with tab_baj:
         st.error(f"Error cargando BBDD_Ventas: {_e}")
         df_ventas_cs = pd.DataFrame()
 
+    # ── Cards resumen por mes ──────────────────────────────────
+    st.markdown("### Resumen")
+    _df_baj_cards = df_bajas.copy()
+    _df_baj_cards = _df_baj_cards[_df_baj_cards["_fecha_baja"].notna()].copy()
+    _df_baj_cards["_mes"] = _df_baj_cards["_fecha_baja"].dt.to_period("M")
+    _meses_baj = sorted(_df_baj_cards["_mes"].unique(), reverse=True)[:4]
+
+    _card_cols = st.columns(len(_meses_baj))
+    for _i, (_col_c, _mes_c) in enumerate(zip(_card_cols, _meses_baj)):
+        _grp_c  = _df_baj_cards[_df_baj_cards["_mes"] == _mes_c]
+        _n_baj_c = len(_grp_c)
+        _lbl_c  = pd.Timestamp(_mes_c.start_time).strftime("%B %Y").capitalize()
+        _ma_c   = _grp_c["Meses activos"].dropna().mean()
+        _ma_str_c = f"{int(round(_ma_c))} meses" if pd.notna(_ma_c) else "–"
+        _baj_txt = "baja" if _n_baj_c == 1 else "bajas"
+        _html_c = (
+            '<div style="background:linear-gradient(135deg,#2196F3,#1565C0);'
+            'border-radius:12px;padding:20px 16px 14px;text-align:center;color:white;margin-bottom:6px">'
+            f'<div style="font-size:1rem;font-weight:600;margin-bottom:8px">{_lbl_c}</div>'
+            f'<div style="font-size:2rem;font-weight:700;line-height:1.1">{_n_baj_c}</div>'
+            f'<div style="font-size:0.78rem;opacity:.85;margin-bottom:6px">{_baj_txt}</div>'
+            '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
+            'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:4px">'
+            f'<div><div style="opacity:.7">Meses prom.</div><div style="font-weight:600">{_ma_str_c}</div></div>'
+            '</div>'
+            '</div>'
+        )
+        with _col_c:
+            st.markdown(_html_c, unsafe_allow_html=True)
+
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown("### Bajas por cohorte de baja")
+
     # ── Filtros ───────────────────────────────────────────────
     _fc_r, _fc_y, _fc_b2b = st.columns(3)
 
@@ -1806,6 +1839,7 @@ with tab_baj:
                                "%": f"{round(_otros_b / _n_baj_total * 100)}%" if _n_baj_total > 0 else "–"})
     _df_rubro_b = pd.DataFrame(_rubro_rows_b)
 
+    st.markdown("### Resumen por intervalo y rubro")
     _bkpi1, _bdist, _brubro = st.columns([0.6, 1, 1.4])
     with _bkpi1:
         st.markdown(
@@ -1867,7 +1901,7 @@ with tab_baj:
     #  TABLA 1: Cohorte de baja × intervalo de duración
     # ══════════════════════════════════════════════════════════
 
-    st.markdown("#### Bajas por cohorte de baja e intervalo de duración")
+    st.markdown("#### Por cohorte de baja e intervalo de duración")
 
     _col_lbl1, _col_rad1, _ = st.columns([1, 2, 6])
     with _col_lbl1:
@@ -1905,7 +1939,7 @@ with tab_baj:
         '<div style="margin-top:8px"></div>',
         unsafe_allow_html=True,
     )
-    st.markdown("#### Bajas por cohorte de venta")
+    st.markdown("#### Por cohorte de ingreso")
 
     _col_lbl2, _col_rad2, _ = st.columns([1, 2, 6])
     with _col_lbl2:
