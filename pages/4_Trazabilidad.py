@@ -1833,43 +1833,37 @@ with tab_cc:
             })
         _det_json = _json.dumps(_det_rows, ensure_ascii=False)
 
-        # ── Estilos idénticos al tab Gral ───────────────────────────
-        _S    = "border:1px solid #e2e8f0"
-        _WM   = "width:120px;min-width:120px;max-width:120px"
-        _WP   = "width:105px;min-width:105px;max-width:105px"
-        _WS   = "width:88px;min-width:88px;max-width:88px"
-        _BASE_TH = f"font-size:0.78rem;font-weight:600;padding:6px 8px;{_S};overflow:hidden"
-        _BASE_TD = f"font-size:0.83rem;padding:5px 8px;{_S};overflow:hidden"
-        _BASE_TDr= f"font-size:0.72rem;padding:5px 8px;{_S};overflow:hidden"
+        # ── Construir tablas HTML ────────────────────────────────────
+        _S  = "border:1px solid #e2e8f0"
+        _WM = "width:160px;min-width:160px;max-width:160px"
+        _WP = "width:105px;min-width:105px;max-width:105px"
+        _WS = "width:88px;min-width:88px;max-width:88px"
+        _TH = f"font-size:0.78rem;font-weight:600;padding:6px 8px;{_S};overflow:hidden"
+        _TD = f"font-size:0.83rem;padding:2px 8px;{_S};overflow:hidden"
+        _TDv= f"font-size:0.83rem;padding:2px 8px;{_S};overflow:hidden"
+        _TDr= f"font-size:0.72rem;padding:2px 8px;{_S};overflow:hidden"
 
-        _HB   = "#1a3a5c"; _HF = "#fff"
-        _HG   = "#1a5c3a"
-        _bg_b = ["#d6eaf8", "#eef6fc"]; _bgs_b= ["#a9cce3", "#bcd9ec"]
-        _bg_g = ["#d7f0e3", "#eef9f3"]; _bgs_g= ["#a3d9bd", "#bdeace"]
+        _HB = "#1a3a5c"; _HF = "#fff"
+        _bgs  = ["#d6eaf8", "#eef6fc"]
+        _bgss = ["#a9cce3", "#bcd9ec"]
+
+        _WO = "width:72px;min-width:72px;max-width:72px"
 
         def _icon_cc(v, o):
             if not o: return ""
             return "🟢" if v >= o else ("🟡" if v >= o * 0.7 else "🔴")
 
-        def _th(txt, bg, fg, w, extra=""):
-            return f'<th style="text-align:{extra or "center"};color:{fg};background:{bg};{w};{_BASE_TH}">{txt}</th>'
+        # Encabezado compartido
+        def _build_hdr(hdr_bg, hdr_fg):
+            h = f'<th style="text-align:left;color:{hdr_fg};background:{hdr_bg};{_WM};{_TH}">Métrica</th>'
+            for _, r in df_show_cc.iterrows():
+                h += f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WP};{_TH}">{r["_lbl"]}</th>'
+            h += (f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WS};{_TH}">{_lbl_res_cc}</th>'
+                  f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_TH}">Objetivo</th>'
+                  f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_TH}">% Cumpl.</th>')
+            return h
 
-        def _td(txt, bg, w, align="center", bold=False, fg="#1e293b", extra_style=""):
-            fw = "font-weight:600;" if bold else ("font-weight:500;" if bold is None else "")
-            return f'<td style="text-align:{align};{fw}color:{fg};{w};{_BASE_TD};background:{bg}{extra_style}">{txt}</td>'
-
-        def _tdr(txt, bg, w, align="center"):
-            return f'<td style="text-align:{align};{w};{_BASE_TDr};background:{bg}">{txt}</td>'
-
-        # ── Encabezado ────────────────────────────────────────────────
-        _n_cols = len(df_show_cc) + 4  # métrica + períodos + Resumen + Objetivo + % Cumpl.
-        hdr  = _th("Métrica", _HB, _HF, _WM, "left")
-        hdr += "".join(_th(r["_lbl"], _HB, _HF, _WP) for _, r in df_show_cc.iterrows())
-        hdr += _th(_lbl_res_cc, _HB, _HF, _WS)
-        hdr += _th("Objetivo",  "#f8fafc", "#64748b", _WS)
-        hdr += _th("% Cumpl.",  "#f8fafc", "#64748b", _WS)
-
-        # ── Tabla azul — (lbl, col, filt_total, obj_val) ─────────────
+        # Tabla azul — (lbl, col, filt_total, objetivo_o_0)
         _METRICAS_CC = [
             ("Leads",             "leads",             "metrica:leads",                obj["Leads"]),
             ("Llamado Cancelado",  "llamado_cancelado", "estado_r1:Llamado Cancelado",  0),
@@ -1879,27 +1873,27 @@ with tab_cc:
         ]
         body_b = ""
         for i, (lbl, col, filt_total, obj_val) in enumerate(_METRICAS_CC):
-            bg = _bg_b[i % 2]; bgs = _bgs_b[i % 2]
+            bg  = _bgs[i % 2]; bgs = _bgss[i % 2]
             vals = [int(r[col]) if col in df_show_cc.columns and pd.notna(r[col]) else 0
                     for _, r in df_show_cc.iterrows()]
-            cells = _td(lbl, bg, _WM, "left", True)
+            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TD};background:{bg}">{lbl}</td>'
             for (_, row_p), v in zip(df_show_cc.iterrows(), vals):
                 p_str = str(row_p["_periodo_str"])
                 filt = f"periodo:{p_str}|{filt_total}" if filt_total != "metrica:leads" else f"periodo:{p_str}"
-                oc = f' data-filter="{filt}"' if v else ""
-                icn = f"{_icon_cc(v, obj_val)} " if obj_val else ""
-                cells += f'<td style="text-align:center;{_WP};{_BASE_TD};background:{bg}"{oc}>{(icn+str(v)) if v else ""}</td>'
+                onclick = f' data-filter="{filt}"' if v else ""
+                _icn = f"{_icon_cc(v, obj_val)} " if obj_val else ""
+                cells += f'<td style="text-align:center;{_WP};{_TD};background:{bg}"{onclick}>{(_icn+str(v)) if v else ""}</td>'
             _tot = sum(vals)
             _res = vals[-1] if _es_ult_cc and vals else (round(_tot / len(vals)) if vals else 0)
-            _pct_v = round(_res / obj_val * 100) if obj_val else 0
-            icn_r = f"{_icon_cc(_res, obj_val)} " if obj_val else ""
-            oc_tot = f' data-filter="{filt_total}"' if _tot else ""
-            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_BASE_TD};background:{bgs}"{oc_tot}>{(icn_r+str(_res)) if _res else ""}</td>'
-            cells += f'<td style="text-align:center;{_WS};{_BASE_TD};background:#f8fafc;color:#64748b">{obj_val if obj_val else ""}</td>'
-            cells += f'<td style="text-align:center;{_WS};{_BASE_TD};background:#f8fafc;color:#64748b">{str(_pct_v)+"%" if _pct_v else ""}</td>'
+            _pct = round(_res / obj_val * 100) if obj_val else 0
+            _icn_res = f"{_icon_cc(_res, obj_val)} " if obj_val else ""
+            tot_onclick = f' data-filter="{filt_total}"' if _tot else ""
+            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_TD};background:{bgs}"{tot_onclick}>{(_icn_res+str(_res)) if _res else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TD};background:#f8fafc;color:#64748b">{obj_val if obj_val else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TD};background:#f8fafc;color:#64748b">{"" if not _pct else str(_pct)+"%"}</td>'
             body_b += f"<tr>{cells}</tr>"
 
-        # ── Tabla R2 (misma paleta azul, sin objetivos) ───────────────
+        # Tabla R2/Presupuesto — mismo color azul que tabla superior
         _METRICAS_V = [
             ("R2A Pend",    "r2a_pend"),
             ("R2 Efectiva", "r2_efectiva"),
@@ -1908,68 +1902,72 @@ with tab_cc:
         ]
         body_v = ""
         for i, (lbl, col) in enumerate(_METRICAS_V):
-            bg = _bg_b[i % 2]; bgs = _bgs_b[i % 2]
+            bg  = _bgs[i % 2]; bgs = _bgss[i % 2]
             vals = [int(row_p[col]) if col in df_show_cc.columns and pd.notna(row_p[col]) else 0
                     for _, row_p in df_show_cc.iterrows()]
-            cells = _td(lbl, bg, _WM, "left", True)
+            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDv};background:{bg}">{lbl}</td>'
             for (_, row_p), v in zip(df_show_cc.iterrows(), vals):
                 p_str = str(row_p["_periodo_str"])
-                oc = f' data-filter="periodo:{p_str}|bucket:{col}"' if v else ""
-                cells += f'<td style="text-align:center;{_WP};{_BASE_TD};background:{bg}"{oc}>{v if v else ""}</td>'
+                onclick = f' data-filter="periodo:{p_str}|bucket:{col}"' if v else ""
+                cells += f'<td style="text-align:center;{_WP};{_TDv};background:{bg}"{onclick}>{v if v else ""}</td>'
             _tot = sum(vals)
             _res = vals[-1] if _es_ult_cc and vals else (round(_tot / len(vals)) if vals else 0)
-            oc_tot = f' data-filter="bucket:{col}"' if _tot else ""
-            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_BASE_TD};background:{bgs}"{oc_tot}>{_res if _res else ""}</td>'
-            cells += f'<td style="text-align:center;{_WS};{_BASE_TD};background:#f8fafc"></td>'
-            cells += f'<td style="text-align:center;{_WS};{_BASE_TD};background:#f8fafc"></td>'
+            tot_onclick = f' data-filter="bucket:{col}"' if _tot else ""
+            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_TDv};background:{bgs}"{tot_onclick}>{_res if _res else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TDv};background:#f8fafc"></td>'
+            cells += f'<td style="text-align:center;{_WO};{_TDv};background:#f8fafc"></td>'
             body_v += f"<tr>{cells}</tr>"
 
-        # ── Ratios en verde ───────────────────────────────────────────
-        def _pct_str(num, den):
+        # Ratios — fila separadora + filas en verde
+        _bg_ratio  = ["#d7f0e3", "#eef9f3"]
+        _bgs_ratio = ["#a3d9bd", "#bdeace"]
+        _n_cols = len(df_show_cc) + 5  # métrica + períodos + Resumen + Objetivo + % Cumpl.
+        _sep_row = f'<tr><td colspan="{_n_cols}" style="padding:2px 0;background:#fff;border:none"></td></tr>'
+        body_v += _sep_row
+
+        def _pct(num, den):
             return f"{round(num/den*100)}%" if den else ""
 
-        _sep_row = f'<tr><td colspan="{_n_cols}" style="height:10px;border:none;background:#fff"></td></tr>'
-        body_r = ""
-        _RATIOS_CC = [
-            ("%R1/Lead",  True,  "leads", obj["R1"],     obj["Leads"]),
-            ("%FP/Lead",  False, "leads", obj["Follow"], obj["Leads"]),
+        _RATIOS = [
+            ("%R1/Lead",  "follow_podcast", "filtrado_en_r1", "leads"),
+            ("%FP/Lead",  "follow_podcast",  None,            "leads"),
         ]
-        for i, (lbl, is_r1, den_col, obj_num, obj_den) in enumerate(_RATIOS_CC):
-            bg = _bg_g[i % 2]; bgs = _bgs_g[i % 2]
-            obj_ratio = round(obj_num / obj_den * 100) if obj_den else 0
+        for i, ratio_def in enumerate(_RATIOS):
+            lbl   = ratio_def[0]
+            bg    = _bg_ratio[i % 2]; bgs = _bgs_ratio[i % 2]
+            vals_str = []
             nums_sum = 0; dens_sum = 0
-            cells = _tdr(lbl, bg, _WM, "left")
-            period_ratios = []
+            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDr};background:{bg}">{lbl}</td>'
             for _, row_p in df_show_cc.iterrows():
-                num = (int(row_p.get("follow_podcast", 0) or 0) + int(row_p.get("filtrado_en_r1", 0) or 0)) if is_r1 else int(row_p.get("follow_podcast", 0) or 0)
-                den = int(row_p.get(den_col, 0) or 0)
+                if ratio_def[0] == "%R1/Lead":
+                    num = int(row_p.get("follow_podcast", 0) or 0) + int(row_p.get("filtrado_en_r1", 0) or 0)
+                else:
+                    num = int(row_p.get("follow_podcast", 0) or 0)
+                den = int(row_p.get("leads", 0) or 0)
                 nums_sum += num; dens_sum += den
-                period_ratios.append(round(num / den * 100) if den else 0)
-                cells += f'<td style="text-align:center;{_WP};{_BASE_TDr};background:{bg}">{_pct_str(num, den)}</td>'
-            _res_r = period_ratios[-1] if _es_ult_cc and period_ratios else (round(nums_sum / dens_sum * 100) if dens_sum else 0)
-            _pct_cpl = round(_res_r / obj_ratio * 100) if obj_ratio else 0
-            cells += f'<td style="text-align:center;font-weight:500;{_WS};{_BASE_TDr};background:{bgs}">{str(_res_r)+"%" if _res_r else ""}</td>'
-            cells += f'<td style="text-align:center;{_WS};{_BASE_TDr};background:#f8fafc;color:#64748b">{str(obj_ratio)+"%" if obj_ratio else ""}</td>'
-            cells += f'<td style="text-align:center;{_WS};{_BASE_TDr};background:#f8fafc;color:#64748b">{str(_pct_cpl)+"%" if _pct_cpl else ""}</td>'
-            body_r += f"<tr>{cells}</tr>"
+                v = _pct(num, den)
+                cells += f'<td style="text-align:center;{_WP};{_TDr};background:{bg}">{v}</td>'
+            tot_v = _pct(nums_sum, dens_sum)
+            cells += (f'<td style="text-align:center;font-weight:500;{_WS};{_TDr};background:{bgs}">{tot_v}</td>'
+                      f'<td style="text-align:center;{_WO};{_TDr};background:#f8fafc"></td>'
+                      f'<td style="text-align:center;{_WO};{_TDr};background:#f8fafc"></td>')
+            body_v += f"<tr>{cells}</tr>"
 
-        # ── Render tablas via st.markdown ─────────────────────────────
-        st.markdown(
-            f'<div style="overflow-x:auto"><table style="table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:6px">'
-            f'<thead><tr>{hdr}</tr></thead>'
-            f'<tbody>{body_b}{_sep_row}{body_v}{_sep_row}{body_r}</tbody>'
-            f'</table></div>',
-            unsafe_allow_html=True,
-        )
+        # Insertar el mismo separador entre tabla azul y R2/ratios
+        _sep_row_top = f'<tr><td colspan="{_n_cols}" style="padding:2px 0;background:#fff;border:none"></td></tr>'
+        body_combined = body_b + _sep_row_top + body_v
+
+        _hdr_b = _build_hdr(_HB, _HF)
 
         _n_det = len(_det_rows)
-        _height = 50 + _n_det * 31 + 80
+        _height = 34 + 5 * 34 + 16 + (4 + 2) * 30 + 40 + 50 + _n_det * 31 + 80
 
         _html_cc = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
 <style>
 *{{box-sizing:border-box;margin:0}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;padding:4px 0;font-size:0.78rem}}
 table{{border-collapse:collapse;table-layout:fixed;width:100%}}
+td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2);cursor:pointer}}
 .det-wrap{{border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;margin-top:14px}}
 .det-tbl{{width:100%;border-collapse:collapse;font-size:0.8rem;table-layout:auto}}
 .det-th{{padding:6px 12px;font-weight:600;background:#f1f5f9;color:#475569;border-bottom:2px solid #e2e8f0;cursor:pointer;white-space:nowrap;text-align:left}}
@@ -1989,6 +1987,7 @@ table{{border-collapse:collapse;table-layout:fixed;width:100%}}
 .count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px;display:inline-block}}
 </style>
 </head><body>
+<table style="margin-bottom:12px"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
 <div style="display:flex;align-items:center;margin:10px 0 4px">
 <div class="count" id="det-count"></div>
 </div>
