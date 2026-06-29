@@ -376,7 +376,7 @@ _DET_DIV = (
 )
 
 _IFRAME_JS_TMPL = """
-var _SKEYS=['fis','fbs','mr'];
+var _SKEYS=['fis','fbs','mr','ltv','rec'];
 var _lastRows=[], _sortIdx=-1, _sortDir=1;
 function _ivl(m){
   if(m==null)return null;
@@ -427,10 +427,12 @@ function renderDet(rows){
       +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(1)">F. baja'+_arr(1)+'</th>'
       +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(2)">Meses'+_arr(2)+'</th>'
       +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(3)">LTV T'+_arr(3)+'</th>'
+      +'<th style="'+S+'text-align:center;cursor:pointer" onclick="sortDet(4)">Recurrente'+_arr(4)+'</th>'
       +'</tr></thead><tbody>';
     for(var i=0;i<rows.length;i++){
       var r=rows[i],bg=i%2?'#fff':'#f8f9fa';
       var ltvStr=r.ltv!=null?'$'+r.ltv.toLocaleString('es-AR'):'-';
+      var recStr=r.rec!=null?'$'+r.rec.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2}):'-';
       h+='<tr style="background:'+bg+'">'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee">'+(r.id||'-')+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee">'+r.nom+'</td>'
@@ -438,6 +440,7 @@ function renderDet(rows){
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+r.fb+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+(r.mr!=null?Math.round(r.mr*10)/10+'m':'-')+'</td>'
         +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+ltvStr+'</td>'
+        +'<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center">'+recStr+'</td>'
         +'</tr>';
     }
     bdy.innerHTML=h+'</tbody></table>';
@@ -712,6 +715,7 @@ def _cohorte_html(df_b: pd.DataFrame, granularity: str) -> tuple[str, int]:
             "yr":  int(_r["_y"]),
             "mb":  int(_r["_m"]),
             "ltv": round(_ltv_v) if _ltv_v is not None else None,
+            "rec": _rec_lookup_cs.get(_id_str),
         })
     _bdata_json = json.dumps(_bdata_rows, ensure_ascii=False)
     _filter_js  = _make_iframe_js(_bdata_json, "yr", "mb")
@@ -915,6 +919,7 @@ def _cohorte_ventas_html(
             "mv":  int(_r["_m"]),
             "eb":  _is_baj,
             "ltv": round(_ltv_lookup_cs.get(_vid)) if _ltv_lookup_cs.get(_vid) is not None else None,
+            "rec": _rec_lookup_cs.get(_vid),
         })
     _bdata_json_v = json.dumps(_bdata_rows_v, ensure_ascii=False)
     _filter_js_v  = _make_iframe_js(_bdata_json_v, "yv", "mv")
@@ -1084,6 +1089,12 @@ try:
     _ltv_lookup_cs = _cargar_ltv_lookup_cs()
 except Exception:
     _ltv_lookup_cs = {}
+
+try:
+    import datos_crm as _dcrm_top
+    _rec_lookup_cs = _dcrm_top.cargar_recurrente_bajas()
+except Exception:
+    _rec_lookup_cs = {}
 
 
 if df_all.empty:

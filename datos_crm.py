@@ -1014,3 +1014,51 @@ def cargar_bajas_t90() -> dict:
             "Bajas pre 2026": total - b2026,
         }
     return result
+
+
+_BOARD_ID_BAJAS  = "9195110137"
+_COL_ID_BAJAS    = "id8__1"
+_COL_A2_BAJAS    = "abono_usd"   # ARS mensual
+_COL_TC_BAJAS    = "n_meros7"    # Tipo de cambio
+_COL_BONIF_BAJAS = "n_meros0"    # % de descuento
+
+@_st.cache_data(ttl=86400, show_spinner=False)
+def cargar_recurrente_bajas() -> dict:
+    """Retorna {id_crm: recurrente_usd} calculado como (A2/TC)*(1-bonif/100)."""
+    _cols = [_COL_ID_BAJAS, _COL_A2_BAJAS, _COL_TC_BAJAS, _COL_BONIF_BAJAS]
+    _cols_gql = ", ".join(f'"{c}"' for c in _cols)
+    fragment = f'id name column_values(ids: [{_cols_gql}]) {{ id text }}'
+    q = f'{{ boards(ids: [{_BOARD_ID_BAJAS}]) {{ items_page(limit: 500) {{ cursor items {{ {fragment} }} }} }} }}'
+    r = _monday_request_cs(q)
+    page  = r["data"]["boards"][0]["items_page"]
+    items = list(page["items"])
+    cursor = page.get("cursor")
+    while cursor:
+        q2 = f'{{ next_items_page(limit: 500, cursor: "{cursor}") {{ cursor items {{ {fragment} }} }} }}'
+        r2 = _monday_request_cs(q2)
+        np = r2["data"]["next_items_page"]
+        items += np["items"]
+        cursor = np.get("cursor")
+
+    def _num(s):
+        try:
+            return float((s or "").replace(",", ".").replace("$", "").strip())
+        except Exception:
+            return None
+
+    result = {}
+    for item in items:
+        cv = {v["id"]: v["text"] for v in item["column_values"]}
+        raw_id = cv.get(_COL_ID_BAJAS, "") or ""
+        if not raw_id:
+            continue
+        try:
+            _id = str(int(float(raw_id.replace(",", "."))))
+        except Exception:
+            _id = raw_id.strip()
+        a2    = _num(cv.get(_COL_A2_BAJAS))
+        tc    = _num(cv.get(_COL_TC_BAJAS))
+        bonif = _num(cv.get(_COL_BONIF_BAJAS)) or 0.0
+        if a2 and tc and tc != 0:
+            result[_id] = round((a2 / tc) * (1 - bonif / 100), 2)
+    return result
