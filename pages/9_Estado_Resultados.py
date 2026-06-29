@@ -268,6 +268,41 @@ def _render(d, year):
     months  = d["months"]
     n       = len(months)
 
+    # Filtrar columnas sin ningún dato (todas None o 0)
+    _all_vals = [d.get(k) or [] for k in [
+        "ingresos","total_gastos","sueldos","publicidad","estructura",
+        "variables","otros_op","profit_economico","profit_real","pago_iva","dolar"
+    ]]
+    _col_tiene_dato = [
+        any((row[i] if i < len(row) else None) for row in _all_vals)
+        for i in range(n)
+    ]
+    _keep = [i for i, ok in enumerate(_col_tiene_dato) if ok]
+    if len(_keep) < n:
+        months = [months[i] for i in _keep]
+        n = len(months)
+        def _filtrar(vals):
+            if not vals: return vals
+            return [vals[i] for i in _keep if i < len(vals)]
+        d = {
+            k: (
+                _filtrar(v) if isinstance(v, list) and v and not isinstance(v[0], tuple)
+                else [(lbl, _filtrar(sub)) for lbl, sub in v] if isinstance(v, list) and v and isinstance(v[0], tuple)
+                else v
+            )
+            for k, v in d.items() if k != "months"
+        }
+        d["months"] = months
+        # Filtrar detail lists: [(label, vals), ...]
+        for dk in ["publicidad_detail","estructura_detail","variables_detail","otros_op_detail"]:
+            if dk in d:
+                d[dk] = [(lbl, _filtrar(vals)) for lbl, vals in d[dk]]
+        # Filtrar ingresos_groups y sueldos_groups: [(lbl, vals, [(sublbl, subvals)])]
+        for gk in ["ingresos_groups","sueldos_groups"]:
+            if gk in d:
+                d[gk] = [(lbl, _filtrar(vals), [(sl, _filtrar(sv)) for sl, sv in subs])
+                          for lbl, vals, subs in d[gk]]
+
     # ── Build table data ──────────────────────────────────────────────────────
     def _row_data(key):
         return d.get(key) or [None] * n
