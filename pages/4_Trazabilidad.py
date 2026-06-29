@@ -1859,8 +1859,8 @@ with tab_cc:
             for _, r in df_show_cc.iterrows():
                 h += f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WP};{_TH}">{r["_lbl"]}</th>'
             h += (f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WS};{_TH}">{_lbl_res_cc}</th>'
-                  f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_TH}">Objetivo</th>'
-                  f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_TH}">% Cumpl.</th>')
+                  f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WO};{_TH}">Objetivo</th>'
+                  f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WO};{_TH}">% Cumpl.</th>')
             return h
 
         # Tabla azul — (lbl, col, filt_total, objetivo_o_0)
@@ -1889,8 +1889,8 @@ with tab_cc:
             _icn_res = f"{_icon_cc(_res, obj_val)} " if obj_val else ""
             tot_onclick = f' data-filter="{filt_total}"' if _tot else ""
             cells += f'<td style="text-align:center;font-weight:500;{_WS};{_TD};background:{bgs}"{tot_onclick}>{(_icn_res+str(_res)) if _res else ""}</td>'
-            cells += f'<td style="text-align:center;{_WO};{_TD};background:#f8fafc;color:#64748b;border:1px solid #e2e8f0">{obj_val if obj_val else ""}</td>'
-            cells += f'<td style="text-align:center;{_WO};{_TD};background:#f8fafc;color:#64748b;border:1px solid #e2e8f0">{"" if not _pct else str(_pct)+"%"}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TD};background:{bgs};color:#1e293b">{obj_val if obj_val else ""}</td>'
+            cells += f'<td style="text-align:center;{_WO};{_TD};background:{bgs};color:#1e293b">{"" if not _pct else str(_pct)+"%"}</td>'
             body_b += f"<tr>{cells}</tr>"
 
         # Tabla R2/Presupuesto — mismo color azul que tabla superior
@@ -1914,8 +1914,8 @@ with tab_cc:
             _res = vals[-1] if _es_ult_cc and vals else (round(_tot / len(vals)) if vals else 0)
             tot_onclick = f' data-filter="bucket:{col}"' if _tot else ""
             cells += f'<td style="text-align:center;font-weight:500;{_WS};{_TDv};background:{bgs}"{tot_onclick}>{_res if _res else ""}</td>'
-            cells += f'<td style="text-align:center;{_WO};{_TDv};background:#f8fafc;border:1px solid #e2e8f0"></td>'
-            cells += f'<td style="text-align:center;{_WO};{_TDv};background:#f8fafc;border:1px solid #e2e8f0"></td>'
+            cells += f'<td style="text-align:center;{_WO};{_TDv};background:{bgs}"></td>'
+            cells += f'<td style="text-align:center;{_WO};{_TDv};background:{bgs}"></td>'
             body_v += f"<tr>{cells}</tr>"
 
         # Ratios — fila separadora + filas en verde
@@ -1949,8 +1949,8 @@ with tab_cc:
                 cells += f'<td style="text-align:center;{_WP};{_TDr};background:{bg}">{v}</td>'
             tot_v = _pct(nums_sum, dens_sum)
             cells += (f'<td style="text-align:center;font-weight:500;{_WS};{_TDr};background:{bgs}">{tot_v}</td>'
-                      f'<td style="text-align:center;{_WO};{_TDr};background:#f8fafc;border:1px solid #e2e8f0"></td>'
-                      f'<td style="text-align:center;{_WO};{_TDr};background:#f8fafc;border:1px solid #e2e8f0"></td>')
+                      f'<td style="text-align:center;{_WO};{_TDr};background:{bgs}"></td>'
+                      f'<td style="text-align:center;{_WO};{_TDr};background:{bgs}"></td>')
             body_v += f"<tr>{cells}</tr>"
 
         # Insertar el mismo separador entre tabla azul y R2/ratios
