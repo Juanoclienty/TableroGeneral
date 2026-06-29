@@ -2420,10 +2420,12 @@ with tab_closer:
         _total_r = len(_df_det)
         _TH = "background:#1a3a5c;color:white;padding:4px 10px;text-align:left;font-size:0.82rem"
         _TD_det = "padding:3px 10px;border-bottom:1px solid #e2e8f0;font-size:0.82rem"
+        _show_closer_col = nombre_closer == "Closer"
         det_hdr = (f'<tr><th style="{_TH}">ID</th><th style="{_TH}">Fecha R2</th>'
                    f'<th style="{_TH}">Nombre</th><th style="{_TH}">Empresa</th>'
                    f'<th style="{_TH}">Estado</th><th style="{_TH}">Estado CRM</th>'
-                   f'<th style="{_TH}">CC</th></tr>')
+                   + (f'<th style="{_TH}">Closer</th>' if _show_closer_col else '')
+                   + f'<th style="{_TH}">CC</th></tr>')
         det_body = ""
         for _, r in _df_det.iterrows():
             _id   = _esc_html(r.get("ID",""))
@@ -2432,8 +2434,10 @@ with tab_closer:
             _fec  = _esc_html(r.get("Fecha R2",""))
             _bk   = str(r.get("_bucket","") or "otros")
             _per  = _esc_html(str(_p_strs.get(r[grp_col], "") or ""))
-            _ecrm = _esc_html(_crm_estado_cl.get(str(r.get("ID","") or "").strip(), ""))
-            _cc   = _esc_html(_cc_lkp.get(str(r.get("ID","") or "").strip(), ""))
+            _ecrm   = _esc_html(_crm_estado_cl.get(str(r.get("ID","") or "").strip(), ""))
+            _cc     = _esc_html(_cc_lkp.get(str(r.get("ID","") or "").strip(), ""))
+            _closer = _esc_html(r.get("_closer", ""))
+            _closer_td = f'<td style="{_TD_det};font-weight:600;color:#1a3a5c">{_closer}</td>' if _show_closer_col else ''
             det_body += (
                 f'<tr class="drow" data-periodo="{_per}" data-bucket="{_bk}" style="border-bottom:1px solid #e2e8f0">'
                 f'<td style="{_TD_det}">{_id}</td>'
@@ -2442,6 +2446,7 @@ with tab_closer:
                 f'<td style="{_TD_det}">{_emp}</td>'
                 f'<td style="{_TD_det}">{_chip(_bk)}</td>'
                 f'<td style="{_TD_det};color:#475569">{_ecrm}</td>'
+                + _closer_td +
                 f'<td style="{_TD_det};font-weight:600;color:#1a3a5c">{_cc}</td>'
                 f'</tr>'
             )
@@ -2525,8 +2530,8 @@ document.querySelectorAll('td[data-filter]').forEach(function(td){{
     tab_closer, tab_seba, tab_ro = st.tabs(["Perfo Closer", "Perfo Seba", "Perfo Ro"])
     with tab_closer:
         try:
-            _df_seba_cl = _cargar_bbdd_seba()
-            _df_ro_cl   = _cargar_bbdd_ro()
+            _df_seba_cl = _cargar_bbdd_seba().copy(); _df_seba_cl["_closer"] = "Seba"
+            _df_ro_cl   = _cargar_bbdd_ro().copy();   _df_ro_cl["_closer"]   = "Ro"
             _df_all_cl  = pd.concat([_df_seba_cl, _df_ro_cl], ignore_index=True)
             _render_perfo_closer(_df_all_cl, "Closer")
         except Exception as _e_cl:
