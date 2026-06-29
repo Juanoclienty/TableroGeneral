@@ -2587,7 +2587,7 @@ renderDet(_all);
 </script>
 </body></html>"""
 
-        components.html(_html_cl, height=_height, scrolling=False)
+        components.html(_html_cl, height=max(600, min(_height, 2000)), scrolling=True)
 
     tab_seba, tab_ro = st.tabs(["Perfo Seba", "Perfo Ro"])
     with tab_seba:
