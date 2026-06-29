@@ -168,8 +168,7 @@ def login() -> bool:
 
 def logout():
     """Cierra la sesión del usuario."""
-    for k in ["autenticado", "usuario", "nombre", "perfil"]:
-        st.session_state.pop(k, None)
+    st.session_state.clear()
     st.rerun()
 
 
