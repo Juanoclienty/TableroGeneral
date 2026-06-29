@@ -719,7 +719,20 @@ with tab_gral:
             _cpe_r  = _fmt_cp(_inv_r, _n_pre_r)
             _cpv_r  = _fmt_cp(_inv_r, _n_v_r)
             _tc_real_r = (str(round(_n_v_r / _n_pre_r * 100)) + "%") if _n_pre_r > 0 else "–"
-            _has_inv = bool(_inv_r)
+
+            # CPV Meta: inv / (ventas - referidos)
+            if not df_bbdd_res.empty:
+                if vista == "Mes":
+                    _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].dt.to_period("M") == _periodo_res]
+                elif vista == "Semana":
+                    _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].apply(_semana_de_traz) == pd.Timestamp(_periodo_res)]
+                else:
+                    _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].dt.normalize() == pd.Timestamp(_periodo_res)]
+                _n_ref_r = int((_grp_meta["_canal_adq"].str.lower().str.contains("referido", na=False)).sum())
+            else:
+                _n_ref_r = 0
+            _n_v_meta_r = _n_v_r - _n_ref_r
+            _cpv_meta_r = _fmt_cp(_inv_r, _n_v_meta_r)
 
             _html_res = (
                 '<div style="background:linear-gradient(135deg,#2196F3,#1565C0);'
@@ -734,18 +747,16 @@ with tab_gral:
                 f'<div><div style="opacity:.7">Leads</div><div style="font-weight:600">{_fmt_n_res(_leads_r)}</div></div>'
                 f'<div><div style="opacity:.7">%GF</div><div style="font-weight:600">{_pct_gf_r}</div></div>'
                 '</div>'
+                '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
+                'border-top:1px solid rgba(255,255,255,.15);padding-top:6px;margin-top:4px">'
+                f'<div><div style="opacity:.7">Inv.</div><div style="font-weight:600">{_fmt_inv(_inv_r)}</div></div>'
+                f'<div><div style="opacity:.7">CPL</div><div style="font-weight:600">{_cpl_r}</div></div>'
+                f'<div><div style="opacity:.7">CPE</div><div style="font-weight:600">{_cpe_r}</div></div>'
+                f'<div><div style="opacity:.7">CPV</div><div style="font-weight:600">{_cpv_r}</div></div>'
+                f'<div><div style="opacity:.7">CPV Meta</div><div style="font-weight:600">{_cpv_meta_r}</div></div>'
+                '</div>'
+                '</div>'
             )
-            if _has_inv:
-                _html_res += (
-                    '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
-                    'border-top:1px solid rgba(255,255,255,.15);padding-top:6px;margin-top:4px">'
-                    f'<div><div style="opacity:.7">Inv.</div><div style="font-weight:600">{_fmt_inv(_inv_r)}</div></div>'
-                    f'<div><div style="opacity:.7">CPL</div><div style="font-weight:600">{_cpl_r}</div></div>'
-                    f'<div><div style="opacity:.7">CPE</div><div style="font-weight:600">{_cpe_r}</div></div>'
-                    f'<div><div style="opacity:.7">CPV</div><div style="font-weight:600">{_cpv_r}</div></div>'
-                    '</div>'
-                )
-            _html_res += '</div>'
 
             with _col_res:
                 st.markdown(_html_res, unsafe_allow_html=True)
