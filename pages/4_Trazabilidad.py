@@ -2338,18 +2338,7 @@ with tab_closer:
             row += "</tr>"
             body_v += row
 
-        # ── Tabla semáforo (server-side) ────────────────────────────
-        _SEP_ROW = f'<tr><td colspan="{_n_cols}" style="padding:2px 0;background:#fff;border:none"></td></tr>'
-        _tbl_style = "table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:8px"
-        st.markdown(
-            f'<div style="overflow-x:auto"><table style="{_tbl_style}">'
-            f'<thead>{header}</thead>'
-            f'<tbody>{body_b}{_SEP_ROW}{body_v}</tbody>'
-            f'</table></div>',
-            unsafe_allow_html=True,
-        )
-
-        # ── Tabla detalle (server-side) ───────────────────────────
+        # ── Tabla semáforo + detalle con filtro JS ───────────────────
         _chip_styles = {
             "r2_cancelada":   ("R2 Cancelada", "#fee2e2", "#b91c1c"),
             "r2_reagendada":  ("Reagendada",   "#fef3c7", "#92400e"),
@@ -2369,18 +2358,22 @@ with tab_closer:
         _total_r = len(_df_det)
         _TH = "background:#1a3a5c;color:white;padding:4px 10px;text-align:left;font-size:0.82rem"
         _TD_det = "padding:3px 10px;border-bottom:1px solid #e2e8f0;font-size:0.82rem"
-        det_hdr = f'<tr><th style="{_TH}">ID</th><th style="{_TH}">Fecha R2</th><th style="{_TH}">Nombre</th><th style="{_TH}">Empresa</th><th style="{_TH}">Estado</th><th style="{_TH}">Estado CRM</th><th style="{_TH}">CC</th></tr>'
+        det_hdr = (f'<tr><th style="{_TH}">ID</th><th style="{_TH}">Fecha R2</th>'
+                   f'<th style="{_TH}">Nombre</th><th style="{_TH}">Empresa</th>'
+                   f'<th style="{_TH}">Estado</th><th style="{_TH}">Estado CRM</th>'
+                   f'<th style="{_TH}">CC</th></tr>')
         det_body = ""
         for _, r in _df_det.iterrows():
-            _id  = _esc_html(r.get("ID",""))
-            _nom = _esc_html((str(r.get("Nombre","") or "") + " " + str(r.get("Apellido","") or "")).strip())
-            _emp = _esc_html(r.get("Empresa",""))
-            _fec = _esc_html(r.get("Fecha R2",""))
-            _bk  = str(r.get("_bucket","") or "otros")
+            _id   = _esc_html(r.get("ID",""))
+            _nom  = _esc_html((str(r.get("Nombre","") or "") + " " + str(r.get("Apellido","") or "")).strip())
+            _emp  = _esc_html(r.get("Empresa",""))
+            _fec  = _esc_html(r.get("Fecha R2",""))
+            _bk   = str(r.get("_bucket","") or "otros")
+            _per  = _esc_html(str(_p_strs.get(r[grp_col], "") or ""))
             _ecrm = _esc_html(_crm_estado_cl.get(str(r.get("ID","") or "").strip(), ""))
-            _cc  = _esc_html(_cc_lkp.get(str(r.get("ID","") or "").strip(), ""))
+            _cc   = _esc_html(_cc_lkp.get(str(r.get("ID","") or "").strip(), ""))
             det_body += (
-                f'<tr style="border-bottom:1px solid #e2e8f0">'
+                f'<tr class="drow" data-periodo="{_per}" data-bucket="{_bk}" style="border-bottom:1px solid #e2e8f0">'
                 f'<td style="{_TD_det}">{_id}</td>'
                 f'<td style="{_TD_det}">{_fec}</td>'
                 f'<td style="{_TD_det}">{_nom}</td>'
@@ -2391,12 +2384,81 @@ with tab_closer:
                 f'</tr>'
             )
 
-        st.markdown(
-            f'<div style="font-size:0.78rem;color:#64748b;margin-bottom:4px">{_total_r} registros · BBDD R2 {nombre_closer}</div>'
-            f'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
-            f'<thead>{det_hdr}</thead><tbody>{det_body}</tbody></table></div>',
-            unsafe_allow_html=True,
-        )
+        # Añadir onclick a celdas clickeables de body_b
+        _body_b_click = body_b  # ya tiene data-filter desde _val_td
+
+        _SEP_ROW = f'<tr><td colspan="{_n_cols}" style="padding:2px 0;background:#fff;border:none"></td></tr>'
+
+        _html_cl = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+body{{margin:0;padding:0;font-family:system-ui,sans-serif;font-size:14px}}
+table{{border-collapse:collapse;width:100%}}
+td[data-filter]{{cursor:pointer;opacity:1;transition:opacity .15s}}
+td[data-filter]:hover{{opacity:.75}}
+td[data-filter].active{{outline:2px solid #2563eb}}
+.drow{{transition:background .1s}}
+</style></head><body>
+<div style="overflow-x:auto;margin-bottom:8px">
+<table style="table-layout:fixed;width:100%;border-collapse:collapse">
+<thead>{header}</thead>
+<tbody>{_body_b_click}{_SEP_ROW}{body_v}</tbody>
+</table></div>
+<div style="font-size:0.78rem;color:#64748b;margin:4px 0" id="info">{_total_r} registros · BBDD R2 {nombre_closer}</div>
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse">
+<thead>{det_hdr}</thead>
+<tbody id="det">{det_body}</tbody>
+</table></div>
+<script>
+var _activeFilter=null;
+function applyFilter(periodo,bucket){{
+  var rows=document.querySelectorAll('.drow');
+  var vis=0;
+  rows.forEach(function(r){{
+    var show=true;
+    if(periodo&&r.dataset.periodo!==periodo)show=false;
+    if(bucket&&r.dataset.bucket!==bucket)show=false;
+    r.style.display=show?'':'none';
+    if(show)vis++;
+  }});
+  document.getElementById('info').textContent=vis+' registros · BBDD R2 {nombre_closer}';
+}}
+document.querySelectorAll('td[data-filter]').forEach(function(td){{
+  td.addEventListener('click',function(){{
+    var f=this.dataset.filter;
+    if(_activeFilter===f){{
+      _activeFilter=null;
+      document.querySelectorAll('td[data-filter]').forEach(function(x){{x.classList.remove('active');}});
+      applyFilter(null,null);
+      return;
+    }}
+    _activeFilter=f;
+    document.querySelectorAll('td[data-filter]').forEach(function(x){{x.classList.remove('active');}});
+    this.classList.add('active');
+    var parts={{}};
+    f.split('|').forEach(function(p){{var kv=p.split(':');parts[kv[0]]=kv.slice(1).join(':');}});
+    var periodo=parts.periodo||null;
+    var bucket=parts.bucket||(parts.metrica==='r2_total'?'__any__':null);
+    if(bucket==='__any__'){{
+      var rows=document.querySelectorAll('.drow');
+      var bkts=['r2_cancelada','r2_reagendada','bsi','follow_clienty'];
+      var vis=0;
+      rows.forEach(function(r){{
+        var show=(!periodo||r.dataset.periodo===periodo)&&bkts.indexOf(r.dataset.bucket)>=0;
+        r.style.display=show?'':'none';
+        if(show)vis++;
+      }});
+      document.getElementById('info').textContent=vis+' registros · BBDD R2 {nombre_closer}';
+    }}else{{
+      applyFilter(periodo,bucket);
+    }}
+  }});
+}});
+</script>
+</body></html>"""
+
+        _height = 40 + (_n_cols + 10) * 30 + _total_r * 28 + 80
+        components.html(_html_cl, height=max(800, min(_height, 4000)), scrolling=True)
 
     tab_seba, tab_ro = st.tabs(["Perfo Seba", "Perfo Ro"])
     with tab_seba:
