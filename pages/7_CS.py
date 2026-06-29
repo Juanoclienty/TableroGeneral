@@ -1294,7 +1294,7 @@ with tab_ob:
             _etapas_all = list(_df_ob["etapa"].unique())
             _etapas = [e for e in _ETAPA_ORDER if e in _etapas_all] + \
                       [e for e in sorted(_etapas_all) if e not in _ETAPA_ORDER]
-            _ob_json    = _json_ob.dumps(_df_ob.to_dict(orient="records"), ensure_ascii=True)
+            _ob_json    = _json_ob.dumps(_df_ob.to_dict(orient="records"), ensure_ascii=False)
 
             # ── helpers de celda ────────────────────────────────
             def _td_num(n, filt, cls_bg, bold=False):
@@ -1435,46 +1435,11 @@ td[onclick]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2);cur
 .det-tbl{{width:100%;border-collapse:collapse;font-size:0.8rem}}
 .det-th{{padding:6px 12px;font-weight:600;background:#f1f5f9;color:#475569;border-bottom:2px solid #e2e8f0;cursor:pointer;white-space:nowrap;text-align:left}}
 .det-th:hover{{background:#e2e8f0}}
-.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;cursor:pointer}}
-.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center;cursor:pointer}}
-tr.main-row:hover .det-td, tr.main-row:hover .det-td-c{{background:#f0f7ff}}
-tr.main-row.open .det-td, tr.main-row.open .det-td-c{{background:#e8f2ff;font-weight:600}}
-/* Fila expandida */
-tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
-.exp-inner{{padding:12px 16px;background:#f7fbff;display:flex;gap:24px;flex-wrap:wrap}}
-.exp-section{{min-width:180px;flex:1}}
-.exp-section-title{{font-size:0.7rem;font-weight:700;color:#1a3a5c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;border-bottom:1px solid #c7d9f0;padding-bottom:3px}}
-.exp-row-item{{display:flex;gap:6px;margin-bottom:3px;font-size:0.77rem}}
-.exp-lbl{{color:#64748b;white-space:nowrap;min-width:110px}}
-.exp-val{{color:#1e293b;font-weight:500}}
-.exp-val.text-block{{white-space:pre-wrap;font-weight:400;color:#334155}}
-.exp-val a{{color:#2563eb;text-decoration:none}}
-.exp-val a:hover{{text-decoration:underline}}
-.tag{{display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;background:#e2e8f0;color:#334155;margin:1px}}
-.tag.done{{background:#d1fae5;color:#065f46}}
-.tag.pend{{background:#fee2e2;color:#991b1b}}
-.tag.medio{{background:#fef3c7;color:#92400e}}
-/* Modal */
-.modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center}}
-.modal-overlay.active{{display:flex}}
-.modal-box{{background:#fff;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.25);width:90%;max-width:820px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}}
-.modal-header{{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#1a3a5c;color:#fff;font-weight:600;font-size:0.88rem}}
-.modal-close{{cursor:pointer;font-size:1.2rem;line-height:1;background:none;border:none;color:#fff;padding:0 4px}}
-.modal-close:hover{{color:#fbbf24}}
-.modal-body{{padding:18px 22px;overflow-y:auto;font-size:0.82rem;color:#1e293b;white-space:pre-wrap;line-height:1.6}}
-.ver-nota{{color:#2563eb;cursor:pointer;font-size:0.75rem;text-decoration:underline;background:none;border:none;padding:0;margin-top:2px}}
-.ver-nota:hover{{color:#1d4ed8}}
+.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b}}
+.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center}}
+tr:hover .det-td, tr:hover .det-td-c{{background:#f8fafc}}
 </style>
 </head><body>
-<div id="nota-modal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal-box">
-    <div class="modal-header">
-      <span id="modal-title">Nota</span>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body" id="modal-body"></div>
-  </div>
-</div>
 
 <div class="layout">
   <div class="col-sla">
@@ -1514,7 +1479,7 @@ tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
 </div>
 
 <script>
-var obData   = __OB_JSON_PLACEHOLDER__;
+var obData   = {_ob_json};
 var _allRows = obData.slice();
 var _curRows = obData.slice();
 var _obSort  = -1, _obDir = 1;
@@ -1573,98 +1538,7 @@ function sortOb(i) {{
   renderOb(_curRows);
 }}
 
-function _tag(v){{
-  if(!v||v==='—')return'<span class="tag pend">—</span>';
-  var low=v.toLowerCase();
-  var cls=low.includes('hecho')||low.includes('done')||low.includes('listo')||low.includes('completo')?'done':
-          low.includes('en proceso')||low.includes('pendiente')||low.includes('proceso')?'medio':'';
-  return'<span class="tag '+cls+'">'+v+'</span>';
-}}
-function _lnk(v,label){{
-  if(!v)return'—';
-  return'<a href="'+v+'" target="_blank">'+(label||v)+'</a>';
-}}
-function _txt(v){{return v?('<span class="exp-val text-block">'+v+'</span>'):'<span style="color:#94a3b8">—</span>';}}
-var _notaStore={{}};
-var _notaIdx=0;
-function _nota(title,v){{
-  if(!v)return'<span style="color:#94a3b8;font-size:0.77rem">—</span>';
-  var k='n'+(++_notaIdx);
-  _notaStore[k]={{t:title,v:v}};
-  return'<button class="ver-nota" onclick="event.stopPropagation();var d=_notaStore[\''+k+'\'];openModal(d.t,d.v)">Ver nota →</button>';
-}}
-function _fld(lbl,val,isTag,isLink,linkLabel){{
-  var vhtml=isLink?'<span class="exp-val">'+_lnk(val,linkLabel)+'</span>':
-            isTag?'<span class="exp-val">'+_tag(val)+'</span>':
-            val?'<span class="exp-val">'+val+'</span>':'<span style="color:#94a3b8">—</span>';
-  return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span>'+vhtml+'</div>';
-}}
-function _sect(title,content){{
-  return'<div class="exp-section"><div class="exp-section-title">'+title+'</div>'+content+'</div>';
-}}
-function _expHtml(r){{
-  var s1=_sect('General',
-    _fld('Rubro',r.rubro)+_fld('Subrubro',r.subrubro)+
-    _fld('B2B | B2C',r.b2b)+_fld('Tipo cliente',r.tipo_cli)+
-    _fld('Vendedores',r.vendedores)+_fld('Pain',r.pain)+
-    _fld('Link Drive',r.link_drive,false,true,'📁 Drive')+
-    _fld('Link CRM',r.link_crm,false,true,'🔗 CRM')
-  );
-  var s2=_sect('Riesgo y notas',
-    _fld('Riesgo',r.riesgo,true)+_fld('Motivo',r.motivo_riesgo,true)+
-    _fld('Notas','')+_nota('Notas — '+r.nombre,r.notas)+
-    '<div style="margin-top:6px">'+_fld('Com. llamado','')+_nota('Comentarios llamado — '+r.nombre,r.com_llamado)+'</div>'
-  );
-  var s3=_sect('Progreso OB',
-    _fld('1. Carga auto.',r.carga_auto,true)+_fld('1. BBDD',r.bbdd,true)+
-    _fld('1. Diseño flujo',r.diseno,true)+_fld('1. Est.|Etiq.|Can.',r.estados,true)+
-    _fld('OB 1 - Gráfico',r.ob1,true)+
-    _fld('Com. gráfico','')+_nota('Comentarios gráfico — '+r.nombre,r.com_grafico)+
-    '<div style="margin-top:4px">'+
-    _fld('OB 2 - API',r.ob2,true)+_fld('OB 2 - Sec.',r.ob2_sec,true)+
-    _fld('2. Automatiz.',r.automations,true)+
-    _fld('OB 3 - Ejer. vivo',r.ob3,true)+_fld('Cap. vendedores',r.cap_vend,true)+
-    _fld('OB 4 - Nurt.',r.ob4,true)+_fld('OB 5 - Cierre',r.ob5,true)+
-    _fld('M1 - Mistery',r.m1,true)+'</div>'
-  );
-  var s4=_sect('WapBot y comentarios',
-    _fld('WapBot',r.wapbot,true)+_fld('BOT (fecha)',r.bot)+
-    _fld('Com. bot','')+_nota('Comentarios WapBot — '+r.nombre,r.com_bot)+
-    '<div style="margin-top:6px">'+_fld('Com. finales','')+_nota('Comentarios finales — '+r.nombre,r.com_finales)+'</div>'
-  );
-  return'<div class="exp-inner">'+s1+s2+s3+s4+'</div>';
-}}
-
-function openModal(title, text){{
-  document.getElementById('modal-title').textContent=title;
-  document.getElementById('modal-body').textContent=text;
-  document.getElementById('nota-modal').classList.add('active');
-}}
-function closeModal(){{
-  document.getElementById('nota-modal').classList.remove('active');
-}}
-document.addEventListener('keydown',function(e){{if(e.key==='Escape')closeModal();}});
-
-var _openIdx=null;
-function toggleRow(idx){{
-  var tbody=document.getElementById('ob-tbl-body');
-  var rows=tbody.querySelectorAll('tr.main-row');
-  var expRows=tbody.querySelectorAll('tr.exp-row');
-  if(_openIdx===idx){{
-    rows[idx].classList.remove('open');
-    expRows[idx].style.display='none';
-    _openIdx=null;
-    return;
-  }}
-  rows.forEach(function(r){{r.classList.remove('open');}});
-  expRows.forEach(function(r){{r.style.display='none';}});
-  rows[idx].classList.add('open');
-  expRows[idx].style.display='';
-  _openIdx=idx;
-}}
-
 function renderOb(rows) {{
-  _openIdx=null;
   document.getElementById('ob-count').textContent=rows.length+' clientes';
   for(var i=0;i<7;i++){{
     document.getElementById('arr'+i).textContent=_obSort===i?(_obDir>0?' ↑':' ↓'):'';
@@ -1672,7 +1546,7 @@ function renderOb(rows) {{
   var h='';
   rows.forEach(function(r,i){{
     var rc=_RC[r.riesgo]||'#333';
-    h+='<tr class="main-row" onclick="toggleRow('+i+')">'
+    h+='<tr>'
       +'<td class="det-td">'+r.nombre+'</td>'
       +'<td class="det-td-c">'+r.estratega+'</td>'
       +'<td class="det-td-c">'+r.etapa+'</td>'
@@ -1680,8 +1554,7 @@ function renderOb(rows) {{
       +'<td class="det-td-c">'+r.dias+'</td>'
       +'<td class="det-td-c">'+r.sla+'</td>'
       +'<td class="det-td-c" style="color:'+rc+';font-weight:600">'+r.riesgo+'</td>'
-      +'</tr>'
-      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r)+'</td></tr>';
+      +'</tr>';
   }});
   if(!rows.length)h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
   document.getElementById('ob-tbl-body').innerHTML=h;
@@ -1696,7 +1569,6 @@ renderOb(_allRows);
 </script>
 </body></html>"""
 
-            _html_ob = _html_ob.replace("__OB_JSON_PLACEHOLDER__", _ob_json)
             st.components.v1.html(_html_ob, height=_ob_height, scrolling=True)
 
     except Exception as _ob_e:

@@ -685,39 +685,10 @@ def cargar_presupuestos_semanas() -> dict:
 
 _BOARD_OB    = "18390960078"
 _GROUP_OB    = "topics"
-_COL_INICIO        = "date_mkyq9yq5"
-_COL_ETAPA         = "color_mkzdxkxs"
-_COL_ESTRAT        = "personas_mkm2txzr"
-_COL_RIESGO        = "color_mkyxb835"
-_COL_MOTIVO_RIESGO = "color_mm168av2"
-_COL_NOTAS         = "long_text_mm1ye19k"   # Detalle del estado del cliente
-_COL_RUBRO         = "reflejo6"             # Rubro (mirror)
-_COL_SUBRUBRO      = "text_mm16rqy6"        # Sub rubro
-_COL_COM_LLAMADO   = "long_text_mm25mjnq"   # Comentarios de llamado inicial
-_COL_CARGA_AUTO    = "carga_autom_tica"     # 1. Carga automática
-_COL_WAPBOT        = "color_mm0q5wwf"       # WapBot
-_COL_BOT           = "date_mm1chftg"        # BOT (fecha)
-_COL_COM_BOT       = "long_text_mm25afqz"   # Comentarios Wapbot
-_COL_BBDD          = "bbdd"                 # 1. BBDD
-_COL_OB1           = "estado_mkkfw7ch"      # OB 1 - Gráfico
-_COL_DISENO        = "color_mkyaf45s"       # 1. Diseño de flujo comercial
-_COL_COM_GRAFICO   = "long_text_mm253sey"   # 1. Comentarios de gráfico
-_COL_ESTADOS       = "dup__of_cambia_estados__1"  # 1. Edición de estados | Etiquetas | Canales
-_COL_OB2           = "color_mks7k4q0"       # OB 2 - API
-_COL_OB2_SEC       = "color_mkyavnp7"       # OB 2 - Sec. Seguimiento (aut)
-_COL_AUTOMATIONS   = "estado"               # 2. Automatizaciones
-_COL_OB3           = "color_mm1gen1n"       # 3. Ejercicio en vivo (OB3)
-_COL_CAP_VEND      = "estado_mkkfmnt6"      # Capacitación vendedores
-_COL_OB4           = "estado_mkkf9qbv"      # OB 4. Nurturing/Reactivación
-_COL_OB5           = "color_mkyxnbyd"       # OB 5. Entregable y cierre
-_COL_M1            = "color_mkyxjwt1"       # M1 - Mistery shopper
-_COL_VENDEDORES    = "estado__1"            # Vendedores
-_COL_B2B           = "dup__of_rubro"        # B2B | B2C (mirror)
-_COL_TIPO_CLI      = "dup__of_b2b___b2c"    # Tipo de cliente (mirror)
-_COL_LINK_DRIVE    = "enlace__1"            # Link a drive
-_COL_LINK_CRM      = "dup__of_mes_mkn1krsj" # Link CRM OK (mirror)
-_COL_PAIN          = "dup__of_contras__1"   # Pain (mirror)
-_COL_COM_FINALES   = "long_text_mkyxrph7"   # Comentarios finales
+_COL_INICIO  = "date_mkyq9yq5"
+_COL_ETAPA   = "color_mkzdxkxs"
+_COL_ESTRAT  = "personas_mkm2txzr"
+_COL_RIESGO  = "color_mkyxb835"
 
 
 @_st.cache_data(ttl=86400, show_spinner=False)
@@ -775,16 +746,7 @@ def cargar_ob_detalle() -> "pd.DataFrame":
     Devuelve un DataFrame con una fila por cliente en OB.
     Columnas: nombre, estratega, etapa, dias, sla
     """
-    cols_ids = [
-        _COL_INICIO, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
-        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_RUBRO, _COL_SUBRUBRO,
-        _COL_COM_LLAMADO, _COL_CARGA_AUTO, _COL_WAPBOT, _COL_BOT, _COL_COM_BOT,
-        _COL_BBDD, _COL_OB1, _COL_DISENO, _COL_COM_GRAFICO, _COL_ESTADOS,
-        _COL_OB2, _COL_OB2_SEC, _COL_AUTOMATIONS, _COL_OB3, _COL_CAP_VEND,
-        _COL_OB4, _COL_OB5, _COL_M1,
-        _COL_VENDEDORES, _COL_B2B, _COL_TIPO_CLI, _COL_LINK_DRIVE,
-        _COL_LINK_CRM, _COL_PAIN, _COL_COM_FINALES,
-    ]
+    cols_ids = [_COL_INICIO, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO]
     fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ id text }}'
     q = (
         f'{{ boards(ids: [{_BOARD_OB}]) {{'
@@ -821,46 +783,14 @@ def cargar_ob_detalle() -> "pd.DataFrame":
         sla = None
         if dias is not None:
             sla = "≤30d" if dias <= 30 else ">30d"
-        def _cv(col): return cv.get(col, "") or ""
-
         filas.append({
-            "nombre":        item.get("name", ""),
-            "estratega":     estratega,
-            "etapa":         etapa,
-            "inicio":        inicio or "—",
-            "dias":          dias if dias is not None else "—",
-            "sla":           sla or "Sin fecha",
-            "riesgo":        riesgo,
-            # campos detalle
-            "motivo_riesgo": _cv(_COL_MOTIVO_RIESGO),
-            "notas":         _cv(_COL_NOTAS),
-            "rubro":         _cv(_COL_RUBRO),
-            "subrubro":      _cv(_COL_SUBRUBRO),
-            "com_llamado":   _cv(_COL_COM_LLAMADO),
-            "carga_auto":    _cv(_COL_CARGA_AUTO),
-            "wapbot":        _cv(_COL_WAPBOT),
-            "bot":           _cv(_COL_BOT),
-            "com_bot":       _cv(_COL_COM_BOT),
-            "bbdd":          _cv(_COL_BBDD),
-            "ob1":           _cv(_COL_OB1),
-            "diseno":        _cv(_COL_DISENO),
-            "com_grafico":   _cv(_COL_COM_GRAFICO),
-            "estados":       _cv(_COL_ESTADOS),
-            "ob2":           _cv(_COL_OB2),
-            "ob2_sec":       _cv(_COL_OB2_SEC),
-            "automations":   _cv(_COL_AUTOMATIONS),
-            "ob3":           _cv(_COL_OB3),
-            "cap_vend":      _cv(_COL_CAP_VEND),
-            "ob4":           _cv(_COL_OB4),
-            "ob5":           _cv(_COL_OB5),
-            "m1":            _cv(_COL_M1),
-            "vendedores":    _cv(_COL_VENDEDORES),
-            "b2b":           _cv(_COL_B2B),
-            "tipo_cli":      _cv(_COL_TIPO_CLI),
-            "link_drive":    _cv(_COL_LINK_DRIVE),
-            "link_crm":      _cv(_COL_LINK_CRM),
-            "pain":          _cv(_COL_PAIN),
-            "com_finales":   _cv(_COL_COM_FINALES),
+            "nombre":    item.get("name", ""),
+            "estratega": estratega,
+            "etapa":     etapa,
+            "inicio":    inicio or "—",
+            "dias":      dias if dias is not None else "—",
+            "sla":       sla or "Sin fecha",
+            "riesgo":    riesgo,
         })
     return pd.DataFrame(filas)
 
