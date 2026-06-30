@@ -2092,6 +2092,9 @@ with tab_ped:
         st.error(f"Error cargando pedidos de baja: {_e_ped}")
         df_ped = pd.DataFrame()
 
+    if not df_ped.empty:
+        df_ped = df_ped[df_ped["Situación del cliente"].str.upper() != "BAJA"].copy()
+
     if df_ped.empty:
         st.info("Sin datos.")
     else:
