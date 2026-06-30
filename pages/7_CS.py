@@ -2093,7 +2093,7 @@ with tab_ped:
         df_ped = pd.DataFrame()
 
     if not df_ped.empty:
-        _excluir = {"BAJA", "PAGO"}
+        _excluir = {"BAJA", "PAGO", "SE QUEDA 😃"}
         df_ped = df_ped[~df_ped["Situación del cliente"].str.upper().isin(_excluir)].copy()
 
     if df_ped.empty:
