@@ -2117,7 +2117,6 @@ with tab_ped:
             hide_index=True,
             column_config={
                 "ID":                     st.column_config.TextColumn("ID",                     width="small"),
-                "Mes":                    st.column_config.TextColumn("Mes",                    width="small"),
                 "Clientes y ex-clientes": st.column_config.TextColumn("Clientes y ex-clientes", width="medium"),
                 "Motivo de baja":         st.column_config.TextColumn("Motivo de baja",         width="medium"),
                 "Fecha de pedido":        st.column_config.TextColumn("Fecha de pedido",        width="small"),
