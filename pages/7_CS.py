@@ -1792,8 +1792,12 @@ with tab_ob_cerr:
             _riesgos_c = [r for r in ["Alto", "Medio", "Bajo", "—"] if r in _df_ob_cerr["riesgo"].values]
 
             # helpers reutilizados
-            def _tdc_num(n, bold=False):
+            def _tdc_num(n, filt="", bold=False):
                 _b = "font-weight:bold;" if bold else ""
+                if n > 0 and filt:
+                    return (f'<td data-filter="{filt}" onclick="filterC(this.dataset.filter)"'
+                            f' style="border:1px dotted #bbb;padding:4px 6px;text-align:center;'
+                            f'cursor:pointer;{_b}">{n}</td>')
                 return f'<td style="border:1px dotted #bbb;padding:4px 6px;text-align:center;{_b}">{n if n else ""}</td>'
             def _tdc_lbl(txt, bold=False):
                 _b = "font-weight:bold;" if bold else ""
@@ -1807,15 +1811,15 @@ with tab_ob_cerr:
             for _ec in _ests_c:
                 _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
                 _tbody_sla_c += ('<tr>' + _tdc_lbl(_ec)
-                    + _tdc_num(int((_s["sla"]=="≤30d").sum()))
-                    + _tdc_num(int((_s["sla"]==">30d").sum()))
-                    + _tdc_num(int((_s["sla"]=="Sin fecha").sum()))
-                    + _tdc_num(len(_s)) + '</tr>')
+                    + _tdc_num(int((_s["sla"]=="≤30d").sum()),   filt=f"est:{_ec}|sla:≤30d")
+                    + _tdc_num(int((_s["sla"]==">30d").sum()),   filt=f"est:{_ec}|sla:>30d")
+                    + _tdc_num(int((_s["sla"]=="Sin fecha").sum()), filt=f"est:{_ec}|sla:Sin fecha")
+                    + _tdc_num(len(_s), filt=f"est:{_ec}") + '</tr>')
             _tbody_sla_c += ('<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
-                + _tdc_num(int((_df_ob_cerr["sla"]=="≤30d").sum()), bold=True)
-                + _tdc_num(int((_df_ob_cerr["sla"]==">30d").sum()), bold=True)
-                + _tdc_num(int((_df_ob_cerr["sla"]=="Sin fecha").sum()), bold=True)
-                + _tdc_num(len(_df_ob_cerr), bold=True) + '</tr>')
+                + _tdc_num(int((_df_ob_cerr["sla"]=="≤30d").sum()),   filt="sla:≤30d",    bold=True)
+                + _tdc_num(int((_df_ob_cerr["sla"]==">30d").sum()),   filt="sla:>30d",    bold=True)
+                + _tdc_num(int((_df_ob_cerr["sla"]=="Sin fecha").sum()), filt="sla:Sin fecha", bold=True)
+                + _tdc_num(len(_df_ob_cerr), filt="all", bold=True) + '</tr>')
 
             # ── Tabla Riesgo (con datos cerrados) ───────────────
             _thead_riesgo_c = '<tr>' + _hth('') + ''.join(_hth(r) for r in _riesgos_c) + _hth('Total') + '</tr>'
@@ -1824,12 +1828,12 @@ with tab_ob_cerr:
                 _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
                 _tbody_riesgo_c += '<tr>' + _tdc_lbl(_ec)
                 for _r in _riesgos_c:
-                    _tbody_riesgo_c += _tdc_num(int((_s["riesgo"]==_r).sum()))
-                _tbody_riesgo_c += _tdc_num(len(_s)) + '</tr>'
+                    _tbody_riesgo_c += _tdc_num(int((_s["riesgo"]==_r).sum()), filt=f"est:{_ec}|riesgo:{_r}")
+                _tbody_riesgo_c += _tdc_num(len(_s), filt=f"est:{_ec}") + '</tr>'
             _tbody_riesgo_c += '<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
             for _r in _riesgos_c:
-                _tbody_riesgo_c += _tdc_num(int((_df_ob_cerr["riesgo"]==_r).sum()), bold=True)
-            _tbody_riesgo_c += _tdc_num(len(_df_ob_cerr), bold=True) + '</tr>'
+                _tbody_riesgo_c += _tdc_num(int((_df_ob_cerr["riesgo"]==_r).sum()), filt=f"riesgo:{_r}", bold=True)
+            _tbody_riesgo_c += _tdc_num(len(_df_ob_cerr), filt="all", bold=True) + '</tr>'
 
             # ── Tabla Cierres por semana ─────────────────────────
             # Últimas 4 semanas (lunes a domingo)
@@ -1947,6 +1951,16 @@ function applyF(){{
   var sla=document.getElementById('f-sla').value;
   _curRows=_allRows.filter(function(r){{return(!est||r.estratega===est)&&(!rie||r.riesgo===rie)&&(!sla||r.sla===sla);}});
   _cSort=-1;_cDir=1;renderC(_curRows);
+}}
+function filterC(filter){{
+  [['f-est',''],['f-riesgo',''],['f-sla','']].forEach(function(p){{document.getElementById(p[0]).value='';}});
+  if(filter!=='all') filter.split('|').forEach(function(p){{
+    var kv=p.split(':'),key=kv[0],val=kv.slice(1).join(':');
+    if(key==='est')    document.getElementById('f-est').value=val;
+    if(key==='sla')    document.getElementById('f-sla').value=val;
+    if(key==='riesgo') document.getElementById('f-riesgo').value=val;
+  }});
+  applyF();
 }}
 function sortC(i){{
   if(_cSort===i){{_cDir*=-1;}}else{{_cSort=i;_cDir=1;}}
