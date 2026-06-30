@@ -1827,6 +1827,19 @@ with tab_baj:
                 _churn_total += (_ltv_t - _ltv_i_v) / _mf_c
         _churn_str = f"${int(round(_churn_total)):,}".replace(",", ".")
 
+        # LTV Prom = suma LTV T / cantidad con LTV T disponible
+        _ltv_sum = 0
+        _ltv_count = 0
+        for _, _row_c in _grp_c.iterrows():
+            _cid = str(_row_c.get("ID CRM", "") or "").strip()
+            try: _cid = str(int(float(_cid)))
+            except: pass
+            _entry = _ltv_lookup_cs.get(_cid)
+            if _entry is not None:
+                _ltv_sum += _entry.get("total", 0) or 0
+                _ltv_count += 1
+        _ltv_prom_str = f"${int(round(_ltv_sum / _ltv_count)):,}".replace(",", ".") if _ltv_count > 0 else "–"
+
         _ivl_html = "".join(
             f'<div style="text-align:center"><div style="opacity:.7;font-size:0.68rem">{_l}</div>'
             f'<div style="font-weight:600;font-size:0.8rem">{_n}</div></div>'
@@ -1844,6 +1857,7 @@ with tab_baj:
             f'<div><div style="opacity:.7">Permanencia (med)</div><div style="font-weight:600">{_med_str}</div></div>'
             f'<div><div style="opacity:.7">Permanencia (prom)</div><div style="font-weight:600">{_prom_str}</div></div>'
             f'<div><div style="opacity:.7">Churn</div><div style="font-weight:600">{_churn_str}</div></div>'
+            f'<div><div style="opacity:.7">LTV Prom.</div><div style="font-weight:600">{_ltv_prom_str}</div></div>'
             '</div>'
             '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
             'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:6px">'
