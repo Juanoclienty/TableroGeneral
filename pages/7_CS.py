@@ -1774,9 +1774,10 @@ with tab_ob_cerr:
     try:
         import datos_crm as _dcrm_cerr
         import json as _json_cerr
-        _hoy_cerr = pd.Timestamp.today().normalize()
-        _fin_ts_cerr = pd.to_datetime(_df_ob_all["fin_impl"], errors="coerce")
-        _df_ob_cerr = _df_ob_all[
+        _df_ob_cerr_all = _dcrm_cerr.cargar_ob_cerrados()
+        _hoy_cerr    = pd.Timestamp.today().normalize()
+        _fin_ts_cerr = pd.to_datetime(_df_ob_cerr_all["fin_impl"], errors="coerce")
+        _df_ob_cerr  = _df_ob_cerr_all[
             _fin_ts_cerr.notna() & (_fin_ts_cerr >= _hoy_cerr - pd.Timedelta(days=30))
         ].copy()
 

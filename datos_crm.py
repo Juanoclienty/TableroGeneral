@@ -719,6 +719,7 @@ _COL_LINK_CRM      = "dup__of_mes_mkn1krsj"
 _COL_PAIN          = "dup__of_contras__1"
 _COL_COM_FINALES   = "long_text_mkyxrph7"
 _COL_FIN           = "date_mkyq6fgr"
+_GROUP_OB_CERR     = "grupo_nuevo_mkn8s17k"
 
 
 @_st.cache_data(ttl=86400, show_spinner=False)
@@ -829,6 +830,99 @@ def cargar_ob_detalle() -> "pd.DataFrame":
             "etapa":         etapa,
             "inicio":        inicio or "—",
             "fin_impl":      cv.get(_COL_FIN, "") or "",
+            "dias":          dias if dias is not None else "—",
+            "sla":           sla or "Sin fecha",
+            "riesgo":        riesgo,
+            "motivo_riesgo": _cv(_COL_MOTIVO_RIESGO),
+            "notas":         _cv(_COL_NOTAS),
+            "rubro":         _cv(_COL_RUBRO),
+            "subrubro":      _cv(_COL_SUBRUBRO),
+            "com_llamado":   _cv(_COL_COM_LLAMADO),
+            "carga_auto":    _cv(_COL_CARGA_AUTO),
+            "wapbot":        _cv(_COL_WAPBOT),
+            "bot":           _cv(_COL_BOT),
+            "com_bot":       _cv(_COL_COM_BOT),
+            "bbdd":          _cv(_COL_BBDD),
+            "ob1":           _cv(_COL_OB1),
+            "diseno":        _cv(_COL_DISENO),
+            "com_grafico":   _cv(_COL_COM_GRAFICO),
+            "estados":       _cv(_COL_ESTADOS),
+            "ob2":           _cv(_COL_OB2),
+            "ob2_sec":       _cv(_COL_OB2_SEC),
+            "automations":   _cv(_COL_AUTOMATIONS),
+            "ob3":           _cv(_COL_OB3),
+            "cap_vend":      _cv(_COL_CAP_VEND),
+            "ob4":           _cv(_COL_OB4),
+            "ob5":           _cv(_COL_OB5),
+            "m1":            _cv(_COL_M1),
+            "vendedores":    _cv(_COL_VENDEDORES),
+            "b2b":           _cv(_COL_B2B),
+            "tipo_cli":      _cv(_COL_TIPO_CLI),
+            "link_drive":    _cv(_COL_LINK_DRIVE),
+            "link_crm":      _cv(_COL_LINK_CRM),
+            "pain":          _cv(_COL_PAIN),
+            "com_finales":   _cv(_COL_COM_FINALES),
+        })
+    return pd.DataFrame(filas)
+
+
+@_st.cache_data(ttl=3600, show_spinner=False)
+def cargar_ob_cerrados() -> "pd.DataFrame":
+    """OBs del grupo POB/Implementados, mismos campos que cargar_ob_detalle."""
+    cols_ids = [
+        _COL_INICIO, _COL_FIN, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
+        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_RUBRO, _COL_SUBRUBRO,
+        _COL_COM_LLAMADO, _COL_CARGA_AUTO, _COL_WAPBOT, _COL_BOT, _COL_COM_BOT,
+        _COL_BBDD, _COL_OB1, _COL_DISENO, _COL_COM_GRAFICO, _COL_ESTADOS,
+        _COL_OB2, _COL_OB2_SEC, _COL_AUTOMATIONS, _COL_OB3, _COL_CAP_VEND,
+        _COL_OB4, _COL_OB5, _COL_M1,
+        _COL_VENDEDORES, _COL_B2B, _COL_TIPO_CLI, _COL_LINK_DRIVE,
+        _COL_LINK_CRM, _COL_PAIN, _COL_COM_FINALES,
+    ]
+    fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ id text }}'
+    q = (
+        f'{{ boards(ids: [{_BOARD_OB}]) {{'
+        f'  groups(ids: ["{_GROUP_OB_CERR}"]) {{'
+        f'    items_page(limit: 500) {{ cursor items {{ {fragment} }} }}'
+        f'  }}'
+        f'}}}}'
+    )
+    r      = _monday_request_cs(q)
+    page   = r["data"]["boards"][0]["groups"][0]["items_page"]
+    items  = list(page["items"])
+    cursor = page.get("cursor")
+    while cursor:
+        q2 = f'{{ next_items_page(limit: 500, cursor: "{cursor}") {{ cursor items {{ {fragment} }} }} }}'
+        r2 = _monday_request_cs(q2)
+        page = r2["data"]["next_items_page"]
+        items.extend(page["items"])
+        cursor = page.get("cursor")
+
+    ayer = pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
+    filas = []
+    for item in items:
+        cv        = {c["id"]: c["text"] for c in item["column_values"]}
+        inicio    = cv.get(_COL_INICIO, "") or ""
+        fin       = cv.get(_COL_FIN,    "") or ""
+        etapa     = cv.get(_COL_ETAPA,  "") or "Sin etapa"
+        estratega = cv.get(_COL_ESTRAT, "") or "Sin estratega"
+        riesgo    = cv.get(_COL_RIESGO, "") or "—"
+        dias = None
+        if inicio:
+            try:
+                dias = (ayer - pd.Timestamp(inicio)).days
+            except Exception:
+                pass
+        sla = None
+        if dias is not None:
+            sla = "≤30d" if dias <= 30 else ">30d"
+        def _cv(col): return cv.get(col, "") or ""
+        filas.append({
+            "nombre":        item.get("name", ""),
+            "estratega":     estratega,
+            "etapa":         etapa,
+            "inicio":        inicio or "—",
+            "fin_impl":      fin,
             "dias":          dias if dias is not None else "—",
             "sla":           sla or "Sin fecha",
             "riesgo":        riesgo,
