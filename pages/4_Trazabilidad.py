@@ -2133,7 +2133,7 @@ renderDet(_all);
 
         components.html(_html_cc, height=_height, scrolling=True)
 
-    tab_cc_total, tab_sol, tab_fer = st.tabs(["Perfo CC", "Perfo Sol", "Perfo Fer"])
+    tab_cc_total, tab_sol, tab_fer, tab_ctrl_op = st.tabs(["Perfo CC", "Perfo Sol", "Perfo Fer", "Control operativo"])
 
     try:
         _df_sol = _cargar_bbdd_sol()
@@ -2162,6 +2162,12 @@ renderDet(_all);
             st.error("Error cargando datos de Fer.")
         else:
             _render_perfo_cc(_df_fer, "Fer")
+    with tab_ctrl_op:
+        st.markdown(
+            '<div style="padding:40px 0;text-align:center;color:#94a3b8;font-size:1.1rem;font-style:italic">'
+            'Próximamente</div>',
+            unsafe_allow_html=True,
+        )
 
 with tab_closer:
     _ID_SEBA = "17IGWY-VvK8pB_0cN2gSNHrzyTMhndhRS8cWtJDNbBEQ"
