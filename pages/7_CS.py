@@ -1807,12 +1807,10 @@ with tab_baj:
             _prom_trunc = None
         _prom_str = f"{int(round(_prom_trunc))} m" if _prom_trunc is not None else "–"
 
-        # Distribución por intervalo (solo primeras 5 bandas)
-        _ivls_card = [("0", 0, 0), ("0-3", 1, 3), ("+3", 4, 6), ("+6", 7, 12), ("+12", 13, 18)]
-        _ivl_counts = []
-        for _lbl_i, _lo_i, _hi_i in _ivls_card:
-            _n_i = int((((_ma_vals >= _lo_i) & (_ma_vals <= _hi_i)).sum())) if len(_ma_vals) > 0 else 0
-            _ivl_counts.append((_lbl_i, _n_i))
+        # Distribución por intervalo — misma lógica que la tabla cohorte
+        _ivl_labels = ["0", "0-3", "+3", "+6", "+12"]
+        _ivl_series = _grp_c["Meses activos"].apply(_cat)
+        _ivl_counts = [(_l, int((_ivl_series == _l).sum())) for _l in _ivl_labels]
 
         # Churn = suma de Tkt Prom por cliente del mes
         _churn_total = 0
