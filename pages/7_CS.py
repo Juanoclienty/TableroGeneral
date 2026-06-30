@@ -1875,7 +1875,7 @@ with tab_baj:
     #  TABLA 1: Cohorte de baja × intervalo de duración
     # ══════════════════════════════════════════════════════════
 
-    st.markdown("#### Por cohorte de baja e intervalo de duración")
+    st.markdown("")
 
     _col_lbl1, _col_rad1, _ = st.columns([1, 2, 6])
     with _col_lbl1:
@@ -1913,7 +1913,7 @@ with tab_baj:
         '<div style="margin-top:8px"></div>',
         unsafe_allow_html=True,
     )
-    st.markdown("#### Por cohorte de ingreso")
+    st.markdown("### Bajas por cohorte de ingreso")
 
     _col_lbl2, _col_rad2, _ = st.columns([1, 2, 6])
     with _col_lbl2:
