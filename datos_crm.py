@@ -1081,7 +1081,8 @@ _PBAJ_COLS = [
 def cargar_pedidos_baja() -> "pd.DataFrame":
     """Retorna DataFrame con pedidos de baja desde Monday board 7038826698."""
     _cols_gql = ", ".join(f'"{c}"' for c in _PBAJ_COLS)
-    fragment  = f'id name column_values(ids: [{_cols_gql}]) {{ id text }}'
+    _cv_fields = "id text ... on MirrorValue { display_value } ... on StatusValue { label }"
+    fragment   = f'id name column_values(ids: [{_cols_gql}]) {{ {_cv_fields} }}'
     q  = f'{{ boards(ids: [{_BOARD_ID_PED_BAJA}]) {{ items_page(limit: 500) {{ cursor items {{ {fragment} }} }} }} }}'
     r  = _monday_request_cs(q)
     page   = r["data"]["boards"][0]["items_page"]
@@ -1094,9 +1095,12 @@ def cargar_pedidos_baja() -> "pd.DataFrame":
         items += np["items"]
         cursor = np.get("cursor")
 
+    def _cv_val(v):
+        return v.get("display_value") or v.get("label") or v.get("text") or ""
+
     rows = []
     for item in items:
-        cv = {v["id"]: (v["text"] or "") for v in item["column_values"]}
+        cv = {v["id"]: _cv_val(v) for v in item["column_values"]}
         rows.append({
             "ID":                   cv.get("lookup_mm4sedxb", ""),
             "Mes":                  cv.get("dup__of_tel_fono__1", ""),
