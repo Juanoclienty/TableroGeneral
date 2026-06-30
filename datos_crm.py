@@ -787,7 +787,8 @@ def cargar_ob_detalle() -> "pd.DataFrame":
         _COL_VENDEDORES, _COL_B2B, _COL_TIPO_CLI, _COL_LINK_DRIVE,
         _COL_LINK_CRM, _COL_PAIN, _COL_COM_FINALES,
     ]
-    fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ id text }}'
+    _cv_f    = "id text ... on MirrorValue { display_value }"
+    fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ {_cv_f} }}'
     q = (
         f'{{ boards(ids: [{_BOARD_OB}]) {{'
         f'  groups(ids: ["{_GROUP_OB}"]) {{'
@@ -806,10 +807,11 @@ def cargar_ob_detalle() -> "pd.DataFrame":
         items.extend(page["items"])
         cursor = page.get("cursor")
 
+    def _val(v): return v.get("display_value") or v.get("text") or ""
     ayer = pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
     filas = []
     for item in items:
-        cv       = {c["id"]: c["text"] for c in item["column_values"]}
+        cv       = {c["id"]: _val(c) for c in item["column_values"]}
         inicio   = cv.get(_COL_INICIO, "")
         etapa     = cv.get(_COL_ETAPA,  "") or "Sin etapa"
         estratega = cv.get(_COL_ESTRAT, "") or "Sin estratega"
@@ -879,7 +881,8 @@ def cargar_ob_cerrados() -> "pd.DataFrame":
         _COL_VENDEDORES, _COL_B2B, _COL_TIPO_CLI, _COL_LINK_DRIVE,
         _COL_LINK_CRM, _COL_PAIN, _COL_COM_FINALES,
     ]
-    fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ id text }}'
+    _cv_f2   = "id text ... on MirrorValue { display_value }"
+    fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ {_cv_f2} }}'
     q = (
         f'{{ boards(ids: [{_BOARD_OB}]) {{'
         f'  groups(ids: ["{_GROUP_OB_CERR}"]) {{'
@@ -898,10 +901,11 @@ def cargar_ob_cerrados() -> "pd.DataFrame":
         items.extend(page["items"])
         cursor = page.get("cursor")
 
+    def _val2(v): return v.get("display_value") or v.get("text") or ""
     ayer = pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
     filas = []
     for item in items:
-        cv        = {c["id"]: c["text"] for c in item["column_values"]}
+        cv        = {c["id"]: _val2(c) for c in item["column_values"]}
         inicio    = cv.get(_COL_INICIO, "") or ""
         fin       = cv.get(_COL_FIN,    "") or ""
         etapa     = cv.get(_COL_ETAPA,  "") or "Sin etapa"
