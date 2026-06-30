@@ -1786,18 +1786,233 @@ with tab_ob_cerr:
         else:
             _ALIAS_C = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}
             _df_ob_cerr["estratega"] = _df_ob_cerr["estratega"].replace(_ALIAS_C)
-            _df_ob_cerr["etapa"] = _df_ob_cerr["etapa"].str.replace(
-                r"OB 3 [Pp]ractica en vivo \+ Bot\)?", "OB3 (Practica)", regex=True
-            ).str.replace("OB 4. Nurturing/Reactivación", "OB 4 (Nurt.)", regex=False
-            ).str.replace("OB 4. Nurturing/Reactivacion", "OB 4 (Nurt.)", regex=False
-            ).str.replace("OB 5. Entregable y cierre", "OB5 (Cierre)", regex=False)
+            _df_ob_cerr["_fin_ts"]   = pd.to_datetime(_df_ob_cerr["fin_impl"], errors="coerce")
 
-            _ob_cerr_json = _json_cerr.dumps(_df_ob_cerr.to_dict(orient="records"), ensure_ascii=True)
-            _n_ests_c  = _df_ob_cerr["estratega"].nunique()
-            _n_rows_c  = len(_df_ob_cerr)
-            _ob_cerr_height = max(_n_rows_c * 34 + 200, 300)
+            _ests_c   = sorted(_df_ob_cerr["estratega"].unique())
+            _riesgos_c = [r for r in ["Alto", "Medio", "Bajo", "—"] if r in _df_ob_cerr["riesgo"].values]
 
-            _html_cerr = _html_ob_tmpl.replace("__OB_JSON__", _ob_cerr_json)
+            # helpers reutilizados
+            def _tdc_num(n, bold=False):
+                _b = "font-weight:bold;" if bold else ""
+                return f'<td style="border:1px dotted #bbb;padding:4px 6px;text-align:center;{_b}">{n if n else ""}</td>'
+            def _tdc_lbl(txt, bold=False):
+                _b = "font-weight:bold;" if bold else ""
+                return f'<td style="background:#d6eaf8;border:1px dotted #bbb;padding:4px 8px;text-align:center;white-space:nowrap;{_b}">{txt}</td>'
+            def _hth(txt):
+                return f'<th style="background:#1a3a5c;color:#fff;font-weight:bold;padding:6px 4px;text-align:center;border:1px dotted #9ab;font-size:0.72rem">{txt}</th>'
+
+            # ── Tabla SLA (con datos cerrados) ──────────────────
+            _thead_sla_c = '<tr>' + _hth('') + _hth('-30d') + _hth('+30d') + _hth('Sin fecha') + _hth('Total') + '</tr>'
+            _tbody_sla_c = ''
+            for _ec in _ests_c:
+                _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
+                _tbody_sla_c += ('<tr>' + _tdc_lbl(_ec)
+                    + _tdc_num(int((_s["sla"]=="≤30d").sum()))
+                    + _tdc_num(int((_s["sla"]==">30d").sum()))
+                    + _tdc_num(int((_s["sla"]=="Sin fecha").sum()))
+                    + _tdc_num(len(_s)) + '</tr>')
+            _tbody_sla_c += ('<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
+                + _tdc_num(int((_df_ob_cerr["sla"]=="≤30d").sum()), bold=True)
+                + _tdc_num(int((_df_ob_cerr["sla"]==">30d").sum()), bold=True)
+                + _tdc_num(int((_df_ob_cerr["sla"]=="Sin fecha").sum()), bold=True)
+                + _tdc_num(len(_df_ob_cerr), bold=True) + '</tr>')
+
+            # ── Tabla Riesgo (con datos cerrados) ───────────────
+            _thead_riesgo_c = '<tr>' + _hth('') + ''.join(_hth(r) for r in _riesgos_c) + _hth('Total') + '</tr>'
+            _tbody_riesgo_c = ''
+            for _ec in _ests_c:
+                _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
+                _tbody_riesgo_c += '<tr>' + _tdc_lbl(_ec)
+                for _r in _riesgos_c:
+                    _tbody_riesgo_c += _tdc_num(int((_s["riesgo"]==_r).sum()))
+                _tbody_riesgo_c += _tdc_num(len(_s)) + '</tr>'
+            _tbody_riesgo_c += '<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
+            for _r in _riesgos_c:
+                _tbody_riesgo_c += _tdc_num(int((_df_ob_cerr["riesgo"]==_r).sum()), bold=True)
+            _tbody_riesgo_c += _tdc_num(len(_df_ob_cerr), bold=True) + '</tr>'
+
+            # ── Tabla Cierres por semana ─────────────────────────
+            # Últimas 4 semanas (lunes a domingo)
+            _lunes_hoy = _hoy_cerr - pd.Timedelta(days=_hoy_cerr.weekday())
+            _semanas_c = [(_lunes_hoy - pd.Timedelta(weeks=i),
+                           _lunes_hoy - pd.Timedelta(weeks=i) + pd.Timedelta(days=6))
+                          for i in range(3, -1, -1)]
+            _sem_labels = [f"{s[0].strftime('%d/%m')}–{s[1].strftime('%d/%m')}" for s in _semanas_c]
+
+            _thead_sem_c = '<tr>' + _hth('') + ''.join(_hth(l) for l in _sem_labels) + _hth('Total') + '</tr>'
+            _tbody_sem_c = ''
+            for _ec in _ests_c:
+                _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
+                _tbody_sem_c += '<tr>' + _tdc_lbl(_ec)
+                for (sd, se) in _semanas_c:
+                    _n_s = int(((_s["_fin_ts"] >= sd) & (_s["_fin_ts"] <= se + pd.Timedelta(hours=23,minutes=59))).sum())
+                    _tbody_sem_c += _tdc_num(_n_s)
+                _tbody_sem_c += _tdc_num(len(_s)) + '</tr>'
+            _tbody_sem_c += '<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
+            for (sd, se) in _semanas_c:
+                _n_s = int(((_df_ob_cerr["_fin_ts"] >= sd) & (_df_ob_cerr["_fin_ts"] <= se + pd.Timedelta(hours=23,minutes=59))).sum())
+                _tbody_sem_c += _tdc_num(_n_s, bold=True)
+            _tbody_sem_c += _tdc_num(len(_df_ob_cerr), bold=True) + '</tr>'
+
+            # ── JSON para tabla detalle ──────────────────────────
+            _ob_cerr_json = _json_cerr.dumps(_df_ob_cerr.drop(columns=["_fin_ts"]).to_dict(orient="records"), ensure_ascii=True)
+            _n_rows_c = len(_df_ob_cerr)
+            _ob_cerr_height = (len(_ests_c) + 2) * 34 * 3 + 160 + _n_rows_c * 30 + 200
+
+            _html_cerr = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+*{{box-sizing:border-box;margin:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;padding:4px 0;font-size:0.78rem}}
+.layout{{display:flex;gap:20px;align-items:flex-start;margin-bottom:20px}}
+.col-sla{{flex:0 0 26%}}.col-riesgo{{flex:0 0 26%}}.col-sem{{flex:1;overflow-x:auto}}
+.tbl-title{{font-size:0.82rem;font-weight:600;color:#1e293b;margin-bottom:5px}}
+.wrap{{border:1px solid #c8ccd0;border-radius:4px;overflow:hidden}}
+table{{border-collapse:collapse;width:100%;table-layout:auto}}
+.yr-row td{{font-weight:bold}}
+.det-filters{{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}}
+.det-filters select{{font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;cursor:pointer;min-width:120px}}
+.det-count{{font-size:0.78rem;color:#64748b;margin-left:4px}}
+.det-wrap{{border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}}
+.det-tbl{{width:100%;border-collapse:collapse;font-size:0.8rem}}
+.det-th{{padding:6px 12px;font-weight:600;background:#f1f5f9;color:#475569;border-bottom:2px solid #e2e8f0;cursor:pointer;white-space:nowrap;text-align:left}}
+.det-th:hover{{background:#e2e8f0}}
+.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;cursor:pointer}}
+.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center;cursor:pointer}}
+tr.main-row:hover .det-td,tr.main-row:hover .det-td-c{{background:#f0f7ff}}
+tr.main-row.open .det-td,tr.main-row.open .det-td-c{{background:#e8f2ff;font-weight:600}}
+tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
+.exp-inner{{padding:12px 16px;background:#f7fbff;display:flex;gap:24px;flex-wrap:wrap}}
+.exp-section{{min-width:180px;flex:1}}
+.exp-section-title{{font-size:0.7rem;font-weight:700;color:#1a3a5c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;border-bottom:1px solid #c7d9f0;padding-bottom:3px}}
+.exp-row-item{{display:flex;gap:6px;margin-bottom:3px;font-size:0.77rem}}
+.exp-lbl{{color:#64748b;white-space:nowrap;min-width:110px}}
+.exp-val{{color:#1e293b;font-weight:500}}
+.exp-val.text-block{{white-space:pre-wrap;font-weight:400;color:#334155;font-size:0.75rem;line-height:1.5;max-height:120px;overflow-y:auto;display:block;background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;margin-top:2px}}
+.exp-val a{{color:#2563eb;text-decoration:none}}
+.exp-val a:hover{{text-decoration:underline}}
+.tag{{display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;background:#e2e8f0;color:#334155;margin:1px}}
+.tag.done{{background:#d1fae5;color:#065f46}}
+.tag.pend{{background:#fee2e2;color:#991b1b}}
+.tag.medio{{background:#fef3c7;color:#92400e}}
+</style>
+</head><body>
+<div class="layout">
+  <div class="col-sla">
+    <div class="tbl-title">Por estratega y SLA</div>
+    <div class="wrap"><table><thead>{_thead_sla_c}</thead><tbody>{_tbody_sla_c}</tbody></table></div>
+  </div>
+  <div class="col-riesgo">
+    <div class="tbl-title">Por estratega y riesgo</div>
+    <div class="wrap"><table><thead>{_thead_riesgo_c}</thead><tbody>{_tbody_riesgo_c}</tbody></table></div>
+  </div>
+  <div class="col-sem">
+    <div class="tbl-title">Cierres por semana</div>
+    <div class="wrap"><table><thead>{_thead_sem_c}</thead><tbody>{_tbody_sem_c}</tbody></table></div>
+  </div>
+</div>
+<div class="det-filters">
+  <select id="f-est" onchange="applyF()"><option value="">Estratega: Todos</option></select>
+  <select id="f-riesgo" onchange="applyF()"><option value="">Riesgo: Todos</option></select>
+  <select id="f-sla" onchange="applyF()"><option value="">SLA: Todos</option></select>
+  <span class="det-count" id="ob-count"></span>
+</div>
+<div class="det-wrap">
+  <table class="det-tbl">
+    <thead><tr>
+      <th class="det-th" onclick="sortC(0)">Nombre <span id="arr0"></span></th>
+      <th class="det-th" onclick="sortC(1)" style="text-align:center">Estratega <span id="arr1"></span></th>
+      <th class="det-th" onclick="sortC(2)" style="text-align:center">Inicio impl. <span id="arr2"></span></th>
+      <th class="det-th" onclick="sortC(3)" style="text-align:center">Fin impl. <span id="arr3"></span></th>
+      <th class="det-th" onclick="sortC(4)" style="text-align:center">Días OB <span id="arr4"></span></th>
+      <th class="det-th" onclick="sortC(5)" style="text-align:center">SLA <span id="arr5"></span></th>
+      <th class="det-th" onclick="sortC(6)" style="text-align:center">Riesgo <span id="arr6"></span></th>
+    </tr></thead>
+    <tbody id="ob-tbl-body"></tbody>
+  </table>
+</div>
+<script>
+var _RC={{'Alto':'#c0392b','Medio':'#d68910','Bajo':'#1e8449'}};
+var _allRows=__OB_JSON__;
+var _curRows=_allRows.slice();
+var _cSort=-1,_cDir=1;
+var _KEYS=['nombre','estratega','inicio','fin_impl','dias','sla','riesgo'];
+function _uniq(k){{var s={{}};_allRows.forEach(function(r){{s[r[k]]=1;}});return Object.keys(s).sort();}}
+function _fill(id,k,lbl){{var sel=document.getElementById(id);_uniq(k).forEach(function(v){{var o=document.createElement('option');o.value=v;o.textContent=lbl+v;sel.appendChild(o);}});}}
+_fill('f-est','estratega','Estratega: ');
+_fill('f-riesgo','riesgo','Riesgo: ');
+_fill('f-sla','sla','SLA: ');
+function applyF(){{
+  var est=document.getElementById('f-est').value;
+  var rie=document.getElementById('f-riesgo').value;
+  var sla=document.getElementById('f-sla').value;
+  _curRows=_allRows.filter(function(r){{return(!est||r.estratega===est)&&(!rie||r.riesgo===rie)&&(!sla||r.sla===sla);}});
+  _cSort=-1;_cDir=1;renderC(_curRows);
+}}
+function sortC(i){{
+  if(_cSort===i){{_cDir*=-1;}}else{{_cSort=i;_cDir=1;}}
+  var key=_KEYS[i];
+  _curRows=_curRows.slice().sort(function(a,b){{
+    var av=a[key],bv=b[key];
+    var an=(av==null||av==='—'),bn=(bv==null||bv==='—');
+    if(an&&bn)return 0;if(an)return 1;if(bn)return-1;
+    return(av<bv?-1:av>bv?1:0)*_cDir;
+  }});
+  renderC(_curRows);
+}}
+function _tag(v){{
+  if(!v||v==='')return'<span style="color:#94a3b8">—</span>';
+  var low=v.toLowerCase();
+  var cls=low.includes('hecho')||low.includes('done')||low.includes('listo')||low.includes('completo')||low.includes('realizado')?'done':
+          low.includes('proceso')||low.includes('pendiente')?'medio':'';
+  return'<span class="tag '+cls+'">'+v+'</span>';
+}}
+function _lnk(v,label){{if(!v)return'<span style="color:#94a3b8">—</span>';return'<a class="exp-val" href="'+v+'" target="_blank">'+label+'</a>';}}
+function _fld(lbl,val){{var v=val||'';return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span><span class="exp-val">'+(v||'<span style="color:#94a3b8">—</span>')+'</span></div>';}}
+function _ftag(lbl,val){{return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span>'+_tag(val)+'</div>';}}
+function _ftxt(lbl,val){{if(!val)return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span><span style="color:#94a3b8">—</span></div>';return'<div class="exp-row-item" style="flex-direction:column"><span class="exp-lbl">'+lbl+'</span><span class="exp-val text-block">'+val+'</span></div>';}}
+function _expHtml(r){{
+  var s1='<div class="exp-section"><div class="exp-section-title">General</div>'+_fld('Rubro',r.rubro)+_fld('Subrubro',r.subrubro)+_fld('B2B | B2C',r.b2b)+_fld('Tipo cliente',r.tipo_cli)+_fld('Vendedores',r.vendedores)+_fld('Pain',r.pain)+'<div class="exp-row-item"><span class="exp-lbl">Link Drive</span>'+_lnk(r.link_drive,'Abrir Drive')+'</div><div class="exp-row-item"><span class="exp-lbl">Link CRM</span>'+_lnk(r.link_crm,'Abrir CRM')+'</div></div>';
+  var s2='<div class="exp-section"><div class="exp-section-title">Riesgo y notas</div>'+_ftag('Riesgo',r.riesgo)+_ftag('Motivo',r.motivo_riesgo)+_ftxt('Notas',r.notas)+_ftxt('Com. llamado',r.com_llamado)+'</div>';
+  var s3='<div class="exp-section"><div class="exp-section-title">Progreso OB</div>'+_ftag('1. Carga auto.',r.carga_auto)+_ftag('1. BBDD',r.bbdd)+_ftag('1. Diseño flujo',r.diseno)+_ftag('1. Est.|Etiq.|Can.',r.estados)+_ftag('OB 1 - Grafico',r.ob1)+_ftxt('Com. grafico',r.com_grafico)+_ftag('OB 2 - API',r.ob2)+_ftag('OB 2 - Sec.',r.ob2_sec)+_ftag('2. Automatiz.',r.automations)+_ftag('OB 3 - Ejer. vivo',r.ob3)+_ftag('Cap. vendedores',r.cap_vend)+_ftag('OB 4 - Nurt.',r.ob4)+_ftag('OB 5 - Cierre',r.ob5)+_ftag('M1 - Mistery',r.m1)+'</div>';
+  var s4='<div class="exp-section"><div class="exp-section-title">WapBot y comentarios</div>'+_ftag('WapBot',r.wapbot)+_fld('BOT (fecha)',r.bot)+_ftxt('Com. bot',r.com_bot)+_ftxt('Com. finales',r.com_finales)+'</div>';
+  return'<div class="exp-inner">'+s1+s2+s3+s4+'</div>';
+}}
+var _openIdx=null;
+function toggleRow(idx){{
+  var tbody=document.getElementById('ob-tbl-body');
+  var mains=tbody.querySelectorAll('tr.main-row');
+  var exps=tbody.querySelectorAll('tr.exp-row');
+  if(_openIdx===idx){{mains[idx].classList.remove('open');exps[idx].style.display='none';_openIdx=null;return;}}
+  mains.forEach(function(r){{r.classList.remove('open');}});
+  exps.forEach(function(r){{r.style.display='none';}});
+  mains[idx].classList.add('open');exps[idx].style.display='';_openIdx=idx;
+}}
+function renderC(rows){{
+  _openIdx=null;
+  document.getElementById('ob-count').textContent=rows.length+' clientes';
+  for(var i=0;i<7;i++){{document.getElementById('arr'+i).textContent=_cSort===i?(_cDir>0?' ↑':' ↓'):'';}}
+  var h='';
+  rows.forEach(function(r,i){{
+    var rc=_RC[r.riesgo]||'#333';
+    h+='<tr class="main-row" onclick="toggleRow('+i+')">'
+      +'<td class="det-td">'+r.nombre+'</td>'
+      +'<td class="det-td-c">'+r.estratega+'</td>'
+      +'<td class="det-td-c">'+(r.inicio||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.fin_impl||'—')+'</td>'
+      +'<td class="det-td-c">'+r.dias+'</td>'
+      +'<td class="det-td-c">'+r.sla+'</td>'
+      +'<td class="det-td-c" style="color:'+rc+';font-weight:600">'+r.riesgo+'</td>'
+      +'</tr>'
+      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r)+'</td></tr>';
+  }});
+  if(!rows.length)h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
+  document.getElementById('ob-tbl-body').innerHTML=h;
+}}
+renderC(_allRows);
+</script>
+</body></html>"""
+
+            _html_cerr = _html_cerr.replace("__OB_JSON__", _ob_cerr_json)
             st.components.v1.html(_html_cerr, height=_ob_cerr_height, scrolling=True)
     except Exception as _e_cerr:
         st.exception(_e_cerr)
