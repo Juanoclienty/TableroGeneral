@@ -1807,6 +1807,34 @@ with tab_baj:
             _prom_trunc = None
         _prom_str = f"{int(round(_prom_trunc))} m" if _prom_trunc is not None else "–"
 
+        # Distribución por intervalo (solo primeras 5 bandas)
+        _ivls_card = [("0", 0, 0), ("0-3", 1, 3), ("+3", 4, 6), ("+6", 7, 12), ("+12", 13, 18)]
+        _ivl_counts = []
+        for _lbl_i, _lo_i, _hi_i in _ivls_card:
+            _n_i = int((((_ma_vals >= _lo_i) & (_ma_vals <= _hi_i)).sum())) if len(_ma_vals) > 0 else 0
+            _ivl_counts.append((_lbl_i, _n_i))
+
+        # Churn = suma de Tkt Prom por cliente del mes
+        _churn_total = 0
+        for _, _row_c in _grp_c.iterrows():
+            _cid = str(_row_c.get("ID CRM", "") or "").strip()
+            try: _cid = str(int(float(_cid)))
+            except: pass
+            _entry = _ltv_lookup_cs.get(_cid)
+            if _entry is not None:
+                _ltv_t   = _entry.get("total", 0) or 0
+                _ltv_i_v = _entry.get("impl",  0) or 0
+                _mr_c = _row_c.get("Meses activos")
+                _mf_c = max(1, int(_mr_c)) if pd.notna(_mr_c) else 1
+                _churn_total += (_ltv_t - _ltv_i_v) / _mf_c
+        _churn_str = f"${int(round(_churn_total)):,}".replace(",", ".")
+
+        _ivl_html = "".join(
+            f'<div style="text-align:center"><div style="opacity:.7;font-size:0.68rem">{_l}</div>'
+            f'<div style="font-weight:600;font-size:0.8rem">{_n}</div></div>'
+            for _l, _n in _ivl_counts
+        )
+
         _html_c = (
             '<div style="background:linear-gradient(135deg,#2196F3,#1565C0);'
             'border-radius:12px;padding:20px 16px 14px;text-align:center;color:white;margin-bottom:6px">'
@@ -1817,6 +1845,11 @@ with tab_baj:
             'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:4px">'
             f'<div><div style="opacity:.7">Tiempo Perm. mediana</div><div style="font-weight:600">{_med_str}</div></div>'
             f'<div><div style="opacity:.7">Tiempo Perm. prom.</div><div style="font-weight:600">{_prom_str}</div></div>'
+            f'<div><div style="opacity:.7">Churn</div><div style="font-weight:600">{_churn_str}</div></div>'
+            '</div>'
+            '<div style="display:flex;justify-content:space-around;font-size:0.75rem;'
+            'border-top:1px solid rgba(255,255,255,.25);padding-top:7px;margin-top:6px">'
+            + _ivl_html +
             '</div>'
             '</div>'
         )
