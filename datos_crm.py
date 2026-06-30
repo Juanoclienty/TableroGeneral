@@ -1101,9 +1101,14 @@ def cargar_pedidos_baja() -> "pd.DataFrame":
     rows = []
     for item in items:
         cv = {v["id"]: _cv_val(v) for v in item["column_values"]}
+        _fecha_raw = cv.get("fecha_de_pedido__1", "")
+        try:
+            _mes = pd.to_datetime(_fecha_raw, dayfirst=True, errors="coerce").strftime("%Y-%m")
+        except Exception:
+            _mes = ""
         rows.append({
             "ID":                   cv.get("lookup_mm4sedxb", ""),
-            "Mes":                  cv.get("dup__of_tel_fono__1", ""),
+            "Mes":                  _mes,
             "Clientes y ex-clientes": item["name"],
             "Motivo de baja":       cv.get("reflejo__1", ""),
             "Fecha de pedido":      cv.get("fecha_de_pedido__1", ""),
