@@ -1196,7 +1196,7 @@ def _kpi(lbl, val, sub=""):
 
 # ── Tabs ──────────────────────────────────────────────────────────
 
-tab_act, tab_ob, tab_baj, tab_ped = st.tabs(["Resumen", "OB", "📉 Bajas", "Pedidos de baja"])
+tab_act, tab_ob, tab_ob_cerr, tab_baj, tab_ped = st.tabs(["Resumen", "OB", "OB Cerrados", "📉 Bajas", "Pedidos de baja"])
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1288,17 +1288,7 @@ with tab_ob:
         import datos_crm as _dcrm
         import json as _json_ob
         _df_ob_all = _dcrm.cargar_ob_detalle()
-
-        _ver_cerrados = st.checkbox("Ver OBs cerrados (últimos 30 días)", key="ob_cerrados")
-
-        if _ver_cerrados:
-            _hoy_ob = pd.Timestamp.today().normalize()
-            _fin_ts = pd.to_datetime(_df_ob_all["fin_impl"], errors="coerce")
-            _df_ob  = _df_ob_all[
-                _fin_ts.notna() & (_fin_ts >= _hoy_ob - pd.Timedelta(days=30))
-            ].copy()
-        else:
-            _df_ob = _df_ob_all.copy()
+        _df_ob = _df_ob_all.copy()
 
         if not _df_ob.empty:
             _ALIAS = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}
@@ -1695,6 +1685,7 @@ renderOb(_allRows);
 </script>
 </body></html>"""
 
+            _html_ob_tmpl = _html_ob  # guardado para reusar en OB Cerrados
             _html_ob = _html_ob.replace("__OB_JSON__", _ob_json)
             st.components.v1.html(_html_ob, height=_ob_height, scrolling=True)
 
@@ -1773,6 +1764,42 @@ with tab_act:
         'Fuente: Monday.com · Grupo "Clienty"</div>',
         unsafe_allow_html=True,
     )
+
+
+# ════════════════════════════════════════════════════════════════
+#  TAB OB CERRADOS
+# ════════════════════════════════════════════════════════════════
+
+with tab_ob_cerr:
+    try:
+        import datos_crm as _dcrm_cerr
+        import json as _json_cerr
+        _hoy_cerr = pd.Timestamp.today().normalize()
+        _fin_ts_cerr = pd.to_datetime(_df_ob_all["fin_impl"], errors="coerce")
+        _df_ob_cerr = _df_ob_all[
+            _fin_ts_cerr.notna() & (_fin_ts_cerr >= _hoy_cerr - pd.Timedelta(days=30))
+        ].copy()
+
+        if _df_ob_cerr.empty:
+            st.info("No hay OBs cerrados en los últimos 30 días.")
+        else:
+            _ALIAS_C = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}
+            _df_ob_cerr["estratega"] = _df_ob_cerr["estratega"].replace(_ALIAS_C)
+            _df_ob_cerr["etapa"] = _df_ob_cerr["etapa"].str.replace(
+                r"OB 3 [Pp]ractica en vivo \+ Bot\)?", "OB3 (Practica)", regex=True
+            ).str.replace("OB 4. Nurturing/Reactivación", "OB 4 (Nurt.)", regex=False
+            ).str.replace("OB 4. Nurturing/Reactivacion", "OB 4 (Nurt.)", regex=False
+            ).str.replace("OB 5. Entregable y cierre", "OB5 (Cierre)", regex=False)
+
+            _ob_cerr_json = _json_cerr.dumps(_df_ob_cerr.to_dict(orient="records"), ensure_ascii=True)
+            _n_ests_c  = _df_ob_cerr["estratega"].nunique()
+            _n_rows_c  = len(_df_ob_cerr)
+            _ob_cerr_height = max(_n_rows_c * 34 + 200, 300)
+
+            _html_cerr = _html_ob_tmpl.replace("__OB_JSON__", _ob_cerr_json)
+            st.components.v1.html(_html_cerr, height=_ob_cerr_height, scrolling=True)
+    except Exception as _e_cerr:
+        st.exception(_e_cerr)
 
 
 # ════════════════════════════════════════════════════════════════
