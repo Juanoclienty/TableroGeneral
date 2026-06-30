@@ -1287,7 +1287,18 @@ with tab_ob:
     try:
         import datos_crm as _dcrm
         import json as _json_ob
-        _df_ob = _dcrm.cargar_ob_detalle()
+        _df_ob_all = _dcrm.cargar_ob_detalle()
+
+        _ver_cerrados = st.checkbox("Ver OBs cerrados (últimos 30 días)", key="ob_cerrados")
+
+        if _ver_cerrados:
+            _hoy_ob = pd.Timestamp.today().normalize()
+            _fin_ts = pd.to_datetime(_df_ob_all["fin_impl"], errors="coerce")
+            _df_ob  = _df_ob_all[
+                _fin_ts.notna() & (_fin_ts >= _hoy_ob - pd.Timedelta(days=30))
+            ].copy()
+        else:
+            _df_ob = _df_ob_all.copy()
 
         if not _df_ob.empty:
             _ALIAS = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}

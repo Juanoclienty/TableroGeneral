@@ -718,6 +718,7 @@ _COL_LINK_DRIVE    = "enlace__1"
 _COL_LINK_CRM      = "dup__of_mes_mkn1krsj"
 _COL_PAIN          = "dup__of_contras__1"
 _COL_COM_FINALES   = "long_text_mkyxrph7"
+_COL_FIN           = "date_mkyq6fgr"
 
 
 @_st.cache_data(ttl=86400, show_spinner=False)
@@ -776,7 +777,7 @@ def cargar_ob_detalle() -> "pd.DataFrame":
     Columnas: nombre, estratega, etapa, dias, sla
     """
     cols_ids = [
-        _COL_INICIO, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
+        _COL_INICIO, _COL_FIN, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
         _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_RUBRO, _COL_SUBRUBRO,
         _COL_COM_LLAMADO, _COL_CARGA_AUTO, _COL_WAPBOT, _COL_BOT, _COL_COM_BOT,
         _COL_BBDD, _COL_OB1, _COL_DISENO, _COL_COM_GRAFICO, _COL_ESTADOS,
@@ -827,6 +828,7 @@ def cargar_ob_detalle() -> "pd.DataFrame":
             "estratega":     estratega,
             "etapa":         etapa,
             "inicio":        inicio or "—",
+            "fin_impl":      cv.get(_COL_FIN, "") or "",
             "dias":          dias if dias is not None else "—",
             "sla":           sla or "Sin fecha",
             "riesgo":        riesgo,
