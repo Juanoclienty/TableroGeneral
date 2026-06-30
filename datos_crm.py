@@ -1108,4 +1108,4 @@ def cargar_pedidos_baja() -> "pd.DataFrame":
             "Comentarios (Flori)":  cv.get("text1__1", ""),
             "Monto Recurrente":     cv.get("numeric_mm4fg4hx", ""),
         })
-    return _pd.DataFrame(rows)
+    return pd.DataFrame(rows)
