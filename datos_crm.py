@@ -1062,3 +1062,50 @@ def cargar_recurrente_bajas() -> dict:
         if a2 and tc and tc != 0:
             result[_id] = round((a2 / tc) * (1 - bonif / 100), 2)
     return result
+
+
+_BOARD_ID_PED_BAJA  = "7038826698"
+_PBAJ_COLS = [
+    "lookup_mm4sedxb",       # ID
+    "dup__of_tel_fono__1",   # Mes
+    "conectar_tableros__1",  # Clientes y ex-clientes
+    "reflejo__1",            # Motivo de baja
+    "fecha_de_pedido__1",    # Fecha de pedido
+    "color3__1",             # Situación del cliente
+    "motivo__1",             # Motivo y actualizaciones
+    "text1__1",              # Comentarios (Flori)
+    "numeric_mm4fg4hx",      # Monto Recurrente
+]
+
+@_st.cache_data(ttl=3600, show_spinner=False)
+def cargar_pedidos_baja() -> "pd.DataFrame":
+    """Retorna DataFrame con pedidos de baja desde Monday board 7038826698."""
+    _cols_gql = ", ".join(f'"{c}"' for c in _PBAJ_COLS)
+    fragment  = f'id name column_values(ids: [{_cols_gql}]) {{ id text }}'
+    q  = f'{{ boards(ids: [{_BOARD_ID_PED_BAJA}]) {{ items_page(limit: 500) {{ cursor items {{ {fragment} }} }} }} }}'
+    r  = _monday_request_cs(q)
+    page   = r["data"]["boards"][0]["items_page"]
+    items  = list(page["items"])
+    cursor = page.get("cursor")
+    while cursor:
+        q2 = f'{{ next_items_page(limit: 500, cursor: "{cursor}") {{ cursor items {{ {fragment} }} }} }}'
+        r2 = _monday_request_cs(q2)
+        np = r2["data"]["next_items_page"]
+        items += np["items"]
+        cursor = np.get("cursor")
+
+    rows = []
+    for item in items:
+        cv = {v["id"]: (v["text"] or "") for v in item["column_values"]}
+        rows.append({
+            "ID":                   cv.get("lookup_mm4sedxb", ""),
+            "Mes":                  cv.get("dup__of_tel_fono__1", ""),
+            "Clientes y ex-clientes": item["name"],
+            "Motivo de baja":       cv.get("reflejo__1", ""),
+            "Fecha de pedido":      cv.get("fecha_de_pedido__1", ""),
+            "Situación del cliente": cv.get("color3__1", ""),
+            "Motivo y actualizaciones": cv.get("motivo__1", ""),
+            "Comentarios (Flori)":  cv.get("text1__1", ""),
+            "Monto Recurrente":     cv.get("numeric_mm4fg4hx", ""),
+        })
+    return _pd.DataFrame(rows)

@@ -1196,7 +1196,7 @@ def _kpi(lbl, val, sub=""):
 
 # ── Tabs ──────────────────────────────────────────────────────────
 
-tab_act, tab_ob, tab_baj = st.tabs(["Resumen", "OB", "📉 Bajas"])
+tab_act, tab_ob, tab_baj, tab_ped = st.tabs(["Resumen", "OB", "📉 Bajas", "Pedidos de baja"])
 
 
 # ════════════════════════════════════════════════════════════════
@@ -2079,4 +2079,45 @@ with tab_baj:
             "B2B - B2C":   st.column_config.TextColumn("B2B - B2C",   width=None),
         },
     )
+
+# ════════════════════════════════════════════════════════════════
+#  TAB PEDIDOS DE BAJA
+# ════════════════════════════════════════════════════════════════
+
+with tab_ped:
+    try:
+        import datos_crm as _dcrm_ped
+        df_ped = _dcrm_ped.cargar_pedidos_baja()
+    except Exception as _e_ped:
+        st.error(f"Error cargando pedidos de baja: {_e_ped}")
+        df_ped = pd.DataFrame()
+
+    if df_ped.empty:
+        st.info("Sin datos.")
+    else:
+        _buscar_ped = st.text_input("🔍 Buscar nombre o ID", "", key="buscar_ped")
+        if _buscar_ped:
+            _mask_ped = (
+                df_ped["Clientes y ex-clientes"].str.contains(_buscar_ped, case=False, na=False)
+                | df_ped["ID"].str.contains(_buscar_ped, case=False, na=False)
+            )
+            df_ped = df_ped[_mask_ped]
+
+        st.markdown(f"**{len(df_ped):,} registros**")
+        st.dataframe(
+            df_ped,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID":                     st.column_config.TextColumn("ID",                     width="small"),
+                "Mes":                    st.column_config.TextColumn("Mes",                    width="small"),
+                "Clientes y ex-clientes": st.column_config.TextColumn("Clientes y ex-clientes", width="medium"),
+                "Motivo de baja":         st.column_config.TextColumn("Motivo de baja",         width="medium"),
+                "Fecha de pedido":        st.column_config.TextColumn("Fecha de pedido",        width="small"),
+                "Situación del cliente":  st.column_config.TextColumn("Situación del cliente",  width="small"),
+                "Motivo y actualizaciones": st.column_config.TextColumn("Motivo y actualizaciones", width="large"),
+                "Comentarios (Flori)":    st.column_config.TextColumn("Comentarios (Flori)",    width="large"),
+                "Monto Recurrente":       st.column_config.TextColumn("Monto Recurrente",       width="small"),
+            },
+        )
 
