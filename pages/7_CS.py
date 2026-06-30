@@ -2095,6 +2095,9 @@ with tab_ped:
     if not df_ped.empty:
         _excluir = {"BAJA", "PAGO", "SE QUEDA 😃"}
         df_ped = df_ped[~df_ped["Situación del cliente"].str.upper().isin(_excluir)].copy()
+        _hoy = pd.Timestamp.today().normalize()
+        _fecha_ped = pd.to_datetime(df_ped["Fecha de pedido"], dayfirst=True, errors="coerce")
+        df_ped = df_ped[_fecha_ped >= _hoy - pd.Timedelta(days=90)].copy()
 
     if df_ped.empty:
         st.info("Sin datos.")
