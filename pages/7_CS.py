@@ -2116,14 +2116,14 @@ with tab_ped:
             use_container_width=True,
             hide_index=True,
             column_config={
-                "ID":                     st.column_config.TextColumn("ID",                     width="small"),
-                "Clientes y ex-clientes": st.column_config.TextColumn("Clientes y ex-clientes", width="medium"),
-                "Motivo de baja":         st.column_config.TextColumn("Motivo de baja",         width="medium"),
-                "Fecha de pedido":        st.column_config.TextColumn("Fecha de pedido",        width="small"),
-                "Situación del cliente":  st.column_config.TextColumn("Situación del cliente",  width="small"),
-                "Motivo y actualizaciones": st.column_config.TextColumn("Motivo y actualizaciones", width="large"),
-                "Comentarios (Flori)":    st.column_config.TextColumn("Comentarios (Flori)",    width="large"),
-                "Monto Recurrente":       st.column_config.TextColumn("Monto Recurrente",       width="small"),
+                "ID":                     st.column_config.TextColumn("ID",                     width=100),
+                "Clientes y ex-clientes": st.column_config.TextColumn("Clientes y ex-clientes", width=180),
+                "Motivo de baja":         st.column_config.TextColumn("Motivo de baja",         width=160),
+                "Fecha de pedido":        st.column_config.TextColumn("Fecha de pedido",        width=120),
+                "Situación del cliente":  st.column_config.TextColumn("Situación del cliente",  width=160),
+                "Motivo y actualizaciones": st.column_config.TextColumn("Motivo y actualizaciones", width=300),
+                "Comentarios (Flori)":    st.column_config.TextColumn("Comentarios (Flori)",    width=300),
+                "Monto Recurrente":       st.column_config.TextColumn("Monto Recurrente",       width=130),
             },
         )
 
