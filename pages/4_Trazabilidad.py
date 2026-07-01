@@ -822,7 +822,9 @@ with tab_gral:
     # ── Semáforo del período actual ──────────────────────────────────
     if vista == "Día":
         st.subheader("Último día con datos")
-        ult = df[df["leads"] > 0]
+        _metrics_cols = ["leads", "r1", "fp", "r2_agendada", "r2_efectiva", "presupuesto"]
+        _existing_cols = [c for c in _metrics_cols if c in df.columns]
+        ult = df[df[_existing_cols].sum(axis=1) > 0]
         if not ult.empty:
             row = ult.iloc[-1]
             st.caption(f"**{row['fecha'].strftime('%d/%m')}**  ·  Semana {int(row['semana'])}")
