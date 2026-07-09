@@ -287,7 +287,7 @@ def _render(d, year):
         d = {
             k: (
                 _filtrar(v) if isinstance(v, list) and v and not isinstance(v[0], tuple)
-                else [(lbl, _filtrar(sub)) for lbl, sub in v] if isinstance(v, list) and v and isinstance(v[0], tuple)
+                else [(t[0], _filtrar(t[1])) + t[2:] for t in v] if isinstance(v, list) and v and isinstance(v[0], tuple)
                 else v
             )
             for k, v in d.items() if k != "months"
