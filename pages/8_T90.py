@@ -474,6 +474,13 @@ with tab_real:
                 render_semanas_tabla(_VARS_PLACEHOLDER, _datos_sem, _semanas)
     except Exception as _e:
         st.exception(_e)
+    _id_t90  = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
+    _id_bbdd = "1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M"
+    st.caption(
+        f"Fuente: [T90 / Finanzas](https://docs.google.com/spreadsheets/d/{_id_t90}) · "
+        f"[BBDD Ventas](https://docs.google.com/spreadsheets/d/{_id_bbdd}) · "
+        "CRM Clienty"
+    )
 
 with tab_mkt:
     try:
@@ -493,6 +500,11 @@ with tab_mkt:
                 render_semanas_tabla(_kpis_sem, _datos_sem, _semanas)
     except Exception as _e:
         st.exception(_e)
+    _id_bbdd_mkt = "1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M"
+    st.caption(
+        f"Fuente: CRM Clienty · "
+        f"[BBDD Ventas y Presupuestos](https://docs.google.com/spreadsheets/d/{_id_bbdd_mkt})"
+    )
 
 _FIN_KPIS = [
     ("Facturación",    "usd"),
@@ -568,6 +580,8 @@ with tab_fin:
         render_t90_tabla(_FIN_KPIS, datos_mes=_mes_fin, datos_q=_q_fin, datos_yr=_yr_fin)
     except Exception as _e:
         st.exception(_e)
+    _id_fin = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
+    st.caption(f"Fuente: [T90 / Finanzas](https://docs.google.com/spreadsheets/d/{_id_fin})")
 
 _CS_KPIS = [
     ("Bajas totales",           "num"),
@@ -688,3 +702,8 @@ with tab_cs:
                 render_semanas_tabla(_kpis_sem_cs, _datos_sem_cs, _semanas)
     except Exception as _e:
         st.exception(_e)
+    _id_fin_cs = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
+    st.caption(
+        f"Fuente: CRM Clienty · "
+        f"[T90 / Finanzas](https://docs.google.com/spreadsheets/d/{_id_fin_cs})"
+    )
