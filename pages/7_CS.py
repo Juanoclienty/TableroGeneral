@@ -1375,7 +1375,7 @@ with tab_ob:
             _tbody_sla += _sla_data_row("Total", _df_ob, is_total=True)
             # fila %
             _sla_tot = len(_df_ob)
-            _td_pct = lambda s: f'<td style="border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(s/_sla_tot*100) if _sla_tot else 0}%</td>'
+            _td_pct = lambda s: f'<td style="background:#d6eaf8;border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(s/_sla_tot*100) if _sla_tot else 0}%</td>'
             _tbody_sla += ('<tr>' + _td_lbl("%")
                 + _td_pct(int((_df_ob["sla"]=="≤30d").sum()))
                 + _td_pct(int((_df_ob["sla"]==">30d").sum()))
@@ -1413,7 +1413,7 @@ with tab_ob:
             _tbody_riesgo += _riesgo_data_row("Total", _df_ob, is_total=True)
             # fila %
             _rie_tot = len(_df_ob)
-            _td_pct_r = lambda n: f'<td style="border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(n/_rie_tot*100) if _rie_tot else 0}%</td>'
+            _td_pct_r = lambda n: f'<td style="background:#d6eaf8;border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(n/_rie_tot*100) if _rie_tot else 0}%</td>'
             _tbody_riesgo += '<tr>' + _td_lbl("%")
             for _r in _riesgos:
                 _tbody_riesgo += _td_pct_r(int((_df_ob["riesgo"]==_r).sum()))
@@ -1448,7 +1448,7 @@ with tab_ob:
             _tbody_etapa += _etapa_data_row("Total", _df_ob, is_total=True)
             # fila %
             _eta_tot = len(_df_ob)
-            _td_pct_e = lambda n: f'<td style="border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(n/_eta_tot*100) if _eta_tot else 0}%</td>'
+            _td_pct_e = lambda n: f'<td style="background:#d6eaf8;border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(n/_eta_tot*100) if _eta_tot else 0}%</td>'
             _tbody_etapa += '<tr>' + _td_lbl("%")
             for _et in _etapas:
                 _tbody_etapa += _td_pct_e(int((_df_ob["etapa"]==_et).sum()))
