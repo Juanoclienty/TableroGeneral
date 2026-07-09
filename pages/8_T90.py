@@ -502,10 +502,11 @@ with tab_mkt:
         st.exception(_e)
     st.caption(
         "Fuente: "
-        "CRM Clienty · "
-        "[Ads](https://docs.google.com/spreadsheets/d/1mx6EXpdM6kKfzNNWQ_J7vcPBL2Ex36uRmtY-mxKXcoY) · "
-        "[BBDD Ventas y Presupuestos](https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M) · "
-        "[Objetivos](https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40)"
+        "**CRM Clienty** (Leads, % GF, Ventas cohort) · "
+        "[Ads](https://docs.google.com/spreadsheets/d/1mx6EXpdM6kKfzNNWQ_J7vcPBL2Ex36uRmtY-mxKXcoY) (Inversión publicidad) · "
+        "[BBDD Ventas](https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M) (Ventas reales) · "
+        "[BBDD Presupuestos](https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M) (Presupuestos reales) · "
+        "CPL, CPE, CPV, tasas: calculados"
     )
 
 _FIN_KPIS = [
