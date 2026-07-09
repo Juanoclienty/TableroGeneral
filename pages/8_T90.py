@@ -500,10 +500,12 @@ with tab_mkt:
                 render_semanas_tabla(_kpis_sem, _datos_sem, _semanas)
     except Exception as _e:
         st.exception(_e)
-    _id_bbdd_mkt = "1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M"
     st.caption(
-        f"Fuente: CRM Clienty · "
-        f"[BBDD Ventas y Presupuestos](https://docs.google.com/spreadsheets/d/{_id_bbdd_mkt})"
+        "Fuente: "
+        "CRM Clienty · "
+        "[Ads](https://docs.google.com/spreadsheets/d/1mx6EXpdM6kKfzNNWQ_J7vcPBL2Ex36uRmtY-mxKXcoY) · "
+        "[BBDD Ventas y Presupuestos](https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M) · "
+        "[Objetivos](https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40)"
     )
 
 _FIN_KPIS = [
