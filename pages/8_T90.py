@@ -500,13 +500,16 @@ with tab_mkt:
                 render_semanas_tabla(_kpis_sem, _datos_sem, _semanas)
     except Exception as _e:
         st.exception(_e)
-    st.caption(
-        "Fuente: "
-        "**CRM Clienty** (Leads, % GF, Ventas cohort) · "
-        "[Ads](https://docs.google.com/spreadsheets/d/1mx6EXpdM6kKfzNNWQ_J7vcPBL2Ex36uRmtY-mxKXcoY) (Inversión publicidad) · "
-        "[BBDD Ventas](https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M) (Ventas reales) · "
-        "[BBDD Presupuestos](https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M) (Presupuestos reales) · "
+    st.markdown(
+        "<div style='font-size:0.8rem;color:#6b7280;margin-top:4px'>"
+        "Fuente:<br>"
+        "CRM Clienty (Leads, % GF, Ventas cohort)<br>"
+        "<a href='https://docs.google.com/spreadsheets/d/1mx6EXpdM6kKfzNNWQ_J7vcPBL2Ex36uRmtY-mxKXcoY' target='_blank'>Ads</a> (Inversión publicidad)<br>"
+        "<a href='https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M' target='_blank'>BBDD Ventas</a> (Ventas reales)<br>"
+        "<a href='https://docs.google.com/spreadsheets/d/1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M' target='_blank'>BBDD Presupuestos</a> (Presupuestos reales)<br>"
         "CPL, CPE, CPV, tasas: calculados"
+        "</div>",
+        unsafe_allow_html=True,
     )
 
 _FIN_KPIS = [
