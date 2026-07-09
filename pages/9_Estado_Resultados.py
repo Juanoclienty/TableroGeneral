@@ -569,6 +569,11 @@ with col_yr:
 
 st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
 
+_tab_map = {"26": "Real 2026", "25": "Real 2025", "25-26": "Unificado real 2025-2026"}
+_tab_name = _tab_map.get(year, "Real 2026")
+_sheet_url = f"https://docs.google.com/spreadsheets/d/{_SHEET_ID}"
+st.caption(f"Fuente: [Estado de Resultados — {_tab_name}]({_sheet_url})")
+
 try:
     if year == "25-26":
         data = _load_t12()
