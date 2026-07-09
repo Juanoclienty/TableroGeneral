@@ -318,6 +318,8 @@ def _construir_datos_mkt(df_men: "pd.DataFrame", vc: dict, pc: dict, ads_mes: di
     desde componentes acumulados — nunca promediados.
     """
     ads_mes = ads_mes or {}
+    # Leads históricos 2025 (dato fijo — fuente manual)
+    _LEADS_2025 = {(2025, 1): 631, (2025, 2): 388, (2025, 3): 515, (2025, 4): 513, (2025, 5): 529}
     raws = {}
     for _, row in df_men.iterrows():
         p = row.get("mes_key")
@@ -333,17 +335,21 @@ def _construir_datos_mkt(df_men: "pd.DataFrame", vc: dict, pc: dict, ads_mes: di
             "gf":           float(row.get("gf",         0) or 0),
         }
 
-    # Meses presentes en vc, pc o ads_mes pero no en df_men
-    for (y, m) in set(vc) | set(pc) | set(ads_mes):
+    # Meses presentes en vc, pc, ads_mes o leads históricos pero no en df_men
+    for (y, m) in set(vc) | set(pc) | set(ads_mes) | set(_LEADS_2025):
         if (y, m) not in raws:
             raws[(y, m)] = {"inv":          float(ads_mes.get((y, m), 0)),
-                            "leads":        0,
+                            "leads":        float(_LEADS_2025.get((y, m), 0)),
                             "presu":        float(pc.get((y, m), 0)),
                             "venta_real":   float(vc.get((y, m), 0)),
                             "venta_cohort": 0, "gf": 0}
-        elif raws[(y, m)]["inv"] == 0 and (y, m) in ads_mes:
-            # df_men tiene el mes pero sin inversión: completar desde ads_mes
-            raws[(y, m)]["inv"] = float(ads_mes[(y, m)])
+        else:
+            # Completar inversión si falta
+            if raws[(y, m)]["inv"] == 0 and (y, m) in ads_mes:
+                raws[(y, m)]["inv"] = float(ads_mes[(y, m)])
+            # Completar leads históricos si el CRM no tiene dato
+            if raws[(y, m)]["leads"] == 0 and (y, m) in _LEADS_2025:
+                raws[(y, m)]["leads"] = float(_LEADS_2025[(y, m)])
 
     datos_mes = {(y, m): _kpis_de_raw(**r, y=y) for (y, m), r in raws.items()}
 
