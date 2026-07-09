@@ -279,6 +279,7 @@ def _cargar_datos_mkt():
         datos_crm.cargar_meses_compartido(),
         datos_crm.cargar_ventas_cierre(),
         datos_crm.cargar_presupuestos_enviados(),
+        datos.cargar_ads(),
     )
 
 def _cargar_datos_mkt_semanas():
@@ -307,14 +308,16 @@ def _kpis_de_raw(inv, leads, presu, venta_real, venta_cohort, gf, y):
     }
 
 
-def _construir_datos_mkt(df_men: "pd.DataFrame", vc: dict, pc: dict):
+def _construir_datos_mkt(df_men: "pd.DataFrame", vc: dict, pc: dict, ads_mes: dict = None):
     """
     df_men: df mensual agrupado por mes de lead.
     vc: {(y,m): int} ventas por mes de cierre (BBDD_Ventas).
     pc: {(y,m): int} presupuestos por mes de envío (bbdd_presupuestos).
+    ads_mes: {(y,m): float} inversión mensual directa de Ads (para cubrir meses sin leads).
     Devuelve (datos_mes, datos_q, datos_yr) con tasas calculadas
     desde componentes acumulados — nunca promediados.
     """
+    ads_mes = ads_mes or {}
     raws = {}
     for _, row in df_men.iterrows():
         p = row.get("mes_key")
@@ -330,13 +333,17 @@ def _construir_datos_mkt(df_men: "pd.DataFrame", vc: dict, pc: dict):
             "gf":           float(row.get("gf",         0) or 0),
         }
 
-    # Meses presentes en vc o pc pero no en df_men
-    for (y, m) in set(vc) | set(pc):
+    # Meses presentes en vc, pc o ads_mes pero no en df_men
+    for (y, m) in set(vc) | set(pc) | set(ads_mes):
         if (y, m) not in raws:
-            raws[(y, m)] = {"inv": 0, "leads": 0,
+            raws[(y, m)] = {"inv":          float(ads_mes.get((y, m), 0)),
+                            "leads":        0,
                             "presu":        float(pc.get((y, m), 0)),
                             "venta_real":   float(vc.get((y, m), 0)),
                             "venta_cohort": 0, "gf": 0}
+        elif raws[(y, m)]["inv"] == 0 and (y, m) in ads_mes:
+            # df_men tiene el mes pero sin inversión: completar desde ads_mes
+            raws[(y, m)]["inv"] = float(ads_mes[(y, m)])
 
     datos_mes = {(y, m): _kpis_de_raw(**r, y=y) for (y, m), r in raws.items()}
 
@@ -484,8 +491,14 @@ with tab_real:
 
 with tab_mkt:
     try:
-        _df_men, _vc, _pc = _cargar_datos_mkt()
-        _mes_mkt, _q_mkt, _yr_mkt = _construir_datos_mkt(_df_men, _vc, _pc)
+        _df_men, _vc, _pc, _df_ads_raw = _cargar_datos_mkt()
+        # Ads agrupados por mes para cubrir meses sin leads
+        _ads_mes = {}
+        if not _df_ads_raw.empty:
+            _df_ads_raw["_mes_key"] = _df_ads_raw["fecha"].dt.to_period("M")
+            for _p, _g in _df_ads_raw.groupby("_mes_key"):
+                _ads_mes[(_p.year, _p.month)] = float(_g["inversion"].sum())
+        _mes_mkt, _q_mkt, _yr_mkt = _construir_datos_mkt(_df_men, _vc, _pc, _ads_mes)
     except Exception as e:
         st.error(f"Error cargando datos MKT: {e}")
         _mes_mkt = _q_mkt = _yr_mkt = {}
