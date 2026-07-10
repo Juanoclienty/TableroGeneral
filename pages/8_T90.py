@@ -57,10 +57,10 @@ tr.sub-row td { font-size:0.68rem; color:#555; }
 _JS_TEMPLATE = """
 var qmap   = QMAP;
 var ymap   = YMAP;
-var qstate = {};
 var ystate = {};
-Object.keys(qmap).forEach(function(k){ qstate[k] = false; });
-Object.keys(ymap).forEach(function(k){ ystate[k] = false; });
+Object.keys(ymap).forEach(function(k){ ystate[k] = true; });
+
+var showQ = false;
 
 function setCols(ids, hide) {
     ids.forEach(function(cid) {
@@ -70,54 +70,59 @@ function setCols(ids, hide) {
     });
 }
 
+function applyQVisibility() {
+    Object.keys(qmap).forEach(function(qid) {
+        setCols([qid], !showQ);
+    });
+}
+
 var currentYear = new Date().getFullYear();
 
 window.addEventListener('load', function() {
+    // Expandir año actual, colapsar años anteriores
     Object.keys(ymap).forEach(function(yid) {
         var yr = parseInt(yid.replace('y',''));
         var qs = ymap[yid] || [];
         if(yr < currentYear) {
-            qs.forEach(function(qid) {
-                setCols([qid], true);
-                setCols(qmap[qid]||[], true);
-            });
+            qs.forEach(function(qid){ setCols([qid], true); setCols(qmap[qid]||[], true); });
+            ystate[yid] = false;
             var btn = document.getElementById('btn-'+yid);
             if(btn) btn.textContent = '+';
         } else {
-            setCols(qs, false);
-            qs.forEach(function(qid) {
-                setCols(qmap[qid]||[], false);
-                qstate[qid] = true;
-                var btn = document.getElementById('btn-'+qid);
-                if(btn) btn.textContent = '−';
-            });
+            qs.forEach(function(qid){ setCols(qmap[qid]||[], false); });
             ystate[yid] = true;
             var btn = document.getElementById('btn-'+yid);
             if(btn) btn.textContent = '−';
         }
     });
+    // Ocultar columnas Q por defecto
+    applyQVisibility();
 });
 
-function toggleQ(qid) {
-    var exp = qstate[qid];
-    setCols(qmap[qid]||[], exp);
-    var btn = document.getElementById('btn-'+qid);
-    if(btn) btn.textContent = exp ? '+' : '−';
-    qstate[qid] = !exp;
+function toggleQ_checkbox() {
+    showQ = document.getElementById('chk-q').checked;
+    applyQVisibility();
+    // Si se muestran Qs, asegurar que los años estén expandidos
+    if(showQ) {
+        Object.keys(ymap).forEach(function(yid) {
+            if(!ystate[yid]) {
+                var qs = ymap[yid] || [];
+                qs.forEach(function(qid){ setCols([qid], false); setCols(qmap[qid]||[], false); });
+                ystate[yid] = true;
+                var btn = document.getElementById('btn-'+yid);
+                if(btn) btn.textContent = '−';
+            }
+        });
+    }
 }
 
 function toggleY(yid) {
     var exp = ystate[yid];
     var qs  = ymap[yid] || [];
-    setCols(qs, exp);
-    if(exp) {
-        qs.forEach(function(qid) {
-            setCols(qmap[qid]||[], true);
-            qstate[qid] = false;
-            var btn = document.getElementById('btn-'+qid);
-            if(btn) btn.textContent = '+';
-        });
-    }
+    // Mostrar/ocultar meses
+    qs.forEach(function(qid){ setCols(qmap[qid]||[], exp); });
+    // Mostrar/ocultar Qs solo si el checkbox está activo
+    if(showQ) setCols(qs, exp);
     var btn = document.getElementById('btn-'+yid);
     if(btn) btn.textContent = exp ? '+' : '−';
     ystate[yid] = !exp;
@@ -213,8 +218,7 @@ def render_t90_tabla(kpis, datos_mes=None, datos_q=None, datos_yr=None):
         if tipo == "mes":
             head += f"<th class='h-mes col-{cid}'>{lbl}</th>"
         elif tipo == "q":
-            head += (f"<th class='h-q col-{cid}' onclick=\"toggleQ('{cid}')\">"
-                     f"{lbl}&nbsp;<span id='btn-{cid}' class='tbtn-q'>−</span></th>")
+            head += f"<th class='h-q col-{cid}'>{lbl}</th>"
         else:
             head += (f"<th class='h-anual' onclick=\"toggleY('{yid}')\">"
                      f"{lbl}&nbsp;<span id='btn-{yid}' class='tbtn-q'>−</span></th>")
@@ -252,13 +256,18 @@ def render_t90_tabla(kpis, datos_mes=None, datos_q=None, datos_yr=None):
     n_sep = sum(1 for it in kpis if it[1] == "sep")
     n_sub = sum(1 for it in kpis if len(it) > 2 and it[2] == "sub")
     height = (len(kpis) - n_sep - n_sub) * 27 + n_sub * 22 + n_sep * 6 + 70
+    chk = ("<div style='margin-bottom:6px;font-size:0.75rem;color:#475569'>"
+           "<label style='cursor:pointer;user-select:none'>"
+           "<input type='checkbox' id='chk-q' onchange='toggleQ_checkbox()' "
+           "style='margin-right:5px;cursor:pointer'>Ver trimestres</label></div>")
     html = (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         f"<style>{_CSS}</style></head><body>"
+        f"{chk}"
         f"<div class='wrap'><table><thead>{head}</thead><tbody>{tbody}</tbody></table></div>"
         f"<script>{js}</script></body></html>"
     )
-    st.iframe(html, height=height + 60)
+    st.iframe(html, height=height + 80)
 
 
 # ── Tabs ──────────────────────────────────────────────────────────
