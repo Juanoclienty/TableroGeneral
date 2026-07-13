@@ -1,6 +1,11 @@
 """
 app.py — Shell de navegación del Dashboard Clienty.
 """
+import ssl, certifi, os
+os.environ["SSL_CERT_FILE"] = certifi.where()
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+ssl._create_default_https_context = ssl.create_default_context
+
 import streamlit as st
 from auth import login, logout, paginas_para_perfil, usuario_actual
 
