@@ -79,22 +79,48 @@ with st.sidebar:
     fecha_min = df_sem["fecha_ini"].min().date()
     fecha_max = df_sem["fecha_fin"].max().date()
 
+    # ── Chips rápidos ─────────────────────────────────────────
+    _skey = f"vt_n_{vista}"
+    _sdef = {"Día": 15, "Sem": 8, "Mes": 3}
+    if _skey not in st.session_state:
+        st.session_state[_skey] = _sdef[vista]
+
     if vista == "Día":
-        _max_dias = max(1, (date.today() - timedelta(days=1) - fecha_min).days + 1)
-        _max_dias = min(_max_dias, 60)
-        n_dias = st.slider("Días a mostrar", min_value=1, max_value=_max_dias, value=min(15, _max_dias))
-        fecha_hasta = date.today() - timedelta(days=1)
-        fecha_desde = fecha_hasta - timedelta(days=n_dias - 1)
+        _cx1, _cx2 = st.columns(2)
+        if _cx1.button("Ult. 7 días",  use_container_width=True):
+            st.session_state[_skey] = 7;  st.rerun()
+        if _cx2.button("Ult. 15 días", use_container_width=True):
+            st.session_state[_skey] = 15; st.rerun()
     elif vista == "Sem":
-        _max_sem = max(1, len(df_sem))
-        n_sem = st.slider("Semanas a mostrar", min_value=1, max_value=min(_max_sem, 24), value=min(8, _max_sem))
+        _cx1, _cx2 = st.columns(2)
+        if _cx1.button("Esta sem.",   use_container_width=True):
+            st.session_state[_skey] = 1; st.rerun()
+        if _cx2.button("Ult. 8 sem.", use_container_width=True):
+            st.session_state[_skey] = 8; st.rerun()
+    else:
+        _cx1, _cx2 = st.columns(2)
+        if _cx1.button("Este mes",      use_container_width=True):
+            st.session_state[_skey] = 1; st.rerun()
+        if _cx2.button("Ult. 3 meses", use_container_width=True):
+            st.session_state[_skey] = 3; st.rerun()
+
+    # Calcular fechas desde session_state
+    _n = st.session_state[_skey]
+    if vista == "Día":
+        _max_dias = min(max(1, (date.today() - timedelta(days=1) - fecha_min).days + 1), 60)
+        _n = min(_n, _max_dias)
+        fecha_hasta = date.today() - timedelta(days=1)
+        fecha_desde = fecha_hasta - timedelta(days=_n - 1)
+    elif vista == "Sem":
+        _max_sem = min(max(1, len(df_sem)), 24)
+        _n = min(_n, _max_sem)
         fecha_hasta = fecha_max
-        fecha_desde = fecha_hasta - timedelta(weeks=n_sem) + timedelta(days=1)
-    else:  # Mes
-        _max_mes = max(1, len(df_men))
-        n_mes = st.slider("Meses a mostrar", min_value=1, max_value=min(_max_mes, 12), value=min(3, _max_mes))
+        fecha_desde = fecha_hasta - timedelta(weeks=_n) + timedelta(days=1)
+    else:
+        _max_mes = min(max(1, len(df_men)), 12)
+        _n = min(_n, _max_mes)
         fecha_hasta = fecha_max
-        fecha_desde = _meses_rango(n_mes)[0]
+        fecha_desde = _meses_rango(_n)[0]
 
     st.markdown("---")
     filtro_calidad = st.radio("", ["Todos", "GF", "BF", "PF"],
@@ -807,7 +833,37 @@ st.markdown("---")
 
 # ── Tabla de embudo ───────────────────────────────────────────
 titulo_tabla = {"Sem": "Embudo por semana", "Mes": "Embudo por mes", "Día": "Embudo por día"}
-st.markdown(f'<p class="section-title">{titulo_tabla[vista]}</p>', unsafe_allow_html=True)
+_skey_vt = f"vt_n_{vista}"
+_slabels_vt = {"Día": "Días a mostrar", "Sem": "Semanas a mostrar", "Mes": "Meses a mostrar"}
+if vista == "Día":
+    _max_v_vt = min(max(1, (date.today() - timedelta(days=1) - fecha_min).days + 1), 60)
+elif vista == "Sem":
+    _max_v_vt = min(max(1, len(df_sem)), 24)
+else:
+    _max_v_vt = min(max(1, len(df_men)), 12)
+
+_col_tit_vt, _col_sl_vt = st.columns([2, 4])
+_col_tit_vt.markdown(f'<p class="section-title">{titulo_tabla[vista]}</p>', unsafe_allow_html=True)
+_n_vt = _col_sl_vt.slider(
+    _slabels_vt[vista], min_value=1, max_value=_max_v_vt,
+    value=min(st.session_state.get(_skey_vt, {"Día":15,"Sem":8,"Mes":3}[vista]), _max_v_vt),
+    key=_skey_vt,
+)
+# Recalcular fechas y df_vista con el valor actual del slider
+if vista == "Día":
+    fecha_hasta = date.today() - timedelta(days=1)
+    fecha_desde = fecha_hasta - timedelta(days=_n_vt - 1)
+    df_vista = datos_crm.calcular_dias_crm(_filtrar_crm(filtro_calidad), df_ads)
+elif vista == "Sem":
+    fecha_hasta = fecha_max
+    fecha_desde = fecha_hasta - timedelta(weeks=_n_vt) + timedelta(days=1)
+    _base_sl = datos_crm.calcular_semanas_crm(_filtrar_crm(filtro_calidad), df_ads) if _hay_filtro else df_sem
+    df_vista = _base_sl[(_base_sl["fecha_ini"] >= pd.Timestamp(fecha_desde)) & (_base_sl["fecha_fin"] <= pd.Timestamp(fecha_hasta))].copy()
+else:
+    fecha_hasta = fecha_max
+    fecha_desde = _meses_rango(_n_vt)[0]
+    _base_sl = datos_crm.calcular_meses_crm(_filtrar_crm(filtro_calidad), df_ads) if _hay_filtro else df_men
+    df_vista = _base_sl[(_base_sl["fecha_ini"] >= pd.Timestamp(fecha_desde)) & (_base_sl["fecha_ini"] <= pd.Timestamp(fecha_hasta))].copy()
 
 if df_vista.empty:
     st.info("No hay datos para el período seleccionado.")
