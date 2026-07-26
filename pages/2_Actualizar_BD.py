@@ -164,6 +164,20 @@ if st.button("Ejecutar actualizacion", type="primary", use_container_width=True)
     st.dataframe(st.session_state.resumen, use_container_width=True, hide_index=True)
 
 
+# ── Actualizar Histórico ─────────────────────────────────────────────────────
+st.markdown("---")
+st.markdown("## Actualizar Histórico")
+st.caption("Limpia el caché del sheet de Ventas/Publicidad/CPV histórico. Ejecutá esto después de cargar nuevos datos en la tabla.")
+
+if st.button("Actualizar Histórico", type="primary", use_container_width=True):
+    import os as _os
+    _hist_cache = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "cache", "historico.parquet")
+    if _os.path.exists(_hist_cache):
+        _os.remove(_hist_cache)
+    st.cache_data.clear()
+    st.success("Caché del Histórico eliminado. Los datos se recargarán desde el sheet.")
+
+
 # ── Actualizar LTV ────────────────────────────────────────────────
 
 st.markdown("---")

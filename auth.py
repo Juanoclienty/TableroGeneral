@@ -31,11 +31,12 @@ _PAGINAS_BASE = [
     ("pages/8_T90.py",                "T90",             "📊"),
     ("pages/9_Estado_Resultados.py",  "Est. Resultados", "📋"),
     ("pages/10_Historico.py",         "Histórico",       "📅"),
+    ("pages/2_Tabla_datos.py",        "Tabla de datos",  "🗂️"),
     ("pages/2_Actualizar_BD.py",      "Actualizar BD",   "🔄"),
 ]
 
 _PERFIL_PAGINAS = {
-    "mkt_vtas": {"Marketing", "Ventas", "Trazabilidad", "T90"},
+    "mkt_vtas": {"Marketing", "Ventas", "Trazabilidad", "T90", "Tabla de datos"},
     "finanzas":  {"LTV", "Est. Resultados", "T90"},
     "cs":        {"CS", "T90"},
     "completo":  None,  # None = todas

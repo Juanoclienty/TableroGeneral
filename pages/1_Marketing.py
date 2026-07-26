@@ -208,6 +208,14 @@ with st.sidebar:
             st.session_state.fecha_desde = ini_def
             st.session_state.fecha_hasta = fin_def
 
+        # Clampear por si el session_state tiene fechas fuera del rango de datos
+        _sd = st.session_state.fecha_desde
+        _sh = st.session_state.fecha_hasta
+        if _sd is not None and (_sd < fecha_min_data or _sd > fecha_max_data):
+            st.session_state.fecha_desde = fecha_min_data
+        if _sh is not None and (_sh < fecha_min_data or _sh > fecha_max_data):
+            st.session_state.fecha_hasta = fecha_max_data
+
         col_d1, col_d2 = st.columns(2)
         fecha_desde = col_d1.date_input("Desde",
             value=st.session_state.fecha_desde,
@@ -335,271 +343,287 @@ def _preparar_display(df_raw: pd.DataFrame, vista: str) -> pd.DataFrame:
 # HEADER
 # ============================================================
 st.markdown("## Marketing")
-n_filas = len(df_vista)
-leads_tot = int(df_vista["leads"].sum()) if not df_vista.empty else 0
-sufijo_vista = {"Semana": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
-st.caption(f"Vista: **{vista}** · {sufijo_vista.get(vista, '')} · {leads_tot:,} leads")
 
+tab_resumen, tab_ads, tab_evo = st.tabs(["Resumen", "Ads", "Evolución"])
 
-# ============================================================
-# KPI CARDS — comparación con objetivos
-# ============================================================
-if not df_vista.empty:
-    gf_tot   = int(df_vista["gf"].sum())
-    inv_tot  = df_vista["inversion"].sum()
-    cpl_p    = inv_tot / leads_tot if leads_tot > 0 else 0
-    cpl_gf_p = inv_tot / gf_tot   if gf_tot   > 0 else 0
-    mes_ref  = df_vista["fecha_ini"].iloc[-1].month
+with tab_resumen:
+    n_filas   = len(df_vista)
+    leads_tot = int(df_vista["leads"].sum()) if not df_vista.empty else 0
+    sufijo_vista = {"Semana": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
+    st.caption(f"Vista: **{vista}** · {sufijo_vista.get(vista, '')} · {leads_tot:,} leads")
 
-    obj_cpl_ref    = obj["cpl"].get(mes_ref, 74)
-    obj_cpl_gf_ref = obj["cpl_gf"].get(mes_ref, 92)
-    obj_leads_ref  = obj["leads"].get(mes_ref, 300)
-    obj_gf_ref     = obj["gf"].get(mes_ref, 240)
-    obj_inv_ref    = _obj_inv_proporcional(df_vista, obj)
+    if not df_vista.empty:
+        gf_tot   = int(df_vista["gf"].sum())
+        inv_tot  = df_vista["inversion"].sum()
+        cpl_p    = inv_tot / leads_tot if leads_tot > 0 else 0
+        cpl_gf_p = inv_tot / gf_tot   if gf_tot   > 0 else 0
+        mes_ref  = df_vista["fecha_ini"].iloc[-1].month
+        obj_cpl_ref    = obj["cpl"].get(mes_ref, 74)
+        obj_cpl_gf_ref = obj["cpl_gf"].get(mes_ref, 92)
+        obj_leads_ref  = obj["leads"].get(mes_ref, 300)
+        obj_gf_ref     = obj["gf"].get(mes_ref, 240)
+        obj_inv_ref    = _obj_inv_proporcional(df_vista, obj)
+        k1, k2, k3, k4, k5 = st.columns(5)
+        k1.metric("Leads", f"{leads_tot:,}", f"{leads_tot - obj_leads_ref:+,.0f} vs obj {obj_leads_ref:,.0f}")
+        k2.metric("GF", f"{gf_tot:,}", f"{gf_tot - obj_gf_ref:+,.0f} vs obj {obj_gf_ref:,.0f} · {round(gf_tot/leads_tot*100) if leads_tot else 0}%")
+        k3.metric("Inversión", f"${inv_tot:,.0f}", f"{inv_tot - obj_inv_ref:+,.0f} vs obj ${obj_inv_ref:,.0f}", delta_color="inverse")
+        k4.metric("CPL", f"${cpl_p:.0f}", f"{cpl_p - obj_cpl_ref:+.0f} vs obj ${obj_cpl_ref:.0f}", delta_color="inverse")
+        k5.metric("CPL GF", f"${cpl_gf_p:.0f}", f"{cpl_gf_p - obj_cpl_gf_ref:+.0f} vs obj ${obj_cpl_gf_ref:.0f}", delta_color="inverse")
 
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Leads",
-              f"{leads_tot:,}",
-              f"{leads_tot - obj_leads_ref:+,.0f} vs obj {obj_leads_ref:,.0f}")
-    k2.metric("GF",
-              f"{gf_tot:,}",
-              f"{gf_tot - obj_gf_ref:+,.0f} vs obj {obj_gf_ref:,.0f} · {round(gf_tot/leads_tot*100) if leads_tot else 0}%")
-    k3.metric("Inversión",
-              f"${inv_tot:,.0f}",
-              f"{inv_tot - obj_inv_ref:+,.0f} vs obj ${obj_inv_ref:,.0f}",
-              delta_color="inverse")
-    k4.metric("CPL",
-              f"${cpl_p:.0f}",
-              f"{cpl_p - obj_cpl_ref:+.0f} vs obj ${obj_cpl_ref:.0f}",
-              delta_color="inverse")
-    k5.metric("CPL GF",
-              f"${cpl_gf_p:.0f}",
-              f"{cpl_gf_p - obj_cpl_gf_ref:+.0f} vs obj ${obj_cpl_gf_ref:.0f}",
-              delta_color="inverse")
-
-st.markdown("---")
-
-
-# ============================================================
-# TABLA + GRÁFICO
-# ============================================================
-col_tabla, col_graf = st.columns([3, 2], gap="medium")
-
-with col_tabla:
-    st.markdown('<p class="section-title">Embudo por período</p>', unsafe_allow_html=True)
-
-    if df_vista.empty:
-        st.info("No hay datos para el período seleccionado.")
-        filas_sel = []
-    else:
-        df_disp = _preparar_display(df_vista, vista)
-
-        if vista == "Día":
-            cols_show = ["Fecha", "leads", "gf", "bf", "pf", "sin_data", "pct_gf_fmt",
-                         "inversion_fmt", "cpl_fmt", "cpl_gf_fmt"]
-        elif vista == "Mes":
-            cols_show = ["Período", "leads", "gf", "bf", "pf", "sin_data", "pct_gf_fmt",
-                         "inversion_fmt", "cpl_fmt", "cpl_gf_fmt"]
-        else:
-            cols_show = ["Ini-Fin", "leads", "gf", "bf", "pf", "sin_data", "pct_gf_fmt",
-                         "inversion_fmt", "cpl_fmt", "cpl_gf_fmt"]
-
-        rename_map = {
-            "leads": "Leads", "gf": "GF", "bf": "BF", "pf": "PF",
-            "sin_data": "s/d", "pct_gf_fmt": "% GF",
-            "inversion_fmt": "Inversión", "cpl_fmt": "CPL", "cpl_gf_fmt": "CPL GF",
-        }
-        df_show = df_disp[cols_show].rename(columns=rename_map)
-
-        evento = st.dataframe(
-            df_show,
-            selection_mode="multi-row",
-            on_select="rerun",
-            use_container_width=True,
-            hide_index=True,
-        )
-        filas_sel = evento.selection.rows if evento.selection else []
-
-        # ── Totalizador unificado ──
-        rows_tot = [{"": "📊 TOTAL período"} | _fila_totalizador(df_vista)]
-        if filas_sel:
-            # Hay selección → segunda fila = selección
-            df_sel_raw = df_vista.iloc[filas_sel]
-            rows_tot.append({"": "📌 SELECCIÓN"} | _fila_totalizador(df_sel_raw))
-        else:
-            # Sin selección → segunda fila = objetivo del período
-            rows_tot.append({"": "🎯 OBJETIVO período"} | _fila_objetivo(df_vista, obj))
-
-        df_totales = pd.DataFrame(rows_tot)
-
-        def _style_totales(row):
-            label = str(row.iloc[0])
-            if "TOTAL" in label:
-                bg = "#f1f5f9"
-            elif "OBJETIVO" in label:
-                bg = "#fef9c3"   # amarillo suave
-            else:
-                bg = "#e0f2fe"   # azul (selección)
-            return [f"background-color: {bg}; font-weight: bold"] * len(row)
-
-        st.dataframe(
-            df_totales.style.apply(_style_totales, axis=1),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-        st.caption("💡 Hacé click en una o más filas para ver el detalle →")
-
-
-with col_graf:
-    titulo_graf = {"Semana": "Leads por semana y CPL", "Mes": "Leads por mes y CPL", "Día": "Leads por día y CPL"}
-    st.markdown(f'<p class="section-title">{titulo_graf[vista]}</p>', unsafe_allow_html=True)
-
-    if df_vista.empty:
-        st.info("Sin datos.")
-    elif filas_sel:
-        df_sel_raw = df_vista.iloc[filas_sel]
-        leads_s  = int(df_sel_raw["leads"].sum())
-        gf_s     = int(df_sel_raw["gf"].sum())
-        inv_s    = df_sel_raw["inversion"].sum()
-        cpl_s    = inv_s / leads_s if leads_s > 0 else 0
-        cpl_gf_s = inv_s / gf_s   if gf_s   > 0 else 0
-        pct_gf_s = round(gf_s / leads_s * 100) if leads_s > 0 else 0
-
-        mes_s        = df_sel_raw["fecha_ini"].iloc[-1].month
-        obj_cpl_s    = obj["cpl"].get(mes_s, 74)
-        obj_cpl_gf_s = obj["cpl_gf"].get(mes_s, 92)
-        obj_leads_s  = obj["leads"].get(mes_s, 300)
-        obj_gf_s     = obj["gf"].get(mes_s, 240)
-        obj_inv_s    = _obj_inv_proporcional(df_sel_raw, obj)
-
-        lbl = (f"{df_sel_raw['fecha_ini'].min().strftime('%d/%m')} – "
-               f"{df_sel_raw['fecha_fin'].max().strftime('%d/%m/%y')}")
-        st.caption(f"Selección: {lbl}")
-
-        # Métricas en una fila con comparación vs objetivo
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Leads",
-                  f"{leads_s:,}",
-                  f"{leads_s - obj_leads_s:+,.0f} vs {obj_leads_s:,.0f}")
-        c2.metric("GF",
-                  f"{gf_s:,}",
-                  f"{gf_s - obj_gf_s:+,.0f} · {pct_gf_s}%")
-        c3.metric("Inversión",
-                  f"${inv_s:,.0f}",
-                  f"{inv_s - obj_inv_s:+,.0f} vs ${obj_inv_s:,.0f}",
-                  delta_color="inverse")
-        c4.metric("CPL",
-                  f"${cpl_s:.0f}",
-                  f"{cpl_s - obj_cpl_s:+.0f} vs ${obj_cpl_s:.0f}",
-                  delta_color="inverse")
-        c5.metric("CPL GF",
-                  f"${cpl_gf_s:.0f}",
-                  f"{cpl_gf_s - obj_cpl_gf_s:+.0f} vs ${obj_cpl_gf_s:.0f}",
-                  delta_color="inverse")
-
-        st.plotly_chart(graficos.pie_y_metricas(df_sel_raw), use_container_width=True)
-    else:
-        st.caption("Sin selección — resumen general:")
-        st.plotly_chart(graficos.bar_calidad_por_semana(df_vista), use_container_width=True)
-
-
-# ============================================================
-# SEÑALES TEMPRANAS (últimas 4 semanas, solo vista Semana)
-# ============================================================
-if vista == "Semana":
     st.markdown("---")
-    st.markdown("## 🔍 Señales Tempranas")
-    st.caption("Últimas 4 semanas — solo para la vista Semana")
 
-    df_4 = df_sem.tail(4).copy()
-    if not df_4.empty:
-        registros = []
-        for _, row in df_4.iterrows():
-            mes     = row["fecha_ini"].month
-            obj_c   = obj["cpl"].get(mes, 74)
-            cpl_val = row["cpl"] if pd.notna(row["cpl"]) else 0
-            diff    = cpl_val - obj_c
-            registros.append({
-                "Semana"   : row["fecha_ini"].strftime("%d/%m") + "–" + row["fecha_fin"].strftime("%d/%m/%y"),
-                "Inversión": f'${row["inversion"]:,.0f}',
-                "Leads"    : int(row["leads"]),
-                "CPL"      : f"${cpl_val:.0f}",
-                "CPL GF"   : f'${row["cpl_gf"]:.0f}' if pd.notna(row["cpl_gf"]) else "–",
-                "% GF"     : f'{row["pct_gf"]:.0f}%'  if pd.notna(row["pct_gf"]) else "–",
-                "Obj. CPL" : f"${obj_c:.0f}",
-                "vs Obj."  : f"{diff:+.0f}" if cpl_val > 0 else "–",
-            })
+    col_tabla, col_graf = st.columns([3, 2], gap="medium")
 
-        def _color_fila(row):
-            try:
-                diff = float(str(row["vs Obj."]).replace("+", ""))
-                bg = "#fef2f2" if diff > 0 else "#f0fdf4"
-            except Exception:
-                bg = ""
-            return [f"background-color: {bg}" if bg else ""] * len(row)
-
-        st.dataframe(
-            pd.DataFrame(registros).style.apply(_color_fila, axis=1),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-
-# ============================================================
-# SECCIÓN DE COMENTARIOS
-# ============================================================
-st.markdown("---")
-with st.expander("💬 Comentarios del período", expanded=False):
-    st.caption("Los comentarios se guardan en sesión. Al recargar datos se te preguntará si querés exportarlos a TXT.")
-
-    with st.form("form_comentario", clear_on_submit=True):
-        c_col1, c_col2 = st.columns([2, 3])
-
-        if not df_vista.empty:
-            opciones_sem = []
-            for _, row in df_vista.iterrows():
-                fi = row["fecha_ini"].strftime("%d/%m/%y")
-                ff = row["fecha_fin"].strftime("%d/%m/%y") if row["fecha_fin"] != row["fecha_ini"] else fi
-                opciones_sem.append(f"{fi}–{ff}")
-            semana_sel = c_col1.selectbox("Semana / período", opciones_sem)
+    with col_tabla:
+        st.markdown('<p class="section-title">Embudo por período</p>', unsafe_allow_html=True)
+        if df_vista.empty:
+            st.info("No hay datos para el período seleccionado.")
+            filas_sel = []
         else:
-            semana_sel = c_col1.text_input("Período (manual)")
+            df_disp = _preparar_display(df_vista, vista)
+            if vista == "Día":
+                cols_show = ["Fecha", "leads", "gf", "bf", "pf", "sin_data", "pct_gf_fmt", "inversion_fmt", "cpl_fmt", "cpl_gf_fmt"]
+            elif vista == "Mes":
+                cols_show = ["Período", "leads", "gf", "bf", "pf", "sin_data", "pct_gf_fmt", "inversion_fmt", "cpl_fmt", "cpl_gf_fmt"]
+            else:
+                cols_show = ["Ini-Fin", "leads", "gf", "bf", "pf", "sin_data", "pct_gf_fmt", "inversion_fmt", "cpl_fmt", "cpl_gf_fmt"]
+            rename_map = {"leads": "Leads", "gf": "GF", "bf": "BF", "pf": "PF", "sin_data": "s/d",
+                          "pct_gf_fmt": "% GF", "inversion_fmt": "Inversión", "cpl_fmt": "CPL", "cpl_gf_fmt": "CPL GF"}
+            df_show = df_disp[cols_show].rename(columns=rename_map)
+            evento = st.dataframe(df_show, selection_mode="multi-row", on_select="rerun", use_container_width=True, hide_index=True)
+            filas_sel = evento.selection.rows if evento.selection else []
+            rows_tot = [{"": "📊 TOTAL período"} | _fila_totalizador(df_vista)]
+            if filas_sel:
+                df_sel_raw = df_vista.iloc[filas_sel]
+                rows_tot.append({"": "📌 SELECCIÓN"} | _fila_totalizador(df_sel_raw))
+            else:
+                rows_tot.append({"": "🎯 OBJETIVO período"} | _fila_objetivo(df_vista, obj))
+            df_totales = pd.DataFrame(rows_tot)
+            def _style_totales(row):
+                label = str(row.iloc[0])
+                bg = "#f1f5f9" if "TOTAL" in label else ("#fef9c3" if "OBJETIVO" in label else "#e0f2fe")
+                return [f"background-color: {bg}; font-weight: bold"] * len(row)
+            st.dataframe(df_totales.style.apply(_style_totales, axis=1), use_container_width=True, hide_index=True)
+            st.caption("💡 Hacé click en una o más filas para ver el detalle →")
 
-        variable_sel = c_col2.selectbox("Variable", [
-            "Leads", "GF", "BF", "PF", "s/d", "% GF",
-            "Inversión", "CPL", "CPL GF", "General"
-        ])
-        texto_com = st.text_area("Comentario", placeholder="Escribí tu observación acá...")
-        enviado = st.form_submit_button("➕ Agregar comentario")
+    with col_graf:
+        titulo_graf = {"Semana": "Leads por semana y CPL", "Mes": "Leads por mes y CPL", "Día": "Leads por día y CPL"}
+        st.markdown(f'<p class="section-title">{titulo_graf[vista]}</p>', unsafe_allow_html=True)
+        if df_vista.empty:
+            st.info("Sin datos.")
+        elif filas_sel:
+            df_sel_raw = df_vista.iloc[filas_sel]
+            leads_s  = int(df_sel_raw["leads"].sum())
+            gf_s     = int(df_sel_raw["gf"].sum())
+            inv_s    = df_sel_raw["inversion"].sum()
+            cpl_s    = inv_s / leads_s if leads_s > 0 else 0
+            cpl_gf_s = inv_s / gf_s   if gf_s   > 0 else 0
+            pct_gf_s = round(gf_s / leads_s * 100) if leads_s > 0 else 0
+            mes_s        = df_sel_raw["fecha_ini"].iloc[-1].month
+            obj_cpl_s    = obj["cpl"].get(mes_s, 74)
+            obj_cpl_gf_s = obj["cpl_gf"].get(mes_s, 92)
+            obj_leads_s  = obj["leads"].get(mes_s, 300)
+            obj_gf_s     = obj["gf"].get(mes_s, 240)
+            obj_inv_s    = _obj_inv_proporcional(df_sel_raw, obj)
+            lbl = (f"{df_sel_raw['fecha_ini'].min().strftime('%d/%m')} – "
+                   f"{df_sel_raw['fecha_fin'].max().strftime('%d/%m/%y')}")
+            st.caption(f"Selección: {lbl}")
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Leads", f"{leads_s:,}", f"{leads_s - obj_leads_s:+,.0f} vs {obj_leads_s:,.0f}")
+            c2.metric("GF", f"{gf_s:,}", f"{gf_s - obj_gf_s:+,.0f} · {pct_gf_s}%")
+            c3.metric("Inversión", f"${inv_s:,.0f}", f"{inv_s - obj_inv_s:+,.0f} vs ${obj_inv_s:,.0f}", delta_color="inverse")
+            c4.metric("CPL", f"${cpl_s:.0f}", f"{cpl_s - obj_cpl_s:+.0f} vs ${obj_cpl_s:.0f}", delta_color="inverse")
+            c5.metric("CPL GF", f"${cpl_gf_s:.0f}", f"{cpl_gf_s - obj_cpl_gf_s:+.0f} vs ${obj_cpl_gf_s:.0f}", delta_color="inverse")
+            st.plotly_chart(graficos.pie_y_metricas(df_sel_raw), use_container_width=True)
+        else:
+            st.caption("Sin selección — resumen general:")
+            st.plotly_chart(graficos.bar_calidad_por_semana(df_vista), use_container_width=True)
 
-        if enviado and texto_com.strip():
-            st.session_state.comentarios.append({
-                "ts"      : datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "semana"  : semana_sel,
-                "variable": variable_sel,
-                "texto"   : texto_com.strip(),
-            })
-            st.success("Comentario agregado.")
+    if vista == "Semana":
+        st.markdown("---")
+        st.markdown("## 🔍 Señales Tempranas")
+        st.caption("Últimas 4 semanas — solo para la vista Semana")
+        df_4 = df_sem.tail(4).copy()
+        if not df_4.empty:
+            registros = []
+            for _, row in df_4.iterrows():
+                mes     = row["fecha_ini"].month
+                obj_c   = obj["cpl"].get(mes, 74)
+                cpl_val = row["cpl"] if pd.notna(row["cpl"]) else 0
+                diff    = cpl_val - obj_c
+                registros.append({
+                    "Semana"   : row["fecha_ini"].strftime("%d/%m") + "–" + row["fecha_fin"].strftime("%d/%m/%y"),
+                    "Inversión": f'${row["inversion"]:,.0f}',
+                    "Leads"    : int(row["leads"]),
+                    "CPL"      : f"${cpl_val:.0f}",
+                    "CPL GF"   : f'${row["cpl_gf"]:.0f}' if pd.notna(row["cpl_gf"]) else "–",
+                    "% GF"     : f'{row["pct_gf"]:.0f}%'  if pd.notna(row["pct_gf"]) else "–",
+                    "Obj. CPL" : f"${obj_c:.0f}",
+                    "vs Obj."  : f"{diff:+.0f}" if cpl_val > 0 else "–",
+                })
+            def _color_fila(row):
+                try:
+                    diff = float(str(row["vs Obj."]).replace("+", ""))
+                    bg = "#fef2f2" if diff > 0 else "#f0fdf4"
+                except Exception:
+                    bg = ""
+                return [f"background-color: {bg}" if bg else ""] * len(row)
+            st.dataframe(pd.DataFrame(registros).style.apply(_color_fila, axis=1), use_container_width=True, hide_index=True)
 
-    if st.session_state.comentarios:
-        st.markdown("**Comentarios cargados en esta sesión:**")
-        for i, c in enumerate(st.session_state.comentarios):
-            col_c, col_x = st.columns([10, 1])
-            col_c.markdown(f"**{c['semana']}** | *{c['variable']}* · {c['ts']}  \n{c['texto']}")
-            if col_x.button("✕", key=f"del_com_{i}", help="Eliminar"):
-                st.session_state.comentarios.pop(i)
-                st.rerun()
+    st.markdown("---")
+    with st.expander("💬 Comentarios del período", expanded=False):
+        st.caption("Los comentarios se guardan en sesión.")
+        with st.form("form_comentario", clear_on_submit=True):
+            c_col1, c_col2 = st.columns([2, 3])
+            if not df_vista.empty:
+                opciones_sem = []
+                for _, row in df_vista.iterrows():
+                    fi = row["fecha_ini"].strftime("%d/%m/%y")
+                    ff = row["fecha_fin"].strftime("%d/%m/%y") if row["fecha_fin"] != row["fecha_ini"] else fi
+                    opciones_sem.append(f"{fi}–{ff}")
+                semana_sel = c_col1.selectbox("Semana / período", opciones_sem)
+            else:
+                semana_sel = c_col1.text_input("Período (manual)")
+            variable_sel = c_col2.selectbox("Variable", ["Leads", "GF", "BF", "PF", "s/d", "% GF", "Inversión", "CPL", "CPL GF", "General"])
+            texto_com = st.text_area("Comentario", placeholder="Escribí tu observación acá...")
+            enviado = st.form_submit_button("➕ Agregar comentario")
+            if enviado and texto_com.strip():
+                st.session_state.comentarios.append({"ts": datetime.now().strftime("%d/%m/%Y %H:%M"), "semana": semana_sel, "variable": variable_sel, "texto": texto_com.strip()})
+                st.success("Comentario agregado.")
+        if st.session_state.comentarios:
+            st.markdown("**Comentarios cargados en esta sesión:**")
+            for i, c in enumerate(st.session_state.comentarios):
+                col_c, col_x = st.columns([10, 1])
+                col_c.markdown(f"**{c['semana']}** | *{c['variable']}* · {c['ts']}  \n{c['texto']}")
+                if col_x.button("✕", key=f"del_com_{i}", help="Eliminar"):
+                    st.session_state.comentarios.pop(i)
+                    st.rerun()
+            contenido_txt = "\n".join(f"[{c['ts']}] {c['semana']} | Variable: {c['variable']} | {c['texto']}" for c in st.session_state.comentarios)
+            st.download_button("⬇️ Descargar comentarios TXT", data=contenido_txt.encode("utf-8"),
+                               file_name=f"comentarios - {datetime.now().strftime('%d-%m-%Y')}.txt", mime="text/plain")
+        else:
+            st.info("Sin comentarios en esta sesión.")
 
-        contenido_txt = "\n".join(
-            f"[{c['ts']}] {c['semana']} | Variable: {c['variable']} | {c['texto']}"
-            for c in st.session_state.comentarios
-        )
-        st.download_button(
-            "⬇️ Descargar comentarios TXT",
-            data=contenido_txt.encode("utf-8"),
-            file_name=f"comentarios - {datetime.now().strftime('%d-%m-%Y')}.txt",
-            mime="text/plain",
-        )
+
+# ============================================================
+# TAB ADS
+# ============================================================
+with tab_ads:
+    st.info("Sección Ads — próximamente.")
+
+
+# ============================================================
+# TAB EVOLUCIÓN
+# ============================================================
+import urllib.request as _urllib_req
+import io as _io
+import plotly.graph_objects as go
+
+_EVO_SHEET_ID   = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
+_EVO_CACHE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", "evolucion_t90.parquet")
+
+_METRICAS = ["Inversión", "Leads", "Presupuestos", "Ventas", "CPL", "CPE", "CPV", "Tasa de cierre", "Tasa Vtas/Leads"]
+_FORMATOS = {
+    "Inversión": ("$", "", 0), "Leads": ("", "", 0), "Presupuestos": ("", "", 0),
+    "Ventas": ("", "", 0), "CPL": ("$", "", 0), "CPE": ("$", "", 0), "CPV": ("$", "", 0),
+    "Tasa de cierre": ("", "%", 1), "Tasa Vtas/Leads": ("", "%", 1),
+}
+_COLORES_EVO = ["#3b82f6","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4","#f97316","#ec4899","#84cc16"]
+_G_PCT = {"Tasa de cierre", "Tasa Vtas/Leads"}
+
+
+def _fetch_evolucion_raw() -> pd.DataFrame:
+    url = f"https://docs.google.com/spreadsheets/d/{_EVO_SHEET_ID}/export?format=csv&gid=1753018499"
+    req = _urllib_req.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with _urllib_req.urlopen(req) as r:
+        return pd.read_csv(_io.StringIO(r.read().decode("utf-8")))
+
+
+@st.cache_data(ttl=86400)
+def _cargar_evolucion() -> tuple:
+    if os.path.exists(_EVO_CACHE_PATH):
+        df = pd.read_parquet(_EVO_CACHE_PATH)
+        fecha_str = pd.Timestamp(os.path.getmtime(_EVO_CACHE_PATH), unit="s").strftime("%d/%m/%Y %H:%M")
+        return df, fecha_str
+    df = _fetch_evolucion_raw()
+    try:
+        df.to_parquet(_EVO_CACHE_PATH, index=False)
+    except Exception:
+        pass
+    return df, pd.Timestamp.now().strftime("%d/%m/%Y %H:%M")
+
+
+with tab_evo:
+    col_ref, _ = st.columns([1, 4])
+    with col_ref:
+        if st.button("🔄 Actualizar Evolución", use_container_width=True):
+            if os.path.exists(_EVO_CACHE_PATH):
+                os.remove(_EVO_CACHE_PATH)
+            _cargar_evolucion.clear()
+            st.rerun()
+
+    df_evo_raw, _fecha_evo = _cargar_evolucion()
+
+    if df_evo_raw is None or df_evo_raw.empty:
+        st.warning("No se pudieron cargar los datos. Presioná 'Actualizar Evolución'.")
     else:
-        st.info("Sin comentarios en esta sesión.")
+        df_evo_raw.columns = [c.strip() for c in df_evo_raw.columns]
+        col_periodo = next((c for c in df_evo_raw.columns if any(k in c.lower() for k in ["periodo","período","mes","month"])), df_evo_raw.columns[0])
+        df_evo = df_evo_raw.dropna(subset=[col_periodo]).copy()
+        df_evo = df_evo[df_evo[col_periodo].astype(str).str.strip() != ""].rename(columns={col_periodo: "Periodo"})
+        for col in df_evo.columns:
+            if col == "Periodo":
+                continue
+            df_evo[col] = pd.to_numeric(df_evo[col].astype(str).str.replace(",", ".", regex=False).str.replace("[^0-9.\-]", "", regex=True), errors="coerce")
+
+        todos_periodos = df_evo["Periodo"].tolist()
+        metricas_disponibles = [m for m in _METRICAS if m in df_evo.columns]
+
+        if not metricas_disponibles:
+            st.error("No se encontraron las columnas esperadas en el sheet.")
+        else:
+            metricas_sel = st.pills("Métricas", options=metricas_disponibles, selection_mode="multi", default=["Leads"])
+
+            if metricas_sel:
+                tiene_pct = any(m in _G_PCT for m in metricas_sel)
+                tiene_abs = any(m not in _G_PCT for m in metricas_sel)
+                doble_eje = tiene_pct and tiene_abs
+
+                fig = go.Figure()
+                for i, metrica in enumerate(metricas_sel):
+                    if metrica not in df_evo.columns:
+                        continue
+                    df_m = df_evo[["Periodo", metrica]].dropna()
+                    color = _COLORES_EVO[i % len(_COLORES_EVO)]
+                    prefijo, sufijo, decimales = _FORMATOS.get(metrica, ("", "", 0))
+                    def _fmt_label(v, p=prefijo, s=sufijo, d=decimales):
+                        if s == "%": return f"{v:.{d}f}%"
+                        return f"{p}{v:,.0f}{s}" if d == 0 else f"{p}{v:,.{d}f}{s}"
+                    fig.add_trace(go.Scatter(
+                        x=df_m["Periodo"], y=df_m[metrica],
+                        mode="lines+markers+text",
+                        text=[_fmt_label(v) for v in df_m[metrica]],
+                        textposition="top center",
+                        line=dict(color=color, width=2, shape="spline", smoothing=0.8),
+                        marker=dict(size=6, color=color),
+                        textfont=dict(size=10, color=color),
+                        name=metrica,
+                        yaxis="y2" if metrica in _G_PCT else "y",
+                    ))
+
+                idx_2026 = next((i for i, p in enumerate(todos_periodos) if "26" in str(p)), None)
+                if idx_2026 and idx_2026 > 0:
+                    fig.add_shape(type="line", x0=idx_2026-0.5, x1=idx_2026-0.5, y0=0, y1=1,
+                                  xref="x", yref="paper", line=dict(color="#94a3b8", dash="dash", width=1.5))
+                    fig.add_annotation(x=idx_2026-0.5, y=1, xref="x", yref="paper", text="2026",
+                                       showarrow=False, font=dict(color="#64748b", size=11), xanchor="left", yanchor="bottom")
+
+                layout_kwargs = dict(height=480, hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+                    margin=dict(l=10, r=10, t=40, b=40), xaxis=dict(tickangle=-45),
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                if doble_eje:
+                    layout_kwargs["yaxis2"] = dict(overlaying="y", side="right", tickformat=".0f", ticksuffix="%", showgrid=False)
+                fig.update_layout(**layout_kwargs)
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(f"Última actualización: {_fecha_evo} · [Fuente: T90 Real – pestaña T90 - mktVtas](https://docs.google.com/spreadsheets/d/{_EVO_SHEET_ID}/edit)")

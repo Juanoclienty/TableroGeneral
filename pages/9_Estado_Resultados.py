@@ -561,6 +561,17 @@ def _render(d, year):
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
+with st.sidebar:
+    if st.button("🔄 Actualizar datos", use_container_width=True):
+        import os as _os
+        _cache_dir = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "cache")
+        for _f in ["er_Real_2026.parquet", "er_Real_2025.parquet", "er_Unificado_real_2025_2026.parquet"]:
+            _p = _os.path.join(_cache_dir, _f)
+            if _os.path.exists(_p):
+                _os.remove(_p)
+        st.cache_data.clear()
+        st.rerun()
+
 st.markdown("## Estado de Resultados")
 
 col_yr, _ = st.columns([2, 6])

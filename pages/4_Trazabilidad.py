@@ -57,11 +57,19 @@ def _detectar_chance_traz(et):
     if "chance de venta baja"       in s: return "Baja"
     return None
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def cargar_presupuestos_con_chance() -> pd.DataFrame:
     """Presupuestos con fecha + chance de venta + Nombre, Mail, Closer del CRM."""
     try:
-        df_presu = _fetch_external_csv(_ID_BBDD_MARKETING, "bbdd_presupuestos")
+        _presu_cache = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", "bbdd_presupuestos.parquet")
+        if os.path.exists(_presu_cache):
+            df_presu = pd.read_parquet(_presu_cache)
+        else:
+            df_presu = _fetch_external_csv(_ID_BBDD_MARKETING, "bbdd_presupuestos")
+            try:
+                df_presu.to_parquet(_presu_cache, index=False)
+            except Exception:
+                pass
         # Columnas base siempre presentes
         cols_presu = {"FECHA DE ENVIO": "fecha", "ID DE PROSPECTO": "id"}
         # Columna "asignado a" puede existir o no
@@ -455,6 +463,9 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("🔄 Actualizar datos", use_container_width=True):
+        _presu_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", "bbdd_presupuestos.parquet")
+        if os.path.exists(_presu_path):
+            os.remove(_presu_path)
         st.cache_data.clear()
         st.rerun()
 
@@ -1241,20 +1252,19 @@ with tab_gral:
             )
     
         metricas_r1 = [
-            ("Leads",  "leads", obj["Leads"]),
-            ("R1",     "r1",    obj["R1"]),
-            ("Follow", "fp",    obj["Follow"]),
+            ("Leads contactados",  "leads", obj["Leads"]),
+            ("R1",                 "r1",    obj["R1"]),
+            ("Follow",             "fp",    obj["Follow"]),
         ]
         ratios_r1 = [
-            ("%R1/Lead", "r1", "leads", obj["R1"],     obj["Leads"]),
-            ("%FP/Lead", "fp", "leads", obj["Follow"], obj["Leads"]),
+            ("%R1/Lead cont.", "r1", "leads", obj["R1"],     obj["Leads"]),
+            ("%FP/Lead cont.", "fp", "leads", obj["Follow"], obj["Leads"]),
         ]
-    
+
         metricas_r2 = [
-            ("R2 agendada", "r2_agendada", obj["R2"]),
-            ("R2 efectiva", "r2_efectiva", obj["R2"]),
+            ("R2 agendada",      "r2_agendada", obj["R2"]),
+            ("R2 efectiva",      "r2_efectiva", obj["R2"]),
             ("Presupuesto (Co)", "presupuesto", obj["Presupuesto"]),
-            ("Venta (Co)",       "_ventas_p",   0),
         ]
         # (label, num_col, den_col, obj_num, obj_den) — sin objetivo definido
         ratios_r2 = [
@@ -1281,7 +1291,7 @@ with tab_gral:
         )
 
         if vista != "Día":
-            ratios_conv = [("% PE/Leads", "presupuesto", "leads", 0, 0)]
+            ratios_conv = [("% PE/Lead cont.", "presupuesto", "leads", 0, 0)]
             if vista == "Mes":
                 ratios_conv.append(("Tasa cierre (Co)", "_ventas_p", "presupuesto", 0, 0))
             _render_combo(
@@ -1942,8 +1952,8 @@ with tab_cc:
             return f"{round(num/den*100)}%" if den else ""
 
         _RATIOS = [
-            ("%R1/Lead",  "follow_podcast", "filtrado_en_r1", "leads"),
-            ("%FP/Lead",  "follow_podcast",  None,            "leads"),
+            ("%R1/Lead cont.",  "follow_podcast", "filtrado_en_r1", "leads"),
+            ("%FP/Lead cont.",  "follow_podcast",  None,            "leads"),
         ]
         for i, ratio_def in enumerate(_RATIOS):
             lbl   = ratio_def[0]
@@ -1952,7 +1962,7 @@ with tab_cc:
             nums_sum = 0; dens_sum = 0
             cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDr};background:{bg}">{lbl}</td>'
             for _, row_p in df_show_cc.iterrows():
-                if ratio_def[0] == "%R1/Lead":
+                if ratio_def[0] == "%R1/Lead cont.":
                     num = int(row_p.get("follow_podcast", 0) or 0) + int(row_p.get("filtrado_en_r1", 0) or 0)
                 else:
                     num = int(row_p.get("follow_podcast", 0) or 0)
