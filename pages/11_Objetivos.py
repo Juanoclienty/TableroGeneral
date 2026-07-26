@@ -273,9 +273,185 @@ body{font-family:sans-serif;font-size:12.5px;margin:0}
     components.html(html, height=240)
 
 
+# ── Tab 3: Real vs Proyectado ─────────────────────────────────────────────────
+
+@st.cache_data(ttl=3600)
+def _cargar_real_mes():
+    """Carga datos reales del mes actual desde CRM y ads."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    import datos as _datos
+    import datos_crm as _dcrm
+
+    df_crm  = _dcrm.cargar_crm()
+    df_ads  = _datos.cargar_ads()
+
+    # Filtrar mes actual
+    hoy = datetime.today()
+    mes_actual = hoy.month
+    anio_actual = hoy.year
+
+    df_mes = df_crm[
+        (df_crm["fecha_lead"].dt.month == mes_actual) &
+        (df_crm["fecha_lead"].dt.year  == anio_actual)
+    ] if not df_crm.empty else df_crm
+
+    leads       = len(df_mes)
+    r1          = int(df_mes["estado_resumen"].isin(["1. R1","2. Follow","3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    follow      = int(df_mes["estado_resumen"].isin(["2. Follow","3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    r2_agend    = int(df_mes["estado_resumen"].isin(["3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    r2_efect    = int(df_mes["estado_resumen"].isin(["3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    presup      = int(df_mes["estado_resumen"].isin(["4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    ventas      = int((df_mes["estado_resumen"] == "5. Venta").sum()) if not df_mes.empty else 0
+
+    inv = 0.0
+    if not df_ads.empty:
+        df_ads_mes = df_ads[
+            (df_ads["fecha"].dt.month == mes_actual) &
+            (df_ads["fecha"].dt.year  == anio_actual)
+        ]
+        inv = float(df_ads_mes["inversion"].sum())
+
+    cpl = round(inv / leads, 0) if leads > 0 else 0
+    cpe = round(inv / leads, 0) if leads > 0 else 0
+    cpv = round(inv / ventas, 0) if ventas > 0 else 0
+
+    return {
+        "inversion": inv,
+        "cpl":       cpl,
+        "leads":     leads,
+        "r1":        r1,
+        "follow":    follow,
+        "r2_ag":     r2_agend,
+        "r2_ef":     r2_efect,
+        "presup":    presup,
+        "ventas":    ventas,
+        "cpe":       cpe,
+        "cpv":       cpv,
+    }
+
+
+def _render_real_vs_proy(rows_sheet):
+    """Tabla comparativa: Proyectado | Proy. 6 prop. | Real."""
+    # Datos proyectados del sheet (mes actual)
+    meses_hdr = rows_sheet[0][1:]
+    mes_col   = _MES_ACTUAL - 1  # 0-based
+
+    datos_sheet = {}
+    for row in rows_sheet[1:]:
+        if row and row[0].strip():
+            key = row[0].strip().replace("â€™", "ó").replace("Ã³", "ó")
+            key = "".join(c if ord(c) < 128 or c in "áéíóúüñÁÉÍÓÚÜÑ" else "ó" for c in key)
+            vals = row[1:]
+            datos_sheet[key] = vals[mes_col].strip() if mes_col < len(vals) else "—"
+    for k in list(datos_sheet.keys()):
+        if "publicidad" in k.lower() and k != "Inversión publicidad":
+            datos_sheet["Inversión publicidad"] = datos_sheet[k]
+
+    # Datos reales
+    try:
+        real = _cargar_real_mes()
+    except Exception:
+        real = {}
+
+    def _fmt_inv(v):
+        if not v: return "—"
+        try: return f"${float(str(v).replace('$','').replace('.','').replace(',','.').strip()):,.0f}"
+        except: return str(v)
+
+    def _r(key, fmt=None):
+        v = real.get(key, 0)
+        if fmt == "$": return f"${v:,.0f}" if v else "—"
+        return str(int(v)) if v else "—"
+
+    # Objetivos 6 propuestas (mes)
+    p6 = {"leads": 313, "r1": 250, "follow": 150, "r2_ag": 117, "r2_ef": 117, "presup": 100, "ventas": "—"}
+
+    # Estructura: (nombre_fila, val_proy_sheet_key, val_p6_key_or_None, val_real_key, fmt)
+    _SECS_RVP = [
+        ("Inversión", [
+            ("Inversión publicidad", "Inversión publicidad", None,      "inversion", "$"),
+            ("CPL",                  "CPL",                  None,      "cpl",       "$"),
+        ]),
+        ("Embudo (en absolutos)", [
+            ("Cantidad de prospectos", "Cantidad de prospectos", "leads",  "leads",  "n"),
+            ("R1 Efectivas",           "R1 Efectivas",           "r1",     "r1",     "n"),
+            ("R2 agendadas",           "R2 agendadas",           "r2_ag",  "r2_ag",  "n"),
+            ("R2 Efectivas",           "R2 Efectivas",           "r2_ef",  "r2_ef",  "n"),
+            ("Presupuestos enviados",  "Presupuestos enviados",  "presup", "presup", "n"),
+            ("Ventas",                 "Ventas",                 "ventas", "ventas", "n"),
+            ("Tasa sobre leads",       "Tasa sobre leads",       None,     None,     "pct"),
+        ]),
+        ("Costos", [
+            ("CPE", "CPE", None, "cpe", "$"),
+            ("CPV", "CPV", None, "cpv", "$"),
+        ]),
+    ]
+
+    _GRISES  = {"Tasa sobre leads"}
+    _VERDES  = {"Ventas"}
+
+    # calcular tasa real
+    tasa_real = f"{round(real.get('ventas',0)/real.get('leads',1)*100,1)}%" if real.get("leads") else "—"
+
+    css = """
+<style>
+body{font-family:sans-serif;font-size:12.5px;margin:0}
+.rvp{border-collapse:collapse;width:100%}
+.rvp th{background:#1e3a5f;color:#fff;padding:6px 12px;text-align:right;font-weight:600;white-space:nowrap}
+.rvp th.th-label{text-align:left;min-width:175px}
+.rvp td{padding:5px 12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap}
+.rvp td.label-col{text-align:left;color:#374151}
+.rvp tr.sec-hdr td{background:#1e3a5f;color:#fff;font-weight:700;padding:5px 12px;font-size:12px;text-align:left}
+.rvp tr.fila-gris td{color:#9ca3af}
+.rvp tr.fila-ventas td{color:#15803d;font-weight:700}
+</style>
+"""
+    html = css + """<table class="rvp">
+<thead><tr>
+  <th class="th-label">Métrica</th>
+  <th>Proyectado</th>
+  <th>Proy. 6 prop.</th>
+  <th>Real</th>
+</tr></thead><tbody>
+"""
+    for nombre_sec, filas in _SECS_RVP:
+        html += f'<tr class="sec-hdr"><td colspan="4">{nombre_sec}</td></tr>'
+        for nombre_fila, sheet_key, p6_key, real_key, fmt in filas:
+            proy_val = datos_sheet.get(sheet_key, "—")
+            p6_val   = str(p6.get(p6_key, "—")) if p6_key else "—"
+            if real_key is None:
+                real_val = tasa_real
+            elif fmt == "$":
+                real_val = _r(real_key, "$")
+            else:
+                real_val = _r(real_key)
+
+            css_tr = "fila-ventas" if nombre_fila in _VERDES else ("fila-gris" if nombre_fila in _GRISES else "")
+            lbl_style = ' style="color:#9ca3af"' if nombre_fila in _GRISES else (' style="color:#15803d;font-weight:700"' if nombre_fila in _VERDES else "")
+            html += (
+                f'<tr class="{css_tr}">'
+                f'<td class="label-col"{lbl_style}>{nombre_fila}</td>'
+                f'<td>{proy_val}</td>'
+                f'<td>{p6_val}</td>'
+                f'<td>{real_val}</td>'
+                f'</tr>'
+            )
+    html += "</tbody></table>"
+
+    n_filas = sum(len(f) for _, f in _SECS_RVP)
+    height  = 40 + len(_SECS_RVP) * 30 + n_filas * 28
+    components.html(html, height=height, scrolling=False)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-tab1, tab2 = st.tabs(["Objetivos generales", "Proyecto 6 propuestas"])
+_MES_NOMBRE = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][_MES_ACTUAL - 1]
+tab1, tab2, tab3 = st.tabs([
+    "Objetivos generales",
+    "Proyecto 6 propuestas",
+    f"Real vs Proy ({_MES_NOMBRE})",
+])
 
 with tab1:
     st.markdown(
@@ -294,3 +470,10 @@ with tab1:
 with tab2:
     st.markdown("### Proyecto 6 propuestas")
     _render_6_propuestas()
+
+with tab3:
+    try:
+        rows = _cargar_sheet()
+        _render_real_vs_proy(rows)
+    except Exception as e:
+        st.error(f"Error cargando datos: {e}")
