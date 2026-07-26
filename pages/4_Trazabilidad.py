@@ -673,12 +673,7 @@ with tab_gral:
         def _exportar_traz() -> bytes:
             frames = []
             for _p in _ult4_res:
-                if vista == "Mes":
-                    _m = df_bbdd_res["_fecha_venta"].dt.to_period("M") == _p
-                elif vista == "Semana":
-                    _m = df_bbdd_res["_fecha_venta"].apply(_semana_de_traz) == pd.Timestamp(_p)
-                else:
-                    _m = df_bbdd_res["_fecha_venta"].dt.normalize() == pd.Timestamp(_p)
+                _m = df_bbdd_res["_fecha_venta"].dt.to_period("M") == _p
                 _grp = df_bbdd_res[_m]
                 if _grp.empty: continue
                 _df_p = pd.DataFrame(_build_filas_traz(_grp))
