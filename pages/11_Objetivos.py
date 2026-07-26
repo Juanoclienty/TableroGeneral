@@ -4,9 +4,9 @@ Tab 1: Tabla de objetivos generales (desde Google Sheets)
 Tab 2: Proyecto 6 propuestas (objetivos de Trazabilidad)
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import urllib.request, csv, io, os
 from datetime import datetime
-import pandas as pd
 
 st.set_page_config(page_title="Objetivos mkt-vtas", layout="wide")
 st.markdown("## Objetivos mkt - vtas")
@@ -14,7 +14,7 @@ st.markdown("## Objetivos mkt - vtas")
 _URL_OBJ  = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/export?format=csv"
 _URL_EDIT = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/edit"
 
-_MES_ACTUAL = datetime.today().month  # 1-based → julio = 7 → col index 6
+_MES_ACTUAL = datetime.today().month  # 1-based
 
 @st.cache_data(ttl=3600)
 def _cargar_sheet():
@@ -22,21 +22,19 @@ def _cargar_sheet():
     raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
     return list(csv.reader(io.StringIO(raw)))
 
-# ── Estructura fija de secciones ──────────────────────────────────────────────
-
 _SECCIONES = [
-    ("Embudo (en porcentual)", [
+    ("embudo-pct", "Embudo (en porcentual)", True, [  # True = colapsado por defecto
         ("R1 Efectivas/leads", False),
         ("R2 agendadas/leads", False),
         ("R2 Efectivas/R2A",   False),
         ("Presu./R2E",         False),
-        ("Tasa de cierre",     True),   # True = fila gris
+        ("Tasa de cierre",     True),
     ]),
-    ("Inversión", [
+    ("inversion", "Inversión", False, [
         ("Inversión publicidad", False),
         ("CPL",                  False),
     ]),
-    ("Embudo (en absolutos)", [
+    ("embudo-abs", "Embudo (en absolutos)", False, [
         ("Cantidad de prospectos", False),
         ("R1 Efectivas",           False),
         ("R2 agendadas",           False),
@@ -45,7 +43,7 @@ _SECCIONES = [
         ("Ventas",                 False),
         ("Tasa sobre leads",       True),
     ]),
-    ("Costos", [
+    ("costos", "Costos", False, [
         ("CPE", False),
         ("CPV", False),
     ]),
@@ -53,42 +51,95 @@ _SECCIONES = [
 
 _FILAS_DESTACADAS = {"Ventas"}
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
 
-_CSS = """
+def _render_tabla_objetivos(rows):
+    meses = rows[0][1:]
+    n = len(meses)
+
+    datos = {}
+    for row in rows[1:]:
+        if row and row[0].strip():
+            key = row[0].strip().replace("â€™", "ó").replace("Ã³", "ó").replace("?", "ó")
+            # también captura el carácter corrupto genérico
+            key = "".join(c if ord(c) < 128 or c in "áéíóúüñÁÉÍÓÚÜÑ" else "ó" for c in key)
+            datos[key] = row[1:n+1]
+    # alias para inversión con carácter corrupto
+    for k in list(datos.keys()):
+        if "publicidad" in k.lower() and k != "Inversión publicidad":
+            datos["Inversión publicidad"] = datos[k]
+
+    mes_col = _MES_ACTUAL - 1  # 0-based
+
+    # ── CSS ──────────────────────────────────────────────────────────────────
+    css = """
 <style>
+body { font-family: sans-serif; font-size: 12.5px; margin: 0; }
+.obj-wrap { overflow-x: auto; }
 .obj-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 12.5px;
-    font-family: inherit;
 }
 .obj-table th {
     background: #1e3a5f;
     color: #fff;
     text-align: center;
-    padding: 5px 8px;
+    padding: 6px 10px;
     font-weight: 600;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
-.obj-table th.th-label { text-align: left; min-width: 165px; }
-.obj-table th.mes-actual { background: #0f2540; }
+.obj-table th.th-label {
+    text-align: left;
+    min-width: 175px;
+    z-index: 3;
+    position: sticky;
+    left: 0;
+}
+.obj-table th.mes-actual { background: #0d1f35; }
 .obj-table td {
-    padding: 4px 8px;
+    padding: 5px 10px;
     border-bottom: 1px solid #e5e7eb;
     text-align: right;
     white-space: nowrap;
 }
-.obj-table td.label-col { text-align: left; color: #374151; }
+.obj-table td.label-col {
+    text-align: left;
+    color: #374151;
+    padding-left: 12px;
+}
 .obj-table td.mes-actual { background: #dbeafe; font-weight: 600; }
-.obj-table tr.seccion-header td {
+
+/* Fila de sección (clickable) */
+.obj-table tr.sec-hdr td {
     background: #1e3a5f;
     color: #fff;
     font-weight: 700;
-    padding: 5px 8px;
+    padding: 5px 10px;
     font-size: 12px;
     letter-spacing: 0.4px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
 }
+.obj-table tr.sec-hdr td.sec-label {
+    text-align: left;
+}
+.obj-table tr.sec-hdr td .chevron {
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 0.2s;
+    font-style: normal;
+}
+.obj-table tr.sec-hdr.collapsed td .chevron { transform: rotate(-90deg); }
+.obj-table tr.sec-hdr td.mes-actual-hdr { background: #0d1f35; }
+
+/* Filas de datos ocultas */
+.obj-table tr.sec-row { transition: opacity 0.15s; }
+.obj-table tr.sec-row.hidden { display: none; }
+
 .obj-table tr.fila-gris td { color: #9ca3af; }
 .obj-table tr.fila-gris td.mes-actual { background: #e0ecfd; color: #6b7280; }
 .obj-table tr.fila-ventas td { color: #15803d; font-weight: 700; }
@@ -96,52 +147,90 @@ _CSS = """
 </style>
 """
 
-
-def _render_tabla_objetivos(rows):
-    meses = rows[0][1:]
-    n = len(meses)
-
-    # índice por nombre de fila (normalizado)
-    datos = {}
-    for row in rows[1:]:
-        if row and row[0].strip():
-            # normalizar "Inversión publicidad" con carácter corrupto
-            key = row[0].strip().replace("�", "ó")
-            datos[key] = row[1:n+1]
-
-    mes_col = _MES_ACTUAL - 1  # 0-based
-
-    th_label = '<th class="th-label label-col"></th>'
+    # ── Header ───────────────────────────────────────────────────────────────
+    th_label = '<th class="th-label"></th>'
     ths = "".join(
         f'<th class="mes-actual">{m}</th>' if i == mes_col else f'<th>{m}</th>'
         for i, m in enumerate(meses)
     )
     hdr = f"<thead><tr>{th_label}{ths}</tr></thead>"
 
+    # ── Body ─────────────────────────────────────────────────────────────────
     body = "<tbody>"
-    for nombre_sec, filas in _SECCIONES:
-        body += f'<tr class="seccion-header"><td colspan="{n+1}">{nombre_sec}</td></tr>'
+    for sec_id, nombre_sec, colapsado, filas in _SECCIONES:
+        collapsed_cls = " collapsed" if colapsado else ""
+        # celda label de sección
+        td_sec_label = f'<td class="sec-label"><span class="chevron">▼</span>{nombre_sec}</td>'
+        # celdas vacías del header de sección, con resalte en mes actual
+        td_sec_meses = "".join(
+            f'<td class="mes-actual-hdr"></td>' if i == mes_col else '<td></td>'
+            for i in range(n)
+        )
+        body += (
+            f'<tr class="sec-hdr{collapsed_cls}" onclick="toggleSec(\'{sec_id}\')">'
+            f'{td_sec_label}{td_sec_meses}</tr>'
+        )
+        hidden_cls = " hidden" if colapsado else ""
         for nombre_fila, es_gris in filas:
-            # intentar con el nombre original y con "ó" normalizado
-            vals = datos.get(nombre_fila) or datos.get(nombre_fila.replace("o", "ó")) or [""] * n
+            vals = datos.get(nombre_fila, [""] * n)
             es_ventas = nombre_fila in _FILAS_DESTACADAS
             css_tr = "fila-ventas" if es_ventas else ("fila-gris" if es_gris else "")
             tds = f'<td class="label-col">{nombre_fila}</td>'
             for i, v in enumerate(vals[:n]):
                 css_td = "mes-actual" if i == mes_col else ""
                 tds += f'<td class="{css_td}">{v.strip()}</td>'
-            body += f'<tr class="{css_tr}">{tds}</tr>'
+            body += f'<tr class="sec-row{hidden_cls}" data-sec="{sec_id}" class2="{css_tr}"><td class="label-col" style="padding-left:12px">{nombre_fila}</td>{"".join(f"""<td class="{"mes-actual" if i==mes_col else ""}">{v.strip()}</td>""" for i,v in enumerate(vals[:n]))}</tr>'
 
+        # rebuild cleaner
+    # Rebuild body properly
+    body = "<tbody>"
+    for sec_id, nombre_sec, colapsado, filas in _SECCIONES:
+        collapsed_cls = " collapsed" if colapsado else ""
+        td_sec_label = f'<td class="sec-label"><span class="chevron">▼</span>{nombre_sec}</td>'
+        td_sec_meses = "".join(
+            f'<td class="mes-actual-hdr"></td>' if i == mes_col else '<td></td>'
+            for i in range(n)
+        )
+        body += (
+            f'<tr class="sec-hdr{collapsed_cls}" onclick="toggleSec(\'{sec_id}\')">'
+            f'{td_sec_label}{td_sec_meses}</tr>'
+        )
+        hidden_cls = " hidden" if colapsado else ""
+        for nombre_fila, es_gris in filas:
+            vals = datos.get(nombre_fila, [""] * n)
+            es_ventas = nombre_fila in _FILAS_DESTACADAS
+            row_cls = "fila-ventas" if es_ventas else ("fila-gris" if es_gris else "")
+            label_style = ' style="color:#9ca3af"' if es_gris else (' style="color:#15803d;font-weight:700"' if es_ventas else "")
+            tds = f'<td class="label-col"{label_style}>{nombre_fila}</td>'
+            for i, v in enumerate(vals[:n]):
+                td_cls = "mes-actual" if i == mes_col else ""
+                tds += f'<td class="{td_cls}">{v.strip()}</td>'
+            body += f'<tr class="sec-row {row_cls}{hidden_cls}" data-sec="{sec_id}">{tds}</tr>'
     body += "</tbody>"
-    return f'{_CSS}<table class="obj-table">{hdr}{body}</table>'
 
+    js = """
+<script>
+function toggleSec(id) {
+    var hdr = document.querySelector('.sec-hdr[onclick*="' + id + '"]');
+    var rows = document.querySelectorAll('.sec-row[data-sec="' + id + '"]');
+    var isCollapsed = hdr.classList.contains('collapsed');
+    if (isCollapsed) {
+        hdr.classList.remove('collapsed');
+        rows.forEach(function(r){ r.classList.remove('hidden'); });
+    } else {
+        hdr.classList.add('collapsed');
+        rows.forEach(function(r){ r.classList.add('hidden'); });
+    }
+}
+</script>
+"""
 
-# ── Tab 2: Proyecto 6 propuestas ──────────────────────────────────────────────
+    height = 60 + len(meses) * 0 + sum(len(f) for _, _, _, f in _SECCIONES) * 28 + len(_SECCIONES) * 32
+    return css + f'<div class="obj-wrap"><table class="obj-table">{hdr}{body}</table></div>' + js, height
+
 
 def _render_6_propuestas():
-    """Mismos objetivos que Trazabilidad (OBJ["Mes"])."""
     _obj = {"Leads": 313, "R1": 250, "Follow": 150, "R2": 117, "Presupuesto": 100}
-
     filas = [
         ("Leads contactados", _obj["Leads"]),
         ("R1",                _obj["R1"]),
@@ -150,18 +239,22 @@ def _render_6_propuestas():
         ("R2 efectiva",       _obj["R2"]),
         ("Presupuesto",       _obj["Presupuesto"]),
     ]
-
-    html = _CSS + """
-    <table class="obj-table" style="max-width:420px">
-    <thead><tr>
-        <th class="th-label label-col">Métrica</th>
-        <th>Objetivo mensual</th>
-    </tr></thead><tbody>
-    """
+    html = """
+<style>
+body{font-family:sans-serif;font-size:13px}
+.p6-table{border-collapse:collapse;min-width:320px}
+.p6-table th{background:#1e3a5f;color:#fff;padding:6px 16px;text-align:left}
+.p6-table th:last-child{text-align:right}
+.p6-table td{padding:5px 16px;border-bottom:1px solid #e5e7eb}
+.p6-table td:last-child{text-align:right;font-weight:600}
+</style>
+<table class="p6-table">
+<thead><tr><th>Métrica</th><th>Objetivo mensual</th></tr></thead><tbody>
+"""
     for nombre, val in filas:
-        html += f'<tr><td class="label-col">{nombre}</td><td>{val}</td></tr>'
+        html += f'<tr><td>{nombre}</td><td>{val}</td></tr>'
     html += "</tbody></table>"
-    st.markdown(html, unsafe_allow_html=True)
+    components.html(html, height=240)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -177,7 +270,8 @@ with tab1:
     )
     try:
         rows = _cargar_sheet()
-        st.markdown(_render_tabla_objetivos(rows), unsafe_allow_html=True)
+        html_table, est_height = _render_tabla_objetivos(rows)
+        components.html(html_table, height=est_height, scrolling=False)
     except Exception as e:
         st.error(f"Error cargando objetivos: {e}")
 
