@@ -20,15 +20,7 @@ st.set_page_config(
 if not login():
     st.stop()
 
-# ── Sidebar: usuario + logout ─────────────────────────────────────────────────
 u = usuario_actual()
-with st.sidebar:
-    st.markdown(f"**{u['nombre']}**")
-    st.caption(u["perfil"].replace("_", " ").title())
-    if st.button("Cerrar sesión", use_container_width=True):
-        st.session_state.clear()
-        st.query_params["logout"] = "1"
-        st.rerun()
 
 # ── Navegación según perfil ───────────────────────────────────────────────────
 st.markdown("""
