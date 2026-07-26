@@ -187,7 +187,7 @@ with st.sidebar:
     st.title("📊 Dashboard Clienty")
     st.markdown("---")
 
-    vista = st.radio("", ["Semana", "Mes", "Día"], horizontal=True, label_visibility="collapsed")
+    vista = st.radio("", ["Sem", "Mes", "Día"], horizontal=True, label_visibility="collapsed")
 
     st.markdown("")
 
@@ -196,7 +196,7 @@ with st.sidebar:
 
     # ── Chips rápidos ─────────────────────────────────────────
     _skey = f"mkt_n_{vista}"
-    _sdef = {"Día": 15, "Semana": 8, "Mes": 3}
+    _sdef = {"Día": 15, "Sem": 8, "Mes": 3}
     if _skey not in st.session_state:
         st.session_state[_skey] = _sdef[vista]
 
@@ -206,7 +206,7 @@ with st.sidebar:
             st.session_state[_skey] = 7;  st.rerun()
         if _cx2.button("Ult. 15 días", use_container_width=True):
             st.session_state[_skey] = 15; st.rerun()
-    elif vista == "Semana":
+    elif vista == "Sem":
         _cx1, _cx2 = st.columns(2)
         if _cx1.button("Esta sem.",   use_container_width=True):
             st.session_state[_skey] = 1; st.rerun()
@@ -226,7 +226,7 @@ with st.sidebar:
         _n = min(_n, _max_dias)
         fecha_hasta = date.today() - timedelta(days=1)
         fecha_desde = fecha_hasta - timedelta(days=_n - 1)
-    elif vista == "Semana":
+    elif vista == "Sem":
         _max_sem = min(max(1, len(df_sem)), 24)
         _n = min(_n, _max_sem)
         fecha_hasta = fecha_max_data
@@ -332,7 +332,7 @@ tab_resumen, tab_ads, tab_evo = st.tabs(["Resumen", "Ads", "Evolución"])
 with tab_resumen:
     n_filas   = len(df_vista)
     leads_tot = int(df_vista["leads"].sum()) if not df_vista.empty else 0
-    sufijo_vista = {"Semana": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
+    sufijo_vista = {"Sem": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
     _url_obj = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/edit"
     st.caption(f"Vista: **{vista}** · {sufijo_vista.get(vista, '')} · {leads_tot:,} leads · [Ver objetivos]({_url_obj})")
 
@@ -358,10 +358,10 @@ with tab_resumen:
 
     # ── Slider + título de tabla ──────────────────────────────
     _skey = f"mkt_n_{vista}"
-    _slabels = {"Día": "Días a mostrar", "Semana": "Semanas a mostrar", "Mes": "Meses a mostrar"}
+    _slabels = {"Día": "Días a mostrar", "Sem": "Semanas a mostrar", "Mes": "Meses a mostrar"}
     if vista == "Día":
         _max_v = min(max(1, (date.today() - timedelta(days=1) - fecha_min_data).days + 1), 60)
-    elif vista == "Semana":
+    elif vista == "Sem":
         _max_v = min(max(1, len(df_sem)), 24)
     else:
         _max_v = min(max(1, len(df_men)), 12)
@@ -378,7 +378,7 @@ with tab_resumen:
         fecha_hasta = date.today() - timedelta(days=1)
         fecha_desde = fecha_hasta - timedelta(days=_n_slider - 1)
         df_vista = datos_crm.calcular_dias_crm(df_crm_f, df_ads, dias=_n_slider)
-    elif vista == "Semana":
+    elif vista == "Sem":
         fecha_hasta = fecha_max_data
         fecha_desde = fecha_hasta - timedelta(weeks=_n_slider) + timedelta(days=1)
         _base_mkt = df_sem if filtro_calidad == "Todos" else datos_crm.calcular_semanas_crm(df_crm_f, df_ads)
@@ -480,7 +480,7 @@ with tab_resumen:
             )
             st.plotly_chart(_fig_evo, use_container_width=True)
 
-    if vista == "Semana":
+    if vista == "Sem":
         st.markdown("---")
         st.markdown("## 🔍 Señales Tempranas")
         st.caption("Últimas 4 semanas — solo para la vista Semana")
@@ -493,7 +493,7 @@ with tab_resumen:
                 cpl_val = row["cpl"] if pd.notna(row["cpl"]) else 0
                 diff    = cpl_val - obj_c
                 registros.append({
-                    "Semana"   : row["fecha_ini"].strftime("%d/%m") + "–" + row["fecha_fin"].strftime("%d/%m/%y"),
+                    "Sem"   : row["fecha_ini"].strftime("%d/%m") + "–" + row["fecha_fin"].strftime("%d/%m/%y"),
                     "Inversión": f'${row["inversion"]:,.0f}',
                     "Leads"    : int(row["leads"]),
                     "CPL"      : f"${cpl_val:.0f}",
