@@ -439,6 +439,70 @@ with tab_resumen:
             st.caption("Sin selección — resumen general:")
             st.plotly_chart(graficos.bar_calidad_por_semana(df_vista), use_container_width=True)
 
+    # ── Evolución vs Objetivo ──────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("## Evolución vs Objetivo")
+
+    import plotly.graph_objects as _go
+
+    _metrica_evo = st.radio(
+        "",
+        ["Leads", "GF", "Inversión", "CPL", "CPL GF"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="mkt_evo_metrica",
+    )
+
+    _col_map_evo = {"Leads": "leads", "GF": "gf", "Inversión": "inversion", "CPL": "cpl", "CPL GF": "cpl_gf"}
+    _obj_map_evo = {"Leads": "leads", "GF": "gf",  "Inversión": "inversion", "CPL": "cpl", "CPL GF": "cpl_gf"}
+    _col_evo = _col_map_evo[_metrica_evo]
+
+    if not df_men.empty:
+        _dm = df_men.copy()
+        _dm["_mes"] = _dm["fecha_ini"].dt.month
+        _dm["_lbl"] = _dm["fecha_ini"].dt.strftime("%m/%Y")
+
+        _vals = _dm[_col_evo].tolist()
+        _lbls = _dm["_lbl"].tolist()
+        _objs = [obj[_obj_map_evo[_metrica_evo]].get(m, 0) for m in _dm["_mes"].tolist()]
+
+        _colors = ["#16a34a" if v >= o else "#dc2626" for v, o in zip(_vals, _objs)]
+
+        _prefix = "$" if _metrica_evo in ("Inversión", "CPL", "CPL GF") else ""
+
+        _fig_evo = _go.Figure()
+
+        _fig_evo.add_trace(_go.Bar(
+            x=_lbls, y=_vals,
+            marker_color=_colors,
+            text=[f"{_prefix}{v:,.0f}" for v in _vals],
+            textposition="inside",
+            insidetextanchor="middle",
+            name=_metrica_evo,
+        ))
+
+        _fig_evo.add_trace(_go.Scatter(
+            x=_lbls, y=_objs,
+            mode="lines+markers+text",
+            line=dict(color="#1e40af", dash="dash", width=2),
+            marker=dict(size=7, color="#1e40af"),
+            text=[f"{_prefix}{o:,.0f}" for o in _objs],
+            textposition="top center",
+            textfont=dict(size=10, color="#1e40af"),
+            name="Objetivo",
+        ))
+
+        _fig_evo.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=10, b=30),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            yaxis=dict(title=_metrica_evo),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        st.plotly_chart(_fig_evo, use_container_width=True)
+
     if vista == "Semana":
         st.markdown("---")
         st.markdown("## 🔍 Señales Tempranas")
