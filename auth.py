@@ -22,6 +22,7 @@ import bcrypt
 _PAGINAS_BASE = [
     # (archivo, título, ícono)
     ("home.py",                       "app",             "🏠"),
+    ("pages/11_Objetivos.py",          "Objetivos mkt-vtas", "🎯"),
     ("pages/1_Marketing.py",          "Marketing",       "📈"),
     ("pages/3_Ventas.py",             "Ventas",          "💼"),
     ("pages/4_Trazabilidad.py",       "Trazabilidad",    "🔍"),
@@ -36,7 +37,7 @@ _PAGINAS_BASE = [
 ]
 
 _PERFIL_PAGINAS = {
-    "mkt_vtas": {"Marketing", "Ventas", "Trazabilidad", "T90", "Tabla de datos"},
+    "mkt_vtas": {"Objetivos mkt-vtas", "Marketing", "Ventas", "Trazabilidad", "T90", "Tabla de datos"},
     "finanzas":  {"LTV", "Est. Resultados", "T90"},
     "cs":        {"CS", "T90"},
     "completo":  None,  # None = todas
