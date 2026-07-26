@@ -159,10 +159,6 @@ if "comentarios" not in st.session_state:
     st.session_state.comentarios = []
 if "confirmar_recarga" not in st.session_state:
     st.session_state.confirmar_recarga = False
-if "fecha_desde" not in st.session_state:
-    st.session_state.fecha_desde = None
-if "fecha_hasta" not in st.session_state:
-    st.session_state.fecha_hasta = None
 
 
 # ============================================================
@@ -199,60 +195,21 @@ with st.sidebar:
     fecha_max_data = df_sem["fecha_fin"].max().date()
 
     if vista == "Día":
-        st.caption("Vista Día: últimos 15 días desde ayer.")
-        fecha_desde = fecha_min_data
+        _max_dias = max(1, (date.today() - timedelta(days=1) - fecha_min_data).days + 1)
+        _max_dias = min(_max_dias, 60)
+        n_dias = st.slider("Días a mostrar", min_value=1, max_value=_max_dias, value=min(15, _max_dias))
         fecha_hasta = date.today() - timedelta(days=1)
-    else:
-        if st.session_state.fecha_desde is None:
-            ini_def, fin_def = _semanas_cerradas_rango(8, 0)
-            st.session_state.fecha_desde = ini_def
-            st.session_state.fecha_hasta = fin_def
-
-        # Clampear por si el session_state tiene fechas fuera del rango de datos
-        _sd = st.session_state.fecha_desde
-        _sh = st.session_state.fecha_hasta
-        if _sd is not None and (_sd < fecha_min_data or _sd > fecha_max_data):
-            st.session_state.fecha_desde = fecha_min_data
-        if _sh is not None and (_sh < fecha_min_data or _sh > fecha_max_data):
-            st.session_state.fecha_hasta = fecha_max_data
-
-        col_d1, col_d2 = st.columns(2)
-        fecha_desde = col_d1.date_input("Desde",
-            value=st.session_state.fecha_desde,
-            min_value=fecha_min_data, max_value=fecha_max_data,
-            format="DD/MM/YYYY")
-        fecha_hasta = col_d2.date_input("Hasta",
-            value=st.session_state.fecha_hasta,
-            min_value=fecha_min_data, max_value=fecha_max_data,
-            format="DD/MM/YYYY")
-        st.session_state.fecha_desde = fecha_desde
-        st.session_state.fecha_hasta = fecha_hasta
-
-        if vista == "Semana":
-            col_8s, col_excl = st.columns(2)
-            if col_8s.button("📅 8 sem.", help="Últimas 8 semanas cerradas", use_container_width=True):
-                ini, fin = _semanas_cerradas_rango(8, 0)
-                st.session_state.fecha_desde = ini
-                st.session_state.fecha_hasta = fin
-                st.rerun()
-            if col_excl.button("📅 6 sem.", help="Semanas -8 a -2", use_container_width=True):
-                ini, fin = _semanas_cerradas_rango(6, 2)
-                st.session_state.fecha_desde = ini
-                st.session_state.fecha_hasta = fin
-                st.rerun()
-
-        elif vista == "Mes":
-            col_1m, col_3m = st.columns(2)
-            if col_1m.button("📅 1 mes", help="Mes actual (1° hasta hoy)", use_container_width=True):
-                ini, fin = _meses_rango(1)
-                st.session_state.fecha_desde = ini
-                st.session_state.fecha_hasta = fin
-                st.rerun()
-            if col_3m.button("📅 3 meses", help="Mes actual + 2 anteriores", use_container_width=True):
-                ini, fin = _meses_rango(3)
-                st.session_state.fecha_desde = ini
-                st.session_state.fecha_hasta = fin
-                st.rerun()
+        fecha_desde = fecha_hasta - timedelta(days=n_dias - 1)
+    elif vista == "Semana":
+        _max_sem = max(1, len(df_sem))
+        n_sem = st.slider("Semanas a mostrar", min_value=1, max_value=min(_max_sem, 24), value=min(8, _max_sem))
+        fecha_hasta = fecha_max_data
+        fecha_desde = fecha_hasta - timedelta(weeks=n_sem) + timedelta(days=1)
+    else:  # Mes
+        _max_mes = max(1, len(df_men))
+        n_mes = st.slider("Meses a mostrar", min_value=1, max_value=min(_max_mes, 12), value=min(3, _max_mes))
+        fecha_hasta = fecha_max_data
+        fecha_desde = _meses_rango(n_mes)[0]
 
     st.markdown("---")
 

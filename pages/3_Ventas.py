@@ -49,11 +49,6 @@ def _meses_rango(n=1):
     return date(año_ini, mes_ini, 1), hoy
 
 
-# ── Session state ─────────────────────────────────────────────
-if "vt_fecha_desde" not in st.session_state:
-    ini, fin = _semanas_cerradas_rango(8, 0)
-    st.session_state.vt_fecha_desde = ini
-    st.session_state.vt_fecha_hasta = fin
 
 
 # ── Carga de datos (caché: se renueva a la 1 AM hora Argentina) ──
@@ -85,45 +80,21 @@ with st.sidebar:
     fecha_max = df_sem["fecha_fin"].max().date()
 
     if vista == "Día":
-        st.caption("Vista Día: últimos 15 días desde ayer.")
-        fecha_desde = fecha_min
+        _max_dias = max(1, (date.today() - timedelta(days=1) - fecha_min).days + 1)
+        _max_dias = min(_max_dias, 60)
+        n_dias = st.slider("Días a mostrar", min_value=1, max_value=_max_dias, value=min(15, _max_dias))
         fecha_hasta = date.today() - timedelta(days=1)
-    else:
-        col_d1, col_d2 = st.columns(2)
-        _clamp = lambda v, lo, hi: max(lo, min(hi, v))
-        fecha_desde = col_d1.date_input("Desde",
-                                         value=_clamp(st.session_state.vt_fecha_desde, fecha_min, fecha_max),
-                                         min_value=fecha_min, max_value=fecha_max, format="DD/MM/YYYY")
-        fecha_hasta = col_d2.date_input("Hasta",
-                                         value=_clamp(st.session_state.vt_fecha_hasta, fecha_min, fecha_max),
-                                         min_value=fecha_min, max_value=fecha_max, format="DD/MM/YYYY")
-        st.session_state.vt_fecha_desde = fecha_desde
-        st.session_state.vt_fecha_hasta = fecha_hasta
-
-        if vista == "Sem":
-            c1, c2 = st.columns(2)
-            if c1.button("📅 8 sem.", use_container_width=True):
-                ini, fin = _semanas_cerradas_rango(8, 0)
-                st.session_state.vt_fecha_desde = ini
-                st.session_state.vt_fecha_hasta = fin
-                st.rerun()
-            if c2.button("📅 6 sem.", use_container_width=True):
-                ini, fin = _semanas_cerradas_rango(6, 2)
-                st.session_state.vt_fecha_desde = ini
-                st.session_state.vt_fecha_hasta = fin
-                st.rerun()
-        elif vista == "Mes":
-            c1, c2 = st.columns(2)
-            if c1.button("📅 1 mes", use_container_width=True):
-                ini, fin = _meses_rango(1)
-                st.session_state.vt_fecha_desde = ini
-                st.session_state.vt_fecha_hasta = fin
-                st.rerun()
-            if c2.button("📅 3 meses", use_container_width=True):
-                ini, fin = _meses_rango(3)
-                st.session_state.vt_fecha_desde = ini
-                st.session_state.vt_fecha_hasta = fin
-                st.rerun()
+        fecha_desde = fecha_hasta - timedelta(days=n_dias - 1)
+    elif vista == "Sem":
+        _max_sem = max(1, len(df_sem))
+        n_sem = st.slider("Semanas a mostrar", min_value=1, max_value=min(_max_sem, 24), value=min(8, _max_sem))
+        fecha_hasta = fecha_max
+        fecha_desde = fecha_hasta - timedelta(weeks=n_sem) + timedelta(days=1)
+    else:  # Mes
+        _max_mes = max(1, len(df_men))
+        n_mes = st.slider("Meses a mostrar", min_value=1, max_value=min(_max_mes, 12), value=min(3, _max_mes))
+        fecha_hasta = fecha_max
+        fecha_desde = _meses_rango(n_mes)[0]
 
     st.markdown("---")
     filtro_calidad = st.radio("", ["Todos", "GF", "BF", "PF"],
