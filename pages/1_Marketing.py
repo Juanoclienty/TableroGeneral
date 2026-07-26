@@ -407,101 +407,60 @@ with tab_resumen:
             st.caption("💡 Hacé click en una o más filas para ver el detalle →")
 
     with col_graf:
-        titulo_graf = {"Semana": "Leads por semana y CPL", "Mes": "Leads por mes y CPL", "Día": "Leads por día y CPL"}
-        st.markdown(f'<p class="section-title">{titulo_graf[vista]}</p>', unsafe_allow_html=True)
-        if df_vista.empty:
-            st.info("Sin datos.")
-        elif filas_sel:
-            df_sel_raw = df_vista.iloc[filas_sel]
-            leads_s  = int(df_sel_raw["leads"].sum())
-            gf_s     = int(df_sel_raw["gf"].sum())
-            inv_s    = df_sel_raw["inversion"].sum()
-            cpl_s    = inv_s / leads_s if leads_s > 0 else 0
-            cpl_gf_s = inv_s / gf_s   if gf_s   > 0 else 0
-            pct_gf_s = round(gf_s / leads_s * 100) if leads_s > 0 else 0
-            mes_s        = df_sel_raw["fecha_ini"].iloc[-1].month
-            obj_cpl_s    = obj["cpl"].get(mes_s, 74)
-            obj_cpl_gf_s = obj["cpl_gf"].get(mes_s, 92)
-            obj_leads_s  = obj["leads"].get(mes_s, 300)
-            obj_gf_s     = obj["gf"].get(mes_s, 240)
-            obj_inv_s    = _obj_inv_proporcional(df_sel_raw, obj)
-            lbl = (f"{df_sel_raw['fecha_ini'].min().strftime('%d/%m')} – "
-                   f"{df_sel_raw['fecha_fin'].max().strftime('%d/%m/%y')}")
-            st.caption(f"Selección: {lbl}")
-            c1, c2, c3, c4, c5 = st.columns(5)
-            c1.metric("Leads", f"{leads_s:,}", f"{leads_s - obj_leads_s:+,.0f} vs {obj_leads_s:,.0f}")
-            c2.metric("GF", f"{gf_s:,}", f"{gf_s - obj_gf_s:+,.0f} · {pct_gf_s}%")
-            c3.metric("Inversión", f"${inv_s:,.0f}", f"{inv_s - obj_inv_s:+,.0f} vs ${obj_inv_s:,.0f}", delta_color="inverse")
-            c4.metric("CPL", f"${cpl_s:.0f}", f"{cpl_s - obj_cpl_s:+.0f} vs ${obj_cpl_s:.0f}", delta_color="inverse")
-            c5.metric("CPL GF", f"${cpl_gf_s:.0f}", f"{cpl_gf_s - obj_cpl_gf_s:+.0f} vs ${obj_cpl_gf_s:.0f}", delta_color="inverse")
-            st.plotly_chart(graficos.pie_y_metricas(df_sel_raw), use_container_width=True)
-        else:
-            st.caption("Sin selección — resumen general:")
-            st.plotly_chart(graficos.bar_calidad_por_semana(df_vista), use_container_width=True)
+        st.markdown('<p class="section-title">Evolución vs Objetivo</p>', unsafe_allow_html=True)
 
-    # ── Evolución vs Objetivo ──────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("## Evolución vs Objetivo")
+        import plotly.graph_objects as _go
 
-    import plotly.graph_objects as _go
-
-    _metrica_evo = st.radio(
-        "",
-        ["Leads", "GF", "Inversión", "CPL", "CPL GF"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key="mkt_evo_metrica",
-    )
-
-    _col_map_evo = {"Leads": "leads", "GF": "gf", "Inversión": "inversion", "CPL": "cpl", "CPL GF": "cpl_gf"}
-    _obj_map_evo = {"Leads": "leads", "GF": "gf",  "Inversión": "inversion", "CPL": "cpl", "CPL GF": "cpl_gf"}
-    _col_evo = _col_map_evo[_metrica_evo]
-
-    if not df_men.empty:
-        _dm = df_men.copy()
-        _dm["_mes"] = _dm["fecha_ini"].dt.month
-        _dm["_lbl"] = _dm["fecha_ini"].dt.strftime("%m/%Y")
-
-        _vals = _dm[_col_evo].tolist()
-        _lbls = _dm["_lbl"].tolist()
-        _objs = [obj[_obj_map_evo[_metrica_evo]].get(m, 0) for m in _dm["_mes"].tolist()]
-
-        _colors = ["#16a34a" if v >= o else "#dc2626" for v, o in zip(_vals, _objs)]
-
-        _prefix = "$" if _metrica_evo in ("Inversión", "CPL", "CPL GF") else ""
-
-        _fig_evo = _go.Figure()
-
-        _fig_evo.add_trace(_go.Bar(
-            x=_lbls, y=_vals,
-            marker_color=_colors,
-            text=[f"{_prefix}{v:,.0f}" for v in _vals],
-            textposition="inside",
-            insidetextanchor="middle",
-            name=_metrica_evo,
-        ))
-
-        _fig_evo.add_trace(_go.Scatter(
-            x=_lbls, y=_objs,
-            mode="lines+markers+text",
-            line=dict(color="#1e40af", dash="dash", width=2),
-            marker=dict(size=7, color="#1e40af"),
-            text=[f"{_prefix}{o:,.0f}" for o in _objs],
-            textposition="top center",
-            textfont=dict(size=10, color="#1e40af"),
-            name="Objetivo",
-        ))
-
-        _fig_evo.update_layout(
-            height=350,
-            margin=dict(l=10, r=10, t=10, b=30),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-            yaxis=dict(title=_metrica_evo),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
+        _metrica_evo = st.radio(
+            "",
+            ["Leads", "GF", "Inversión", "CPL", "CPL GF"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="mkt_evo_metrica",
         )
 
-        st.plotly_chart(_fig_evo, use_container_width=True)
+        _col_map_evo = {"Leads": "leads", "GF": "gf", "Inversión": "inversion", "CPL": "cpl", "CPL GF": "cpl_gf"}
+        _obj_map_evo = {"Leads": "leads", "GF": "gf", "Inversión": "inversion", "CPL": "cpl", "CPL GF": "cpl_gf"}
+        _col_evo = _col_map_evo[_metrica_evo]
+
+        if not df_men.empty:
+            _dm = df_men.copy()
+            _dm["_mes"] = _dm["fecha_ini"].dt.month
+            _dm["_lbl"] = _dm["fecha_ini"].dt.strftime("%m/%Y")
+            _vals = _dm[_col_evo].tolist()
+            _lbls = _dm["_lbl"].tolist()
+            _objs = [obj[_obj_map_evo[_metrica_evo]].get(m, 0) for m in _dm["_mes"].tolist()]
+            _colors = ["#16a34a" if v >= o else "#dc2626" for v, o in zip(_vals, _objs)]
+            _prefix = "$" if _metrica_evo in ("Inversión", "CPL", "CPL GF") else ""
+
+            _fig_evo = _go.Figure()
+            _fig_evo.add_trace(_go.Bar(
+                x=_lbls, y=_vals,
+                marker_color=_colors,
+                text=[f"{_prefix}{v:,.0f}" for v in _vals],
+                textposition="inside",
+                insidetextanchor="middle",
+                name=_metrica_evo,
+            ))
+            _fig_evo.add_trace(_go.Scatter(
+                x=_lbls, y=_objs,
+                mode="lines+markers+text",
+                line=dict(color="#1e40af", dash="dash", width=2),
+                marker=dict(size=7, color="#1e40af"),
+                text=[f"{_prefix}{o:,.0f}" for o in _objs],
+                textposition="top center",
+                textfont=dict(size=10, color="#1e40af"),
+                name="Objetivo",
+            ))
+            _fig_evo.update_layout(
+                height=350,
+                margin=dict(l=10, r=10, t=10, b=30),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+                yaxis=dict(title=_metrica_evo),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(_fig_evo, use_container_width=True)
 
     if vista == "Semana":
         st.markdown("---")
