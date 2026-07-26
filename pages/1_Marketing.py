@@ -350,7 +350,8 @@ with tab_resumen:
     n_filas   = len(df_vista)
     leads_tot = int(df_vista["leads"].sum()) if not df_vista.empty else 0
     sufijo_vista = {"Semana": f"{n_filas} semanas", "Mes": f"{n_filas} meses", "Día": f"{n_filas} días"}
-    st.caption(f"Vista: **{vista}** · {sufijo_vista.get(vista, '')} · {leads_tot:,} leads")
+    _url_obj = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/edit"
+    st.caption(f"Vista: **{vista}** · {sufijo_vista.get(vista, '')} · {leads_tot:,} leads · [Ver objetivos]({_url_obj})")
 
     if not df_vista.empty:
         gf_tot   = int(df_vista["gf"].sum())
