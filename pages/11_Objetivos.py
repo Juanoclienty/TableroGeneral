@@ -230,62 +230,46 @@ function toggleSec(id) {
 
 
 def _render_6_propuestas():
-    _obj_mes = {"Leads": 313, "R1": 250, "Follow": 150, "R2": 117, "Presupuesto": 100}
+    _dia = {"Leads": 19,  "R1": 15,  "Follow": 9,  "R2": 7,   "Presupuesto": 6}
+    _sem = {"Leads": 80,  "R1": 64,  "Follow": 38, "R2": 30,  "Presupuesto": 26}
+    _mes = {"Leads": 313, "R1": 250, "Follow": 150,"R2": 117, "Presupuesto": 100}
 
-    _secs = [
-        ("p6-r1",    "Reunión 1", False, [
-            ("Leads contactados", _obj_mes["Leads"]),
-            ("R1 efectiva",       _obj_mes["R1"]),
-            ("Follow",            _obj_mes["Follow"]),
-        ]),
-        ("p6-r2",    "Reunión 2", False, [
-            ("R2 agendada",  _obj_mes["R2"]),
-            ("R2 efectiva",  _obj_mes["R2"]),
-            ("Presupuesto",  _obj_mes["Presupuesto"]),
-        ]),
+    filas = [
+        ("Leads contactados", "Leads"),
+        ("R1 efectiva",       "R1"),
+        ("Follow",            "Follow"),
+        ("R2 agendada",       "R2"),
+        ("R2 efectiva",       "R2"),
+        ("Presupuesto",       "Presupuesto"),
     ]
 
     html = """
 <style>
 body{font-family:sans-serif;font-size:12.5px;margin:0}
-.p6-table{border-collapse:collapse;width:360px}
-.p6-table th{background:#1e3a5f;color:#fff;padding:6px 12px;text-align:left;font-weight:600}
-.p6-table th:last-child{text-align:right}
-.p6-table td{padding:5px 12px;border-bottom:1px solid #e5e7eb}
-.p6-table td:last-child{text-align:right;font-weight:600}
-.p6-table tr.sec-hdr td{
-    background:#1e3a5f;color:#fff;font-weight:700;
-    padding:5px 12px;font-size:12px;letter-spacing:0.4px;
-    cursor:pointer;user-select:none;
-}
-.p6-table tr.sec-hdr .chevron{display:inline-block;margin-right:6px;transition:transform 0.2s}
-.p6-table tr.sec-hdr.collapsed .chevron{transform:rotate(-90deg)}
-.p6-table tr.sec-row.hidden{display:none}
+.p6-table{border-collapse:collapse;width:480px}
+.p6-table th{background:#1e3a5f;color:#fff;padding:6px 16px;text-align:right;font-weight:600;white-space:nowrap}
+.p6-table th.th-label{text-align:left;min-width:160px}
+.p6-table td{padding:5px 16px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap}
+.p6-table td.label-col{text-align:left;color:#374151}
 </style>
 <table class="p6-table">
-<thead><tr><th>Métrica</th><th>Objetivo mensual</th></tr></thead>
-<tbody>
+<thead><tr>
+  <th class="th-label">Métrica</th>
+  <th>Objetivo mensual</th>
+  <th>Objetivo semanal</th>
+  <th>Objetivo diario</th>
+</tr></thead><tbody>
 """
-    for sec_id, nombre_sec, colapsado, filas in _secs:
-        collapsed_cls = " collapsed" if colapsado else ""
+    for nombre, key in filas:
         html += (
-            f'<tr class="sec-hdr{collapsed_cls}" onclick="toggleP6(\'{sec_id}\')">'
-            f'<td colspan="2"><span class="chevron">▼</span>{nombre_sec}</td></tr>'
+            f'<tr>'
+            f'<td class="label-col">{nombre}</td>'
+            f'<td>{_mes[key]}</td>'
+            f'<td>{_sem[key]}</td>'
+            f'<td>{_dia[key]}</td>'
+            f'</tr>'
         )
-        hidden_cls = " hidden" if colapsado else ""
-        for nombre, val in filas:
-            html += f'<tr class="sec-row{hidden_cls}" data-sec="{sec_id}"><td>{nombre}</td><td>{val}</td></tr>'
-
-    html += """</tbody></table>
-<script>
-function toggleP6(id){
-    var hdr=document.querySelector('.sec-hdr[onclick*="'+id+'"]');
-    var rows=document.querySelectorAll('.sec-row[data-sec="'+id+'"]');
-    var col=hdr.classList.contains('collapsed');
-    if(col){hdr.classList.remove('collapsed');rows.forEach(function(r){r.classList.remove('hidden')});}
-    else{hdr.classList.add('collapsed');rows.forEach(function(r){r.classList.add('hidden')});}
-}
-</script>"""
+    html += "</tbody></table>"
     components.html(html, height=240)
 
 
