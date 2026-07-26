@@ -225,8 +225,10 @@ def _parse_fecha_reunion(txt):
             return f"{dia:02d}/{mes:02d}/{anio}"
     return ""
 
-df["Fecha R1 - CRM"] = df["Hora 1ra reunion"].apply(_parse_fecha_reunion) if "Hora 1ra reunion" in df.columns else ""
-df["Fecha R2 - CRM"] = df["Hora reunion"].apply(_parse_fecha_reunion) if "Hora reunion" in df.columns else ""
+_col_r1_crm = next((c for c in df.columns if "1ra" in c.lower() or "primera" in c.lower() or ("fecha" in c.lower() and "reuni" in c.lower())), None)
+_col_r2_crm = next((c for c in df.columns if "hora" in c.lower() and "reuni" in c.lower()), None)
+df["Fecha R1 - CRM"] = df[_col_r1_crm].apply(_parse_fecha_reunion) if _col_r1_crm else ""
+df["Fecha R2 - CRM"] = df[_col_r2_crm].apply(_parse_fecha_reunion) if _col_r2_crm else ""
 
 # ── Join con ads: Tipo de contenido y Temática ───────────────
 def _xnum(s):
@@ -234,8 +236,8 @@ def _xnum(s):
     return m.group(0) if m else ""
 
 try:
-    _ads_raw = datos.cargar_ads_detalle()
-    _df_ads = _ads_raw.get("sem", pd.DataFrame())
+    _ads_raw = datos.cargar_ads() if hasattr(datos, "cargar_ads") else pd.DataFrame()
+    _df_ads = _ads_raw if isinstance(_ads_raw, pd.DataFrame) else pd.DataFrame()
     if not _df_ads.empty and "nombre_ad" in _df_ads.columns:
         _df_ads_u = (
             _df_ads[["nombre_ad", "tipo", "tematica"]]
