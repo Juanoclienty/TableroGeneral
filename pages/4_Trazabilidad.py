@@ -660,12 +660,7 @@ with tab_gral:
                 st.markdown(_html_res, unsafe_allow_html=True)
                 # Filtrar ventas del período para el modal
                 if not df_bbdd_res.empty:
-                    if vista == "Mes":
-                        _mask_v = df_bbdd_res["_fecha_venta"].dt.to_period("M") == _periodo_res
-                    elif vista == "Semana":
-                        _mask_v = df_bbdd_res["_fecha_venta"].apply(_semana_de_traz) == pd.Timestamp(_periodo_res)
-                    else:
-                        _mask_v = df_bbdd_res["_fecha_venta"].dt.normalize() == pd.Timestamp(_periodo_res)
+                    _mask_v = df_bbdd_res["_fecha_venta"].dt.to_period("M") == _periodo_res
                     _grp_v = df_bbdd_res[_mask_v]
                 else:
                     _grp_v = pd.DataFrame()
