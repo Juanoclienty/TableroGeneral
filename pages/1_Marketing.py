@@ -383,6 +383,7 @@ with tab_resumen:
 
         if not df_men.empty:
             _dm = df_men.copy()
+            _dm = _dm[(_dm["fecha_ini"] >= pd.Timestamp(fecha_desde)) & (_dm["fecha_ini"] <= pd.Timestamp(fecha_hasta))]
             _dm["_mes"] = _dm["fecha_ini"].dt.month
             _dm["_lbl"] = _dm["fecha_ini"].dt.strftime("%m/%Y")
             _vals = _dm[_col_evo].tolist()
