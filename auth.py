@@ -19,61 +19,48 @@ import bcrypt
 
 # ── Páginas por perfil ────────────────────────────────────────────────────────
 
-_COMERCIAL = [
-    ("pages/11_Objetivos.py",         "Objetivos mkt-vtas", "🎯"),
-    ("pages/1_Marketing.py",          "Marketing",          "📈"),
-    ("pages/3_Ventas.py",             "Ventas",             "💼"),
-    ("pages/4_Trazabilidad.py",       "Trazabilidad",       "🔍"),
-    ("pages/5_VGF.py",                "VGF",                "🎯"),
-    ("pages/2_Tabla_datos.py",        "Tabla de datos",     "🗂️"),
-]
-
-_OTROS = [
-    ("pages/6_LTV.py",                "LTV",                "💰"),
-    ("pages/7_CS.py",                 "CS",                 "🤝"),
-    ("pages/8_T90.py",                "T90",                "📊"),
-    ("pages/9_Estado_Resultados.py",  "Est. Resultados",    "📋"),
-    ("pages/10_Historico.py",         "Histórico",          "📅"),
-    ("pages/13_Login.py",             "Log in",             "🔐"),
-    ("pages/2_Actualizar_BD.py",      "Actualizar BD",      "🔄"),
+_PAGINAS_BASE = [
+    # (archivo, título, ícono)
+    ("home.py",                       "app",             "🏠"),
+    ("pages/11_Objetivos.py",          "Objetivos mkt-vtas", "🎯"),
+    ("pages/1_Marketing.py",          "Marketing",       "📈"),
+    ("pages/3_Ventas.py",             "Ventas",          "💼"),
+    ("pages/4_Trazabilidad.py",       "Trazabilidad",    "🔍"),
+    ("pages/5_VGF.py",                "VGF",             "🎯"),
+    ("pages/6_LTV.py",                "LTV",             "💰"),
+    ("pages/7_CS.py",                 "CS",              "🤝"),
+    ("pages/8_T90.py",                "T90",             "📊"),
+    ("pages/9_Estado_Resultados.py",  "Est. Resultados", "📋"),
+    ("pages/10_Historico.py",         "Histórico",       "📅"),
+    ("pages/13_Login.py",             "Log in",          "🔐"),
+    ("pages/2_Tabla_datos.py",        "Tabla de datos",  "🗂️"),
+    ("pages/2_Actualizar_BD.py",      "Actualizar BD",   "🔄"),
 ]
 
 _PERFIL_PAGINAS = {
-    "mkt_vtas": {"Objetivos mkt-vtas", "Marketing", "Ventas", "Trazabilidad", "VGF", "T90", "Tabla de datos", "Log in"},
-    "finanzas":  {"LTV", "Est. Resultados", "T90", "Log in"},
-    "cs":        {"CS", "T90", "Log in"},
+    "mkt_vtas": {"Objetivos mkt-vtas", "Marketing", "Ventas", "Trazabilidad", "T90", "Tabla de datos"},
+    "finanzas":  {"LTV", "Est. Resultados", "T90"},
+    "cs":        {"CS", "T90"},
     "completo":  None,  # None = todas
 }
 
+# Páginas que nunca aparecen en el sidebar (independientemente del perfil)
 _SIEMPRE_OCULTAS = {"Actualizar BD"}
 
 
-def paginas_para_perfil(perfil: str) -> dict:
-    """Retorna dict {sección: [st.Page]} para st.navigation con grupos."""
+def paginas_para_perfil(perfil: str) -> list:
+    """Retorna lista de st.Page según el perfil del usuario."""
     permitidas = _PERFIL_PAGINAS.get(perfil)
-
-    def _filtrar(lista, default=False):
-        paginas = []
-        for archivo, titulo, icono in lista:
-            if titulo in _SIEMPRE_OCULTAS:
-                continue
-            if permitidas is None or titulo in permitidas:
-                paginas.append(st.Page(archivo, title=titulo, icon=icono,
-                                       **({"default": True} if default else {})))
-        return paginas
-
-    home = [st.Page("home.py", title="app", icon="🏠", default=True)]
-    comercial = _filtrar(_COMERCIAL)
-    otros = _filtrar(_OTROS)
-
-    result = {}
-    if home:
-        result[""] = home          # sección sin nombre para el home
-    if comercial:
-        result["Comercial"] = comercial
-    if otros:
-        result["Otros"] = otros
-    return result
+    paginas = []
+    for archivo, titulo, icono in _PAGINAS_BASE:
+        if titulo in _SIEMPRE_OCULTAS:
+            continue
+        if titulo == "app":
+            paginas.append(st.Page(archivo, title=titulo, icon=icono, default=True))
+            continue
+        if permitidas is None or titulo in permitidas:
+            paginas.append(st.Page(archivo, title=titulo, icon=icono))
+    return paginas
 
 
 # ── Autenticación ─────────────────────────────────────────────────────────────
