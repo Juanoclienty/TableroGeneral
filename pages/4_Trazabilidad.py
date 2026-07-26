@@ -560,156 +560,48 @@ with tab_gral:
     def _fmt_n_res(v):
         return str(int(v)) if v and int(v) > 0 else "–"
     
-    # ── Pre-computar dicts por período según vista ────────────────────
-    if vista == "Mes":
-        _p_act_res = pd.Timestamp.today().to_period("M")
-    
-        # Ventas — BBDD_Ventas sheet (misma fuente que Ventas)
-        _vtas_dict = (
-            df_bbdd_res["_fecha_venta"].dt.to_period("M").value_counts().to_dict()
-            if not df_bbdd_res.empty else {}
-        )
-        # Presupuestos — bbdd_presupuestos sheet (misma fuente que Ventas)
-        _presu_dict = (
-            df_presu_res["_fecha"].dt.to_period("M").value_counts().to_dict()
-            if not df_presu_res.empty else {}
-        )
-        # Leads + GF — CRM (misma fuente que Ventas)
-        if not _dv_gf_raw.empty:
-            _dv_g = _dv_gf_raw.copy()
-            _dv_g["_vp_res"] = _dv_g["fecha_ini"].dt.to_period("M")
-            _gf_cols_res = [c for c in ["leads", "gf"] if c in _dv_g.columns]
-            _gf_dict = _dv_g.groupby("_vp_res")[_gf_cols_res].sum().to_dict("index") if _gf_cols_res else {}
-        else:
-            _gf_dict = {}
-    
-        if not df_ads_res.empty:
-            _ads_g = df_ads_res.copy()
-            _ads_g["_vp_res"] = pd.to_datetime(_ads_g["fecha"], errors="coerce").dt.to_period("M")
-            _inv_dict = _ads_g.groupby("_vp_res")["inversion"].sum().to_dict()
-        else:
-            _inv_dict = {}
+    # ── Pre-computar dicts siempre a nivel mensual ───────────────────
+    _p_act_res = pd.Timestamp.today().to_period("M")
 
-        _all_p_res  = set(_vtas_dict) | set(_presu_dict) | set(_gf_dict)
-        _all_p_res.add(_p_act_res)
-        _ult4_res   = sorted(_all_p_res)[-4:]
+    _vtas_dict = (
+        df_bbdd_res["_fecha_venta"].dt.to_period("M").value_counts().to_dict()
+        if not df_bbdd_res.empty else {}
+    )
+    _presu_dict = (
+        df_presu_res["_fecha"].dt.to_period("M").value_counts().to_dict()
+        if not df_presu_res.empty else {}
+    )
+    if not _dv_gf_raw.empty:
+        _dv_g = _dv_gf_raw.copy()
+        _dv_g["_vp_res"] = _dv_g["fecha_ini"].dt.to_period("M")
+        _gf_cols_res = [c for c in ["leads", "gf"] if c in _dv_g.columns]
+        _gf_dict = _dv_g.groupby("_vp_res")[_gf_cols_res].sum().to_dict("index") if _gf_cols_res else {}
+    else:
+        _gf_dict = {}
 
-        def _lbl_res(p):
-            return pd.Timestamp(p.start_time).strftime("%b %Y").capitalize()
+    if not df_ads_res.empty:
+        _ads_g = df_ads_res.copy()
+        _ads_g["_vp_res"] = pd.to_datetime(_ads_g["fecha"], errors="coerce").dt.to_period("M")
+        _inv_dict = _ads_g.groupby("_vp_res")["inversion"].sum().to_dict()
+    else:
+        _inv_dict = {}
 
-        def _metrics_res(p):
-            n_v   = int(_vtas_dict.get(p, 0))
-            n_pr  = int(_presu_dict.get(p, 0))
-            row   = _gf_dict.get(p, {})
-            leads = int(row.get("leads", 0) or 0)
-            gf    = int(row.get("gf",    0) or 0)
-            pct   = (str(round(gf / leads * 100)) + "%") if leads > 0 else "–"
-            inv   = float(_inv_dict.get(p, 0) or 0)
-            return n_v, n_pr, leads, pct, inv
-    
-    elif vista == "Semana":
-        _hoy_res = pd.Timestamp.today()
-        _lun_act = (_hoy_res - pd.Timedelta(days=_hoy_res.dayofweek)).normalize()
-    
-        # Ventas
-        _vtas_dict = (
-            df_bbdd_res.groupby(df_bbdd_res["_fecha_venta"].apply(_semana_de_traz)).size().to_dict()
-            if not df_bbdd_res.empty else {}
-        )
-        # Presupuestos
-        _presu_dict = (
-            df_presu_res.groupby(df_presu_res["_fecha"].apply(_semana_de_traz)).size().to_dict()
-            if not df_presu_res.empty else {}
-        )
-        # Leads + GF
-        if not _dv_gf_raw.empty:
-            _dv_g = _dv_gf_raw.copy()
-            _dv_g["_vp_res"] = (
-                _dv_g["fecha_ini"] - pd.to_timedelta(_dv_g["fecha_ini"].dt.dayofweek, unit="D")
-            ).dt.normalize()
-            _gf_cols_res = [c for c in ["leads", "gf"] if c in _dv_g.columns]
-            _gf_dict = _dv_g.groupby("_vp_res")[_gf_cols_res].sum().to_dict("index") if _gf_cols_res else {}
-        else:
-            _gf_dict = {}
-    
-        if not df_ads_res.empty:
-            _ads_g = df_ads_res.copy()
-            _ads_g["_vp_res"] = (
-                pd.to_datetime(_ads_g["semana_inicio"], errors="coerce")
-            ).dt.normalize()
-            _inv_dict = _ads_g.groupby("_vp_res")["inversion"].sum().to_dict()
-        else:
-            _inv_dict = {}
+    _all_p_res = set(_vtas_dict) | set(_presu_dict) | set(_gf_dict)
+    _all_p_res.add(_p_act_res)
+    _ult4_res  = sorted(_all_p_res)[-4:]
 
-        _all_p_res = {k for k in (set(_vtas_dict) | set(_presu_dict) | set(_gf_dict)) if pd.notna(k)}
-        _all_p_res.add(_lun_act)
-        _ult4_res  = sorted(_all_p_res)[-4:]
+    def _lbl_res(p):
+        return pd.Timestamp(p.start_time).strftime("%b %Y").capitalize()
 
-        def _lbl_res(p):
-            return f"Sem. {pd.Timestamp(p).strftime('%d/%m')}"
-
-        def _metrics_res(p):
-            _k    = pd.Timestamp(p)
-            n_v   = int(_vtas_dict.get(_k, 0))
-            n_pr  = int(_presu_dict.get(_k, 0))
-            row   = _gf_dict.get(_k, {})
-            leads = int(row.get("leads", 0) or 0)
-            gf    = int(row.get("gf",    0) or 0)
-            pct   = (str(round(gf / leads * 100)) + "%") if leads > 0 else "–"
-            inv   = float(_inv_dict.get(_k, 0) or 0)
-            return n_v, n_pr, leads, pct, inv
-    
-    else:  # Día
-        _hoy_res = pd.Timestamp.today().normalize()
-    
-        # Ventas
-        _vtas_dict = (
-            df_bbdd_res.groupby(df_bbdd_res["_fecha_venta"].dt.normalize()).size().to_dict()
-            if not df_bbdd_res.empty else {}
-        )
-        # Presupuestos
-        _presu_dict = (
-            df_presu_res.groupby(df_presu_res["_fecha"].dt.normalize()).size().to_dict()
-            if not df_presu_res.empty else {}
-        )
-        # Leads + GF
-        if not _dv_gf_raw.empty:
-            _dv_g = _dv_gf_raw.copy()
-            _dv_g["_vp_res"] = _dv_g["fecha_ini"].dt.normalize()
-            _gf_cols_res = [c for c in ["leads", "gf"] if c in _dv_g.columns]
-            _gf_dict = _dv_g.groupby("_vp_res")[_gf_cols_res].sum().to_dict("index") if _gf_cols_res else {}
-        else:
-            _gf_dict = {}
-    
-        if not df_ads_res.empty:
-            _ads_g = df_ads_res.copy()
-            _ads_g["_lun"] = pd.to_datetime(_ads_g["semana_inicio"], errors="coerce").dt.normalize()
-            _inv_sem_dict = _ads_g.groupby("_lun")["inversion"].sum().to_dict()
-        else:
-            _inv_sem_dict = {}
-
-        def _inv_para_dia(d):
-            _ts = pd.Timestamp(d)
-            _lun = (_ts - pd.Timedelta(days=_ts.dayofweek)).normalize()
-            return float(_inv_sem_dict.get(_lun, 0) or 0)
-
-        _all_p_res = {k for k in (set(_vtas_dict) | set(_presu_dict) | set(_gf_dict)) if pd.notna(k)}
-        _all_p_res.add(_hoy_res)
-        _ult4_res  = sorted(_all_p_res)[-4:]
-
-        def _lbl_res(p):
-            return pd.Timestamp(p).strftime("%d/%m")
-
-        def _metrics_res(p):
-            _k    = pd.Timestamp(p)
-            n_v   = int(_vtas_dict.get(_k, 0))
-            n_pr  = int(_presu_dict.get(_k, 0))
-            row   = _gf_dict.get(_k, {})
-            leads = int(row.get("leads", 0) or 0)
-            gf    = int(row.get("gf",    0) or 0)
-            pct   = (str(round(gf / leads * 100)) + "%") if leads > 0 else "–"
-            inv   = _inv_para_dia(_k)
-            return n_v, n_pr, leads, pct, inv
+    def _metrics_res(p):
+        n_v   = int(_vtas_dict.get(p, 0))
+        n_pr  = int(_presu_dict.get(p, 0))
+        row   = _gf_dict.get(p, {})
+        leads = int(row.get("leads", 0) or 0)
+        gf    = int(row.get("gf",    0) or 0)
+        pct   = (str(round(gf / leads * 100)) + "%") if leads > 0 else "–"
+        inv   = float(_inv_dict.get(p, 0) or 0)
+        return n_v, n_pr, leads, pct, inv
     
     # ── Renderizar tarjetas (más reciente a la izquierda, igual que Ventas) ──
     if _ult4_res:
@@ -733,12 +625,7 @@ with tab_gral:
 
             # CPV Meta: inv / (ventas - referidos)
             if not df_bbdd_res.empty:
-                if vista == "Mes":
-                    _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].dt.to_period("M") == _periodo_res]
-                elif vista == "Semana":
-                    _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].apply(_semana_de_traz) == pd.Timestamp(_periodo_res)]
-                else:
-                    _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].dt.normalize() == pd.Timestamp(_periodo_res)]
+                _grp_meta = df_bbdd_res[df_bbdd_res["_fecha_venta"].dt.to_period("M") == _periodo_res]
                 _n_ref_r = int((_grp_meta["_canal_adq"].str.lower().str.contains("referido", na=False)).sum())
             else:
                 _n_ref_r = 0

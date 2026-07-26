@@ -416,40 +416,18 @@ def _ultimos_dias_lab(n=4):
         d -= pd.Timedelta(days=1)
     return list(reversed(dias))  # más antiguo primero
 
+# Resumen siempre a nivel mensual
 if not df_vtas.empty:
-    if vista == "Mes":
-        df_vtas["_periodo"] = df_vtas["fecha_venta"].dt.to_period("M")
-        def _lbl(p):
-            try: return f"{_MESES_ES[p.month - 1]} {p.year}"
-            except: return str(p)
-    elif vista == "Sem":
-        df_vtas["_periodo"] = df_vtas["fecha_venta"].apply(_semana_de)
-        def _lbl(p):
-            try: return f"Sem. {pd.Timestamp(p).strftime('%d/%m')}"
-            except: return str(p)
-    else:  # Día
-        df_vtas["_periodo"] = df_vtas["fecha_venta"].dt.normalize()
-        def _lbl(p):
-            try:
-                t = pd.Timestamp(p)
-                return f"{_DIAS_ES[t.weekday()]} {t.strftime('%d/%m')}"
-            except: return str(p)
-else:
-    def _lbl(p): return str(p)
+    df_vtas["_periodo"] = df_vtas["fecha_venta"].dt.to_period("M")
 
-# Últimos 4 períodos: siempre incluye el período actual (aunque no tenga ventas aún)
-if vista == "Día":
-    ultimos_4 = _ultimos_dias_lab(4)
-elif vista == "Mes":
-    _periodo_actual = pd.Timestamp.today().to_period("M")
-    _all_periodos   = set(df_vtas["_periodo"].dropna().unique()) if not df_vtas.empty else set()
-    _all_periodos.add(_periodo_actual)
-    ultimos_4 = sorted(_all_periodos)[-4:]
-else:  # Semana
-    _periodo_actual = _semana_de(pd.Timestamp.today())
-    _all_periodos   = set(df_vtas["_periodo"].dropna().unique()) if not df_vtas.empty else set()
-    _all_periodos.add(_periodo_actual)
-    ultimos_4 = sorted(_all_periodos)[-4:]
+def _lbl(p):
+    try: return f"{_MESES_ES[p.month - 1]} {p.year}"
+    except: return str(p)
+
+_periodo_actual = pd.Timestamp.today().to_period("M")
+_all_periodos   = set(df_vtas["_periodo"].dropna().unique()) if not df_vtas.empty else set()
+_all_periodos.add(_periodo_actual)
+ultimos_4 = sorted(_all_periodos)[-4:]
 
 # ── CPV mensual (inversión / ventas del mes) ─────────────────
 _cpv_mes_lookup: dict = {}
@@ -571,26 +549,13 @@ if ultimos_4:
     # ── Lookup presupuestos por período ──────────────────────
     _presu_por_periodo = {}
     if not df_presu.empty:
-        if vista == "Mes":
-            df_presu["_p"] = df_presu["_fecha"].dt.to_period("M")
-        elif vista == "Sem":
-            df_presu["_p"] = df_presu["_fecha"].apply(_semana_de)
-        else:
-            df_presu["_p"] = df_presu["_fecha"].dt.normalize()
+        df_presu["_p"] = df_presu["_fecha"].dt.to_period("M")
         _presu_por_periodo = df_presu.groupby("_p").size().to_dict()
 
     # ── Lookup leads/gf/inversión sin filtro de fechas ───────
-    # Recalculamos sobre el CRM filtrado (calidad+etiquetas) pero sin restricción de rango
     _crm_cards = _filtrar_crm(filtro_calidad)
-    if vista == "Mes":
-        _dv_full = datos_crm.calcular_meses_crm(_crm_cards, df_ads)
-        _dv_full["_vp"] = _dv_full["fecha_ini"].dt.to_period("M")
-    elif vista == "Sem":
-        _dv_full = datos_crm.calcular_semanas_crm(_crm_cards, df_ads)
-        _dv_full["_vp"] = _dv_full["fecha_ini"].dt.normalize()
-    else:
-        _dv_full = datos_crm.calcular_dias_crm(_crm_cards, df_ads, dias=30)
-        _dv_full["_vp"] = _dv_full["fecha_ini"].dt.normalize()
+    _dv_full = datos_crm.calcular_meses_crm(_crm_cards, df_ads)
+    _dv_full["_vp"] = _dv_full["fecha_ini"].dt.to_period("M")
     _vista_por_periodo = _dv_full.set_index("_vp").to_dict("index") if not _dv_full.empty else {}
 
     def _fmt_m(v): return "$ {:,.0f}".format(v) if v > 0 else "–"
