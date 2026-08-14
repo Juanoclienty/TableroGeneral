@@ -223,18 +223,21 @@ def _leads_to_df(leads: list) -> pd.DataFrame:
                        lead.get("note") or "")
 
         # Fecha de la 1ra reunión efectiva (campo interno Clienty)
+        # Buscar específicamente "1ra" o "efectiva" para no matchear "Dato interno hora reunion"
         fecha_reunion = ""
         _cfields = lead.get("customFields") or lead.get("custom_fields") or lead.get("fields") or []
         if isinstance(_cfields, list):
             for _f in _cfields:
                 if isinstance(_f, dict):
                     _fname = str(_f.get("name") or _f.get("label") or "").lower()
-                    if any(k in _fname for k in ("1ra", "primera", "reunion", "reuni")):
-                        fecha_reunion = str(_f.get("value") or "")
-                        break
+                    if any(k in _fname for k in ("1ra", "primera", "efectiva")):
+                        _val = str(_f.get("value") or "")
+                        if _val:
+                            fecha_reunion = _val
+                            break
         elif isinstance(_cfields, dict):
             for _k, _v in _cfields.items():
-                if any(kw in str(_k).lower() for kw in ("1ra", "primera", "reunion", "reuni")):
+                if any(kw in str(_k).lower() for kw in ("1ra", "primera", "efectiva")):
                     fecha_reunion = str(_v) if _v else ""
                     break
 
@@ -266,6 +269,7 @@ def _leads_to_df(leads: list) -> pd.DataFrame:
             "Monto":               str(monto_raw) if monto_raw else "",
             "Comentarios":         str(comentarios) if comentarios else "",
             "Fecha 1ra reunion":   fecha_reunion,
+            "utm_content":         str(lead.get("utmContent") or ""),
         })
     return pd.DataFrame(rows)
 
@@ -683,6 +687,13 @@ def cargar_presupuestos_semanas() -> dict:
     return {ts.normalize(): int(c) for ts, c in counts.items()}
 
 
+def _fmt_ob_date(s: str) -> str:
+    """Convierte 'yyyy-mm-dd' → 'dd-mm-yyyy'. Devuelve el original si no parsea."""
+    try:
+        return pd.Timestamp(s).strftime("%d-%m-%Y")
+    except Exception:
+        return s or "—"
+
 _BOARD_OB          = "18390960078"
 _GROUP_OB          = "topics"
 _COL_INICIO        = "date_mkyq9yq5"
@@ -691,6 +702,7 @@ _COL_ESTRAT        = "personas_mkm2txzr"
 _COL_RIESGO        = "color_mkyxb835"
 _COL_MOTIVO_RIESGO = "color_mm168av2"
 _COL_NOTAS         = "long_text_mm1ye19k"
+_COL_INSIGHT       = "long_text_mm5jvby3"
 _COL_RUBRO         = "reflejo6"
 _COL_SUBRUBRO      = "text_mm16rqy6"
 _COL_COM_LLAMADO   = "long_text_mm25mjnq"
@@ -779,7 +791,7 @@ def cargar_ob_detalle() -> "pd.DataFrame":
     """
     cols_ids = [
         _COL_INICIO, _COL_FIN, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
-        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_RUBRO, _COL_SUBRUBRO,
+        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_INSIGHT, _COL_RUBRO, _COL_SUBRUBRO,
         _COL_COM_LLAMADO, _COL_CARGA_AUTO, _COL_WAPBOT, _COL_BOT, _COL_COM_BOT,
         _COL_BBDD, _COL_OB1, _COL_DISENO, _COL_COM_GRAFICO, _COL_ESTADOS,
         _COL_OB2, _COL_OB2_SEC, _COL_AUTOMATIONS, _COL_OB3, _COL_CAP_VEND,
@@ -824,19 +836,30 @@ def cargar_ob_detalle() -> "pd.DataFrame":
                 pass
         sla = None
         if dias is not None:
-            sla = "≤30d" if dias <= 30 else ">30d"
+            sla = "-30" if dias <= 30 else "+30"
+        tiempo_ob = "Sin fecha"
+        if dias is not None:
+            if dias <= 2:
+                tiempo_ob = "Nuevo"
+            elif dias <= 9:
+                tiempo_ob = "3-9 días"
+            elif dias <= 20:
+                tiempo_ob = "10-20 días"
+            else:
+                tiempo_ob = "+20 días"
         def _cv(col): return cv.get(col, "") or ""
         filas.append({
             "nombre":        item.get("name", ""),
             "estratega":     estratega,
             "etapa":         etapa,
-            "inicio":        inicio or "—",
-            "fin_impl":      cv.get(_COL_FIN, "") or "",
+            "inicio":        _fmt_ob_date(inicio) if inicio else "—",
+            "fin_impl":      _fmt_ob_date(cv.get(_COL_FIN, "") or ""),
             "dias":          dias if dias is not None else "—",
             "sla":           sla or "Sin fecha",
+            "tiempo_ob":     tiempo_ob,
             "riesgo":        riesgo,
             "motivo_riesgo": _cv(_COL_MOTIVO_RIESGO),
-            "notas":         _cv(_COL_NOTAS),
+            "notas":         _cv(_COL_INSIGHT),
             "rubro":         _cv(_COL_RUBRO),
             "subrubro":      _cv(_COL_SUBRUBRO),
             "com_llamado":   _cv(_COL_COM_LLAMADO),
@@ -870,10 +893,10 @@ def cargar_ob_detalle() -> "pd.DataFrame":
 
 @_st.cache_data(ttl=3600, show_spinner=False)
 def cargar_ob_cerrados() -> "pd.DataFrame":
-    """OBs del grupo POB/Implementados, mismos campos que cargar_ob_detalle."""
+    """OBs con Fin de implementación completo (todos los grupos del board OB)."""
     cols_ids = [
         _COL_INICIO, _COL_FIN, _COL_ETAPA, _COL_ESTRAT, _COL_RIESGO,
-        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_RUBRO, _COL_SUBRUBRO,
+        _COL_MOTIVO_RIESGO, _COL_NOTAS, _COL_INSIGHT, _COL_RUBRO, _COL_SUBRUBRO,
         _COL_COM_LLAMADO, _COL_CARGA_AUTO, _COL_WAPBOT, _COL_BOT, _COL_COM_BOT,
         _COL_BBDD, _COL_OB1, _COL_DISENO, _COL_COM_GRAFICO, _COL_ESTADOS,
         _COL_OB2, _COL_OB2_SEC, _COL_AUTOMATIONS, _COL_OB3, _COL_CAP_VEND,
@@ -885,13 +908,11 @@ def cargar_ob_cerrados() -> "pd.DataFrame":
     fragment = f'name column_values(ids: {_json.dumps(cols_ids)}) {{ {_cv_f2} }}'
     q = (
         f'{{ boards(ids: [{_BOARD_OB}]) {{'
-        f'  groups(ids: ["{_GROUP_OB_CERR}"]) {{'
-        f'    items_page(limit: 500) {{ cursor items {{ {fragment} }} }}'
-        f'  }}'
+        f'  items_page(limit: 500) {{ cursor items {{ {fragment} }} }}'
         f'}}}}'
     )
     r      = _monday_request_cs(q)
-    page   = r["data"]["boards"][0]["groups"][0]["items_page"]
+    page   = r["data"]["boards"][0]["items_page"]
     items  = list(page["items"])
     cursor = page.get("cursor")
     while cursor:
@@ -908,30 +929,47 @@ def cargar_ob_cerrados() -> "pd.DataFrame":
         cv        = {c["id"]: _val2(c) for c in item["column_values"]}
         inicio    = cv.get(_COL_INICIO, "") or ""
         fin       = cv.get(_COL_FIN,    "") or ""
+        if not fin:
+            continue  # solo los que tienen Fin de implementación completo
         etapa     = cv.get(_COL_ETAPA,  "") or "Sin etapa"
         estratega = cv.get(_COL_ESTRAT, "") or "Sin estratega"
         riesgo    = cv.get(_COL_RIESGO, "") or "—"
         dias = None
-        if inicio:
+        if inicio and fin:
             try:
-                dias = (ayer - pd.Timestamp(inicio)).days
+                dias = (pd.Timestamp(fin) - pd.Timestamp(inicio)).days
             except Exception:
                 pass
         sla = None
         if dias is not None:
-            sla = "≤30d" if dias <= 30 else ">30d"
+            sla = "-30" if dias <= 30 else "+30"
+        hoy = pd.Timestamp.today().normalize()
+        def _t_desde(fecha_str):
+            try:
+                d = (hoy - pd.Timestamp(fecha_str)).days
+                if d <= 30:   return "1er mes"
+                if d <= 90:   return "1-3 meses"
+                if d <= 180:  return "4-6 meses"
+                if d <= 365:  return "6-12 meses"
+                return "+12 meses"
+            except Exception:
+                return "Sin fecha"
+        t_ini = _t_desde(inicio) if inicio else "Sin fecha"
+        t_fin = _t_desde(fin)    if fin    else "Sin fecha"
         def _cv(col): return cv.get(col, "") or ""
         filas.append({
             "nombre":        item.get("name", ""),
             "estratega":     estratega,
             "etapa":         etapa,
-            "inicio":        inicio or "—",
-            "fin_impl":      fin,
+            "inicio":        _fmt_ob_date(inicio) if inicio else "—",
+            "fin_impl":      _fmt_ob_date(fin),
             "dias":          dias if dias is not None else "—",
             "sla":           sla or "Sin fecha",
+            "t_ini":         t_ini,
+            "t_fin":         t_fin,
             "riesgo":        riesgo,
             "motivo_riesgo": _cv(_COL_MOTIVO_RIESGO),
-            "notas":         _cv(_COL_NOTAS),
+            "notas":         _cv(_COL_INSIGHT),
             "rubro":         _cv(_COL_RUBRO),
             "subrubro":      _cv(_COL_SUBRUBRO),
             "com_llamado":   _cv(_COL_COM_LLAMADO),
@@ -961,6 +999,153 @@ def cargar_ob_cerrados() -> "pd.DataFrame":
             "com_finales":   _cv(_COL_COM_FINALES),
         })
     return pd.DataFrame(filas)
+
+
+_BOARD_CS2026  = "6967792411"
+_GROUP_OB_ACT  = "topics"
+_GROUP_POB     = "grupo_nuevo_mkn8s17k"
+_GROUP_CHURN   = "grupo_nuevo"
+
+_COL_CS_ID      = "id8__1"
+_COL_CS_INGRESO = "fecha5"
+
+def cargar_ob_para_cs2026() -> dict:
+    """
+    Devuelve dict keyed por nombre (normalizado) con {estratega, inicio, fin, estado}.
+    Estado = OB/POB/Churn según grupo del item en el board OB.
+    """
+    _GRUPO_ESTADO = {
+        _GROUP_OB_ACT: "OB",
+        _GROUP_POB:    "POB",
+        _GROUP_CHURN:  "Churn",
+    }
+    cols = [_COL_ESTRAT, _COL_INICIO, _COL_FIN]
+    fragment = f'name group {{ id }} column_values(ids: {_json.dumps(cols)}) {{ id text }}'
+    q = (
+        f'{{ boards(ids: [{_BOARD_OB}]) {{'
+        f'  items_page(limit: 500) {{ cursor items {{ {fragment} }} }}'
+        f'}}}}'
+    )
+    r      = _monday_request_cs(q)
+    page   = r["data"]["boards"][0]["items_page"]
+    items  = list(page["items"])
+    cursor = page.get("cursor")
+    while cursor:
+        q2 = f'{{ next_items_page(limit: 500, cursor: "{cursor}") {{ cursor items {{ {fragment} }} }} }}'
+        r2 = _monday_request_cs(q2)
+        page = r2["data"]["next_items_page"]
+        items.extend(page["items"])
+        cursor = page.get("cursor")
+
+    result = {}
+    for item in items:
+        nombre = (item.get("name") or "").strip().lower()
+        if not nombre:
+            continue
+        cv     = {c["id"]: (c["text"] or "") for c in item["column_values"]}
+        grp_id = (item.get("group") or {}).get("id", "")
+        result[nombre] = {
+            "estratega": cv.get(_COL_ESTRAT, "") or "",
+            "inicio":    cv.get(_COL_INICIO, "") or "",
+            "fin":       cv.get(_COL_FIN,    "") or "",
+            "estado":    _GRUPO_ESTADO.get(grp_id, ""),
+        }
+    return result
+
+@_st.cache_data(ttl=86400, show_spinner=False)
+def cargar_cs2026_clientes() -> list:
+    """
+    Devuelve lista de dicts {id, nombre, fecha_ingreso} del board CS 2026
+    filtrados por fecha_ingreso >= 2026-01-01.
+    """
+    cols = [_COL_CS_ID, _COL_CS_INGRESO]
+    fragment = f'id name column_values(ids: {_json.dumps(cols)}) {{ id text }}'
+    q = (
+        f'{{ boards(ids: [{_BOARD_CS2026}]) {{'
+        f'  items_page(limit: 500) {{ cursor items {{ {fragment} }} }}'
+        f'}}}}'
+    )
+    r      = _monday_request_cs(q)
+    page   = r["data"]["boards"][0]["items_page"]
+    items  = list(page["items"])
+    cursor = page.get("cursor")
+    while cursor:
+        q2 = f'{{ next_items_page(limit: 500, cursor: "{cursor}") {{ cursor items {{ {fragment} }} }} }}'
+        r2 = _monday_request_cs(q2)
+        page = r2["data"]["next_items_page"]
+        items.extend(page["items"])
+        cursor = page.get("cursor")
+
+    _cutoff = pd.Timestamp("2026-01-01")
+    rows = []
+    for item in items:
+        cv      = {c["id"]: (c["text"] or "") for c in item["column_values"]}
+        ingreso = cv.get(_COL_CS_INGRESO, "") or ""
+        if not ingreso:
+            continue
+        try:
+            ts = pd.Timestamp(ingreso)
+        except Exception:
+            continue
+        if ts < _cutoff:
+            continue
+        rows.append({
+            "id":            cv.get(_COL_CS_ID, "") or item["id"],
+            "nombre":        item["name"] or "",
+            "fecha_ingreso": ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][ts.month-1] + f"-{str(ts.year)[2:]}",
+            "estratega":     "",
+            "inicio":        "",
+            "fin":           "",
+            "fecha_baja":    "",
+            "estado":        "",
+            "riesgo":        "",
+        })
+    return rows
+
+@_st.cache_data(ttl=86400, show_spinner=False)
+def cargar_cs2026() -> list:
+    """
+    Devuelve lista de dicts con keys: cat (ob/pob/churn), year, month.
+    Un registro por item que tenga fecha de inicio de implementación.
+    """
+    _GROUPS = {
+        _GROUP_OB_ACT: "ob",
+        _GROUP_POB:    "pob",
+        _GROUP_CHURN:  "churn",
+    }
+    fragment = f'group {{ id }} column_values(ids: ["{_COL_INICIO}"]) {{ id text }}'
+    q = (
+        f'{{ boards(ids: [{_BOARD_OB}]) {{'
+        f'  items_page(limit: 500) {{ cursor items {{ {fragment} }} }}'
+        f'}}}}'
+    )
+    r      = _monday_request_cs(q)
+    page   = r["data"]["boards"][0]["items_page"]
+    items  = list(page["items"])
+    cursor = page.get("cursor")
+    while cursor:
+        q2 = f'{{ next_items_page(limit: 500, cursor: "{cursor}") {{ cursor items {{ {fragment} }} }} }}'
+        r2 = _monday_request_cs(q2)
+        page = r2["data"]["next_items_page"]
+        items.extend(page["items"])
+        cursor = page.get("cursor")
+
+    rows = []
+    for item in items:
+        grp_id = (item.get("group") or {}).get("id", "")
+        cat    = _GROUPS.get(grp_id)
+        if not cat:
+            continue
+        cv     = {c["id"]: c["text"] for c in item["column_values"]}
+        inicio = cv.get(_COL_INICIO, "") or ""
+        if not inicio:
+            continue
+        try:
+            ts = pd.Timestamp(inicio)
+            rows.append({"cat": cat, "year": int(ts.year), "month": int(ts.month)})
+        except Exception:
+            continue
+    return rows
 
 
 import json as _json_mod

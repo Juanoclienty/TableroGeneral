@@ -4,6 +4,11 @@
       "Clientes en OB": 37,
       "OB en SLA (≤30d)": 15,
       "OB fuera de SLA (>30d)": 13
+    },
+    "2026-08-03": {
+      "Clientes en OB": 40,
+      "OB en SLA (≤30d)": 11,
+      "OB fuera de SLA (>30d)": 25
     }
   },
   "monthly": {}

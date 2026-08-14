@@ -374,6 +374,7 @@ def _render(d, year):
         out = ""
         for lbl, vals in detail:
             tot = _sum(vals)
+            avg = _avg(vals)
             out += f'<tr class="det-{grp}" style="display:none">'
             out += (f'<td style="{_STICKY}padding:2px 8px 2px {indent_px}px;border:1px solid #e2e8f0;'
                     f'background:{_DET_BG};color:{color};font-size:0.7rem;'
@@ -381,6 +382,7 @@ def _render(d, year):
             for v in vals:
                 out += _td(_fmt(v) if v is not None else "–", _DET_BG, color, "400", "0.7rem")
             out += _td(_fmt(tot) if tot is not None else "–", "#f1f5f9", color, "400", "0.7rem")
+            out += _td(_fmt(avg) if avg is not None else "–", _DET_BG,  color, "400", "0.7rem")
             out += '</tr>'
         return out
 
@@ -392,6 +394,7 @@ def _render(d, year):
         for gi, (gname, gvals, items) in enumerate(groups):
             g2 = f"{l1_grp}-g{gi}"
             tot = _sum(gvals)
+            gav = _avg(gvals)
             has_items = items and len(items) > 0
             toggle2 = (f'<button id="btn-{g2}" class="tog" onclick="tog(\'{g2}\')">'
                        f'&#9654;</button>') if has_items else ""
@@ -403,11 +406,13 @@ def _render(d, year):
             for v in gvals:
                 out += _td(_fmt(v) if v is not None else "–", _DET2, color, "600", "0.72rem")
             out += _td(_fmt(tot) if tot is not None else "–", "#dbeafe", color, "600", "0.72rem")
+            out += _td(_fmt(gav) if gav is not None else "–", _DET2,    color, "600", "0.72rem")
             out += '</tr>'
             # L3 rows
             if has_items:
                 for iname, ivals in items:
                     itot = _sum(ivals)
+                    iav  = _avg(ivals)
                     out += f'<tr class="det-{g2}" style="display:none">'
                     out += (f'<td style="{_STICKY}padding:2px 8px 2px 34px;border:1px solid #e2e8f0;'
                             f'background:{_DET3};color:{color};font-size:0.68rem;'
@@ -415,6 +420,7 @@ def _render(d, year):
                     for v in ivals:
                         out += _td(_fmt(v) if v is not None else "–", _DET3, color, "400", "0.68rem")
                     out += _td(_fmt(itot) if itot is not None else "–", "#f1f5f9", color, "400", "0.68rem")
+                    out += _td(_fmt(iav)  if iav  is not None else "–", _DET3,    color, "400", "0.68rem")
                     out += '</tr>'
         return out
 
@@ -462,6 +468,8 @@ def _render(d, year):
               f'font-size:0.7rem;border:1px solid #e2e8f0;white-space:nowrap">{m}</th>')
     h += (f'<th style="background:#0f2743;color:white;padding:4px 7px;text-align:right;'
           f'font-size:0.7rem;border:1px solid #e2e8f0">Total</th>')
+    h += (f'<th style="background:#1a3a5c;color:#93c5fd;padding:4px 7px;text-align:right;'
+          f'font-size:0.7rem;border:1px solid #e2e8f0;font-style:italic">Promedio</th>')
     h += '</tr></thead><tbody>'
 
     # Darker shades for the Total column (one tone stronger than row bg)
@@ -486,15 +494,17 @@ def _render(d, year):
             h += (f'<td style="{_STICKY}background:{bg};color:{color};font-weight:{fw};'
                   f'font-size:{fs};padding:5px 12px;border:1px solid #475569;'
                   f'letter-spacing:.04em">{label_disp}</td>')
-            for _ in range(n + 1):
+            for _ in range(n + 2):
                 h += (f'<td style="background:{bg};border:1px solid #475569"></td>')
             h += '</tr>'
             continue
 
         vals = _row_data(key) if key else [None] * n
         total = _sum(vals)
+        avg   = _avg(vals)
         bg2   = TOTAL_COL_BG[style]
         total_c = "#b91c1c" if (total is not None and total < 0) else color
+        avg_c   = "#b91c1c" if (avg   is not None and avg   < 0) else color
 
         # ── expand buttons ────────────────────────────────────────────────────
         # 1. Structure-level parent toggle (expands/collapses child STRUCTURE rows)
@@ -540,6 +550,7 @@ def _render(d, year):
             _c = "#b91c1c" if (v is not None and v < 0 and style in ("highlight","result","total")) else color
             h += _td(cell, bg, _c, fw, fs)
         h += _td(_fmt(total) if total is not None else "–", bg2, total_c, fw, fs)
+        h += _td(_fmt(avg)   if avg   is not None else "–", bg,  avg_c,   fw, fs, )
         h += '</tr>'
 
         if det_grp and groups:

@@ -233,22 +233,23 @@ df["Fecha R2 - CRM"] = df[_col_r2_crm].apply(_parse_fecha_reunion) if _col_r2_cr
 # ── Join con ads: Tipo de contenido y Temática ───────────────
 def _xnum(s):
     m = re.search(r"\d+", str(s))
-    return m.group(0) if m else ""
+    return int(m.group(0)) if m else -1
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cargar_anexo_ads():
+    try:
+        return datos.cargar_anexo_ads()
+    except Exception:
+        return pd.DataFrame(columns=["_num", "tipo", "tematica"])
 
 try:
-    _ads_raw = datos.cargar_ads() if hasattr(datos, "cargar_ads") else pd.DataFrame()
-    _df_ads = _ads_raw if isinstance(_ads_raw, pd.DataFrame) else pd.DataFrame()
-    if not _df_ads.empty and "nombre_ad" in _df_ads.columns:
-        _df_ads_u = (
-            _df_ads[["nombre_ad", "tipo", "tematica"]]
-            .copy()
-            .assign(_num=lambda x: x["nombre_ad"].apply(_xnum))
-            .drop_duplicates(subset="_num", keep="last")
-            [["_num", "tipo", "tematica"]]
-        )
+    _df_ads_u = _cargar_anexo_ads()
+    if not _df_ads_u.empty:
         df["_num"] = df["utm_content"].apply(_xnum)
         df = df.merge(_df_ads_u, on="_num", how="left")
         df.drop(columns=["_num"], inplace=True)
+        df["tipo"]     = df["tipo"].fillna("")
+        df["tematica"] = df["tematica"].fillna("")
     else:
         df["tipo"] = ""
         df["tematica"] = ""

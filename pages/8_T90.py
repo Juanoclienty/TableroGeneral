@@ -100,20 +100,7 @@ window.addEventListener('load', function() {
 });
 
 function toggleQ_checkbox() {
-    showQ = document.getElementById('chk-q').checked;
     applyQVisibility();
-    // Si se muestran Qs, asegurar que los años estén expandidos
-    if(showQ) {
-        Object.keys(ymap).forEach(function(yid) {
-            if(!ystate[yid]) {
-                var qs = ymap[yid] || [];
-                qs.forEach(function(qid){ setCols([qid], false); setCols(qmap[qid]||[], false); });
-                ystate[yid] = true;
-                var btn = document.getElementById('btn-'+yid);
-                if(btn) btn.textContent = '−';
-            }
-        });
-    }
 }
 
 function toggleY(yid) {
@@ -256,18 +243,15 @@ def render_t90_tabla(kpis, datos_mes=None, datos_q=None, datos_yr=None):
     n_sep = sum(1 for it in kpis if it[1] == "sep")
     n_sub = sum(1 for it in kpis if len(it) > 2 and it[2] == "sub")
     height = (len(kpis) - n_sep - n_sub) * 27 + n_sub * 22 + n_sep * 6 + 70
-    chk = ("<div style='margin-bottom:6px;font-size:0.75rem;color:#475569'>"
-           "<label style='cursor:pointer;user-select:none'>"
-           "<input type='checkbox' id='chk-q' onchange='toggleQ_checkbox()' "
-           "style='margin-right:5px;cursor:pointer'>Ver trimestres</label></div>")
+    show_q = st.session_state.get("_t90_show_q", False)
+    init_js = f"var showQ = {'true' if show_q else 'false'};"
     html = (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         f"<style>{_CSS}</style></head><body>"
-        f"{chk}"
         f"<div class='wrap'><table><thead>{head}</thead><tbody>{tbody}</tbody></table></div>"
-        f"<script>{js}</script></body></html>"
+        f"<script>{init_js}{js}</script></body></html>"
     )
-    st.iframe(html, height=height + 80)
+    st.iframe(html, height=height + 50)
 
 
 # ── Tabs ──────────────────────────────────────────────────────────
@@ -496,6 +480,7 @@ with tab_real:
                 render_semanas_tabla(_VARS_PLACEHOLDER, _datos_sem, _semanas)
     except Exception as _e:
         st.exception(_e)
+    st.session_state["_t90_show_q"] = st.toggle("Ver trimestres", value=st.session_state.get("_t90_show_q", False), key="tgl_real")
     _id_t90  = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
     _id_bbdd = "1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M"
     st.caption(
@@ -514,6 +499,14 @@ with tab_mkt:
             for _p, _g in _df_ads_raw.groupby("_mes_key"):
                 _ads_mes[(_p.year, _p.month)] = float(_g["inversion"].sum())
         _mes_mkt, _q_mkt, _yr_mkt = _construir_datos_mkt(_df_men, _vc, _pc, _ads_mes)
+        # Corrección manual: mayo 2025 cortado en el CRM
+        if (2025, 5) not in _mes_mkt:
+            _mes_mkt[(2025, 5)] = {}
+        _mes_mkt[(2025, 5)]["Leads"] = 529
+        _inv_may25  = _mes_mkt[(2025, 5)].get("Inversión publicidad") or 0
+        _vtas_may25 = _mes_mkt[(2025, 5)].get("Ventas reales") or 0
+        _mes_mkt[(2025, 5)]["CPL"]             = round(_inv_may25 / 529) if _inv_may25 else None
+        _mes_mkt[(2025, 5)]["Tasa Vtas/Leads"] = _vtas_may25 / 529 * 100 if _vtas_may25 else None
     except Exception as e:
         st.error(f"Error cargando datos MKT: {e}")
         _mes_mkt = _q_mkt = _yr_mkt = {}
@@ -528,6 +521,7 @@ with tab_mkt:
                 render_semanas_tabla(_kpis_sem, _datos_sem, _semanas)
     except Exception as _e:
         st.exception(_e)
+    st.session_state["_t90_show_q"] = st.toggle("Ver trimestres", value=st.session_state.get("_t90_show_q", False), key="tgl_mkt")
     st.markdown(
         "<div style='font-size:0.8rem;color:#6b7280;margin-top:4px'>"
         "Fuente:<br>"
@@ -614,6 +608,7 @@ with tab_fin:
         render_t90_tabla(_FIN_KPIS, datos_mes=_mes_fin, datos_q=_q_fin, datos_yr=_yr_fin)
     except Exception as _e:
         st.exception(_e)
+    st.session_state["_t90_show_q"] = st.toggle("Ver trimestres", value=st.session_state.get("_t90_show_q", False), key="tgl_fin")
     _id_fin = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
     st.caption(f"Fuente: [T90 / Finanzas](https://docs.google.com/spreadsheets/d/{_id_fin})")
 
@@ -736,8 +731,10 @@ with tab_cs:
                 render_semanas_tabla(_kpis_sem_cs, _datos_sem_cs, _semanas)
     except Exception as _e:
         st.exception(_e)
+    st.session_state["_t90_show_q"] = st.toggle("Ver trimestres", value=st.session_state.get("_t90_show_q", False), key="tgl_cs")
     _id_fin_cs = "15BJQ-28m5KvAcQeE0Mp76UnIyUVjMK1O"
     st.caption(
         f"Fuente: CRM Clienty · "
         f"[T90 / Finanzas](https://docs.google.com/spreadsheets/d/{_id_fin_cs})"
     )
+

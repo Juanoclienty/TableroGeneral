@@ -26,7 +26,27 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(python -m py_compile pages/1_Marketing.py)",
+      "Bash(git push *)",
+      "Bash(python -m py_compile pages/4_Trazabilidad.py)",
+      "Bash(git commit -m ' *)",
+      "Bash(git revert *)",
+      "Bash(git commit -m 'chore: limpiar script JS de agrupacion descartada en app.py *)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('pages/1_Marketing.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(Remove-Item \"cache\\\\sheet_ads.parquet\" -Force)",
+      "Bash(Write-Host \"Borrado\")",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:doc-04-b4-sheets.googleusercontent.com)",
+      "mcp__e7d846d5-fd2c-466f-99d7-dc8331ae35fe__get_board_info",
+      "Bash(curl -sL \"https://docs.google.com/spreadsheets/d/1xwT9izxEpo2caQqD-QdATnzwp5Jz6gtNRfxkpnuWisw/gviz/tq?tqx=out:csv&sheet=Tablero+-+sin+data\")",
+      "Bash(curl -sL \"https://docs.google.com/spreadsheets/d/1xwT9izxEpo2caQqD-QdATnzwp5Jz6gtNRfxkpnuWisw/export?format=csv&sheet=Tablero+-+sin+data\" -H \"Cookie:\")",
+      "Bash(curl -sL \"https://docs.google.com/spreadsheets/d/1xwT9izxEpo2caQqD-QdATnzwp5Jz6gtNRfxkpnuWisw/feeds/worksheets/default/public/full\")",
+      "Bash(curl -sL \"https://docs.google.com/spreadsheets/d/1xwT9izxEpo2caQqD-QdATnzwp5Jz6gtNRfxkpnuWisw/export?format=csv&gid=1\")",
+      "Bash(curl -sL \"https://docs.google.com/spreadsheets/d/1pputir93lb57bmFawlAiUMMK--758jRVCWSMOVX9tm0/export?format=csv&gid=0\")",
+      "Bash(git commit -m 'feat: remove login requirement, auto-authenticate as completo *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ]
   }
 }

@@ -26,16 +26,22 @@ OBJ = {
 # ── Carga sheets ─────────────────────────────────────────────────
 
 def _fetch_csv(sheet_name: str) -> pd.DataFrame:
-    import os
+    import os, time
     cache_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", f"traz_{sheet_name}.parquet")
-    if os.path.exists(cache_path):
+    _TTL = 1800  # 30 minutos
+    if os.path.exists(cache_path) and (time.time() - os.path.getmtime(cache_path)) < _TTL:
         return pd.read_parquet(cache_path)
     url = (
         f"https://docs.google.com/spreadsheets/d/{ID_SHEET}"
         f"/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
     )
     with urllib.request.urlopen(url, timeout=30) as r:
-        return pd.read_csv(r, header=0)
+        df = pd.read_csv(r, header=0)
+    try:
+        df.to_parquet(cache_path, index=False)
+    except Exception:
+        pass
+    return df
 
 
 def _fetch_external_csv(sheet_id: str, sheet_name: str) -> pd.DataFrame:
@@ -945,15 +951,17 @@ with tab_gral:
                       "label_fg": "#334155"},
         }
     
+        _STICKY_COL = "position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.08)"
+
         def _estilos_tema(tema, compacto=False):
             t = _TEMAS[tema]
             base_td = (
                 f"font-size:0.70rem;padding:3px 8px;{_S};overflow:hidden" if compacto else _BASE_TD
             )
-            thl = f"text-align:left;color:{t['hdr_fg']};background:{t['hdr_bg']};{_WM};{_BASE_TH}"
+            thl = f"text-align:left;color:{t['hdr_fg']};background:{t['hdr_bg']};{_WM};{_BASE_TH};{_STICKY_COL}"
             th  = f"text-align:center;color:{t['hdr_fg']};background:{t['hdr_bg']};{_WP};{_BASE_TH}"
             ths = f"text-align:center;color:{t['hdr_fg']};background:{t['hdr_bg']};{_WS};{_BASE_TH}"
-            tdl = f"text-align:left;font-weight:600;color:{t['label_fg']};{_WM};{base_td}"
+            tdl = f"text-align:left;font-weight:600;color:{t['label_fg']};{_WM};{base_td};{_STICKY_COL}"
             td  = f"text-align:center;{_WP};{base_td}"
             tds = f"text-align:center;font-weight:500;{_WS};{base_td}"
             return t, thl, th, ths, tdl, td, tds
@@ -996,8 +1004,9 @@ with tab_gral:
                 body  += f"<tr>{cells}</tr>"
     
             st.markdown(
-                '<table style="table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:6px">'
-                f'<thead><tr>{hdr}</tr></thead><tbody>{body}</tbody></table>',
+                '<div style="overflow-x:auto">'
+                '<table style="table-layout:fixed;border-collapse:collapse;margin-bottom:6px">'
+                f'<thead><tr>{hdr}</tr></thead><tbody>{body}</tbody></table></div>',
                 unsafe_allow_html=True,
             )
     
@@ -1262,13 +1271,20 @@ with tab_gral:
 
         # ── Fila "Proy. ventas" (solo Día o Semana) ──────────────────
         if vista in ("Día", "Semana"):
-            _pesos = {"ch_alta": 0.38, "ch_media_alta": 0.20, "ch_media": 0.13, "ch_baja": 0.06}
+            _CUTOFF_PESOS = pd.Timestamp("2026-08-01")
+            _PESOS_OLD = {"ch_alta": 0.38, "ch_media_alta": 0.20, "ch_media": 0.13, "ch_baja": 0.06}
+            _PESOS_NEW = {"ch_alta": 0.47, "ch_media_alta": 0.33, "ch_media": 0.13, "ch_baja": 0.06}
             _proy_vals = []
             _proy_cells = (
                 f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_BASE_TD_ch};'
                 f'background:#f0f4ff;border-top:2px solid #cbd5e1">Proy. ventas</td>'
             )
             for _row_agg in df_show.itertuples():
+                if vista == "Día":
+                    _row_date = pd.Timestamp(getattr(_row_agg, "fecha", pd.NaT))
+                else:
+                    _row_date = pd.Timestamp(getattr(_row_agg, "lunes", pd.NaT))
+                _pesos = _PESOS_NEW if pd.notna(_row_date) and _row_date >= _CUTOFF_PESOS else _PESOS_OLD
                 _proy = sum(int(getattr(_row_agg, col, 0)) * peso for col, peso in _pesos.items())
                 _proy_r = round(_proy, 1)
                 _proy_vals.append(_proy_r)
@@ -1290,7 +1306,7 @@ with tab_gral:
             '<table style="table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:4px">'
             f'<thead><tr>{_hdr_ch}</tr></thead><tbody>{_body_ch}</tbody></table>'
             '<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px">'
-            'Proy. ventas = Alta×0.38 + Media-Alta×0.20 + Media×0.13 + Baja×0.06</div>',
+            'Proy. ventas: hasta Jul-26 = Alta×0.38 + Media-Alta×0.20 + Media×0.13 + Baja×0.06 · desde Ago-26 = Alta×0.47 + Media-Alta×0.33 + Media×0.13 + Baja×0.06</div>',
             unsafe_allow_html=True,
         )
     
@@ -1612,7 +1628,7 @@ with tab_cc:
                       "5.1 - R2 confirmada"}
         _R2_EFECT  = {"Buyer Sin interés"}
         _PRESU     = {"Stand By", "Contactar a Futuro", "Venta ganada",
-                      "Dijo que no", "Follow 2", "Follow Clienty"}
+                      "Dijo que no", "Follow 2", "Follow Clienty", "Últimos detalles"}
 
         def _bucket_crm(estado):
             if estado in _R2A_PEND: return "r2a_pend"
@@ -1736,6 +1752,7 @@ with tab_cc:
         # ── Construir tablas HTML ────────────────────────────────────
         _S  = "border:1px solid #e2e8f0"
         _WM = "width:160px;min-width:160px;max-width:160px"
+        _STICKY = "position:sticky;left:0;z-index:2"
         _WP = "width:105px;min-width:105px;max-width:105px"
         _WS = "width:88px;min-width:88px;max-width:88px"
         _TH = f"font-size:0.78rem;font-weight:600;padding:6px 8px;{_S};overflow:hidden"
@@ -1755,7 +1772,7 @@ with tab_cc:
 
         # Encabezado compartido
         def _build_hdr(hdr_bg, hdr_fg):
-            h = f'<th style="text-align:left;color:{hdr_fg};background:{hdr_bg};{_WM};{_TH}">Métrica</th>'
+            h = f'<th style="text-align:left;color:{hdr_fg};background:{hdr_bg};{_WM};{_TH};{_STICKY}">Métrica</th>'
             for _, r in df_show_cc.iterrows():
                 h += f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WP};{_TH}">{r["_lbl"]}</th>'
             h += (f'<th style="text-align:center;color:{hdr_fg};background:{hdr_bg};{_WS};{_TH}">{_lbl_res_cc}</th>'
@@ -1776,7 +1793,7 @@ with tab_cc:
             bg  = _bgs[i % 2]; bgs = _bgss[i % 2]
             vals = [int(r[col]) if col in df_show_cc.columns and pd.notna(r[col]) else 0
                     for _, r in df_show_cc.iterrows()]
-            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TD};background:{bg}">{lbl}</td>'
+            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TD};background:{bg};{_STICKY}">{lbl}</td>'
             for (_, row_p), v in zip(df_show_cc.iterrows(), vals):
                 p_str = str(row_p["_periodo_str"])
                 filt = f"periodo:{p_str}|{filt_total}" if filt_total != "metrica:leads" else f"periodo:{p_str}"
@@ -1805,7 +1822,7 @@ with tab_cc:
             bg  = _bgs[i % 2]; bgs = _bgss[i % 2]
             vals = [int(row_p[col]) if col in df_show_cc.columns and pd.notna(row_p[col]) else 0
                     for _, row_p in df_show_cc.iterrows()]
-            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDv};background:{bg}">{lbl}</td>'
+            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDv};background:{bg};{_STICKY}">{lbl}</td>'
             for (_, row_p), v in zip(df_show_cc.iterrows(), vals):
                 p_str = str(row_p["_periodo_str"])
                 onclick = f' data-filter="periodo:{p_str}|bucket:{col}"' if v else ""
@@ -1829,21 +1846,25 @@ with tab_cc:
             return f"{round(num/den*100)}%" if den else ""
 
         _RATIOS = [
-            ("%R1/Lead cont.",  "follow_podcast", "filtrado_en_r1", "leads"),
-            ("%FP/Lead cont.",  "follow_podcast",  None,            "leads"),
+            ("%R1/Lead cont.",    "follow_podcast", "filtrado_en_r1", "leads"),
+            ("%FP/Lead cont.",    "follow_podcast",  None,            "leads"),
+            ("%Presu./FP",        "presupuesto",     None,            "follow_podcast"),
         ]
         for i, ratio_def in enumerate(_RATIOS):
             lbl   = ratio_def[0]
             bg    = _bg_ratio[i % 2]; bgs = _bgs_ratio[i % 2]
-            vals_str = []
             nums_sum = 0; dens_sum = 0
-            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDr};background:{bg}">{lbl}</td>'
+            cells = f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_TDr};background:{bg};{_STICKY}">{lbl}</td>'
             for _, row_p in df_show_cc.iterrows():
                 if ratio_def[0] == "%R1/Lead cont.":
                     num = int(row_p.get("follow_podcast", 0) or 0) + int(row_p.get("filtrado_en_r1", 0) or 0)
+                    den = int(row_p.get("leads", 0) or 0)
+                elif ratio_def[0] == "%Presu./FP":
+                    num = int(row_p.get("presupuesto", 0) or 0)
+                    den = int(row_p.get("follow_podcast", 0) or 0)
                 else:
                     num = int(row_p.get("follow_podcast", 0) or 0)
-                den = int(row_p.get("leads", 0) or 0)
+                    den = int(row_p.get("leads", 0) or 0)
                 nums_sum += num; dens_sum += den
                 v = _pct(num, den)
                 cells += f'<td style="text-align:center;{_WP};{_TDr};background:{bg}">{v}</td>'
@@ -1860,7 +1881,7 @@ with tab_cc:
         _hdr_b = _build_hdr(_HB, _HF)
 
         _n_det = len(_det_rows)
-        _height = 34 + 5 * 34 + 16 + (4 + 2) * 30 + 40 + 50 + _n_det * 31 + 80
+        _height = 34 + 5 * 34 + 16 + (4 + 3) * 30 + 40 + 50 + _n_det * 31 + 80
 
         _html_cc = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
 <style>
@@ -1872,8 +1893,8 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 .det-tbl{{width:100%;border-collapse:collapse;font-size:0.8rem;table-layout:auto}}
 .det-th{{padding:6px 12px;font-weight:600;background:#f1f5f9;color:#475569;border-bottom:2px solid #e2e8f0;cursor:pointer;white-space:nowrap;text-align:left}}
 .det-th:hover{{background:#e2e8f0}}
-.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;cursor:pointer}}
-.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center;cursor:pointer}}
+.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;cursor:pointer;user-select:text}}
+.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center;cursor:pointer;user-select:text}}
 .det-tr:hover .det-td,.det-tr:hover .det-td-c{{background:#f0f4f8}}
 .det-tr.active .det-td,.det-tr.active .det-td-c{{background:#e8f0f8;border-bottom:none}}
 .exp-tr td{{background:#f0f4f8;border-left:3px solid #1a3a5c;border-bottom:1px solid #e2e8f0;padding:12px 16px;cursor:default}}
@@ -1887,7 +1908,7 @@ td[data-filter]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2)
 .count{{font-size:0.78rem;color:#64748b;margin:10px 0 4px;display:inline-block}}
 </style>
 </head><body>
-<table style="margin-bottom:12px;width:100%;table-layout:auto"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table>
+<div style="overflow-x:auto;margin-bottom:12px"><table style="width:100%;table-layout:auto"><thead><tr>{_hdr_b}</tr></thead><tbody>{body_combined}</tbody></table></div>
 <div style="display:flex;align-items:center;margin:10px 0 4px">
 <div class="count" id="det-count"></div>
 </div>

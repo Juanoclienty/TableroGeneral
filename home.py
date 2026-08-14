@@ -43,12 +43,14 @@ _TODAS = [
     ("T90",             "📊", "Análisis de primeros 90 días",                                          "pages/8_T90.py",               "Ir a T90"),
     ("Est. Resultados", "📋", "Estado de resultados financiero",                                       "pages/9_Estado_Resultados.py", "Ir a Est. Resultados"),
     ("Histórico",       "📅", "Histórico de bajas y ventas",                                           "pages/10_Historico.py",        "Ir a Histórico"),
+    ("Objetivos",       "🎯", "Objetivos de marketing y ventas, real vs proyectado",                  "pages/11_Objetivos.py",        "Ir a Objetivos"),
+    ("Actualizar BD",   "🔄", "Refrescá los datos del CRM y las fuentes externas",                     "pages/2_Actualizar_BD.py",     "Ir a Actualizar BD"),
 ]
 
 _PERFIL_PAGINAS = {
-    "mkt_vtas": {"Marketing", "Ventas", "Trazabilidad", "T90"},
-    "finanzas":  {"LTV", "Est. Resultados", "T90"},
-    "cs":        {"CS", "T90"},
+    "mkt_vtas": {"Marketing", "Ventas", "Trazabilidad", "T90", "Objetivos"},
+    "finanzas":  {"LTV", "Est. Resultados", "T90", "Objetivos"},
+    "cs":        {"CS", "T90", "Objetivos"},
     "completo":  None,
 }
 

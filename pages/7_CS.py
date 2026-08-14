@@ -477,7 +477,7 @@ def _make_iframe_js(bdata_json: str, yr_field: str, m_field: str) -> str:
 
 # ── Exportador Excel de cohortes ──────────────────────────────────
 
-def _export_cohorte_excel(df_b: pd.DataFrame, df_v: pd.DataFrame,
+def _export_cohorte_excel(df_b: pd.DataFrame, df_all_mon: pd.DataFrame,
                            df_act: pd.DataFrame, gran1: str, gran2: str) -> bytes:
     IVLS  = ["0", "0-3", "+3", "+6", "+12"]
     HDR1  = (26, 84, 92)   # azul oscuro
@@ -583,12 +583,16 @@ def _export_cohorte_excel(df_b: pd.DataFrame, df_v: pd.DataFrame,
     for i in range(3, 18): ws1.column_dimensions[get_column_letter(i)].width = 9
     ws1.row_dimensions[1].height = 18; ws1.row_dimensions[2].height = 16
 
-    # ── Hoja 2: Cohorte de Venta ──────────────────────────────────
+    # ── Hoja 2: Cohorte de Venta (fecha_ingreso Monday) ──────────────
     ws2 = wb.create_sheet("Cohorte Venta")
 
-    df_vtas = df_v[df_v["_fecha"].dt.year >= 2024].copy()
-    df_vtas["_y"] = df_vtas["_fecha"].dt.year
-    df_vtas["_m"] = df_vtas["_fecha"].dt.month
+    df_vtas = df_all_mon[df_all_mon["_fecha_ingreso"].notna()].copy()
+    df_vtas = df_vtas[df_vtas["_fecha_ingreso"].dt.year >= 2024].copy()
+    # Deduplicar por (ID CRM + Nombre) igual que la tabla en pantalla
+    df_vtas = df_vtas[~df_vtas.duplicated(subset=["ID CRM", "Nombre"], keep="first")].copy()
+    df_vtas["_y"] = df_vtas["_fecha_ingreso"].dt.year
+    df_vtas["_m"] = df_vtas["_fecha_ingreso"].dt.month
+    df_vtas["_es_baja"] = df_vtas["grupo_id"] != _GROUP_ACTIVOS
     is_trim2 = gran2 == "Trimestre"
     if is_trim2:
         df_vtas["_p"] = ((df_vtas["_m"] - 1) // 3 + 1)
@@ -597,18 +601,19 @@ def _export_cohorte_excel(df_b: pd.DataFrame, df_v: pd.DataFrame,
         df_vtas["_p"] = df_vtas["_m"]
         def fmt_p2(p): return str(int(p))
 
-    _tmp = (df_b[df_b["_fecha_baja"].notna() & df_b["_fecha_ingreso"].notna() & (df_b["ID CRM"] != "")]
-            .drop_duplicates("ID CRM").copy())
-    _tmp["_meses_raw"] = (_tmp["_fecha_baja"] - _tmp["_fecha_ingreso"]).dt.days / 30
-    baja_map2 = _tmp.set_index("ID CRM")["_meses_raw"].to_dict()
-    df_vtas["_meses_activos"] = df_vtas["_id"].map(baja_map2)
-    df_vtas["_iv"] = df_vtas["_meses_activos"].apply(_cat)
+    # Meses activos para bajas
+    df_vtas["_meses_raw"] = None
+    _mask2 = df_vtas["_es_baja"] & df_vtas["_fecha_baja"].notna()
+    df_vtas.loc[_mask2, "_meses_raw"] = (
+        (df_vtas.loc[_mask2, "_fecha_baja"] - df_vtas.loc[_mask2, "_fecha_ingreso"]).dt.days / 30
+    )
+    df_vtas["_iv"] = df_vtas["_meses_raw"].apply(_cat)
 
     ventas_piv2 = df_vtas.groupby(["_y","_p"]).size()
     ventas_yr2  = df_vtas.groupby("_y").size()
-    df_baj2     = df_vtas.dropna(subset=["_iv"]).copy()
-    bajas_piv2  = df_baj2.groupby(["_y","_p"]).size()
-    bajas_yr2   = df_baj2.groupby("_y").size()
+    df_baj2     = df_vtas[df_vtas["_es_baja"] & df_vtas["_iv"].notna()].copy()
+    bajas_piv2  = df_vtas[df_vtas["_es_baja"]].groupby(["_y","_p"]).size()
+    bajas_yr2   = df_vtas[df_vtas["_es_baja"]].groupby("_y").size()
     bajas_iv_piv2 = (df_baj2.groupby(["_y","_p","_iv"]).size()
                      .unstack(fill_value=0).reindex(columns=IVLS, fill_value=0))
     bajas_iv_yr2  = (df_baj2.groupby(["_y","_iv"]).size()
@@ -827,81 +832,82 @@ def _cohorte_html(df_b: pd.DataFrame, granularity: str) -> tuple[str, int]:
 
 def _cohorte_ventas_html(
     df_b: pd.DataFrame,
-    df_v: pd.DataFrame,
+    df_all_mon: pd.DataFrame,
     df_act: pd.DataFrame,
     granularity: str,
 ) -> tuple[str, int]:
     """
-    Tabla de cohorts por MES DE VENTA (BBDD_Ventas).
-    - Ventas: cantidad de ventas de ese cohorte
-    - Bajas: cuántas de esas ventas están hoy dadas de baja en Monday
-    - Intervalos: desglose de bajas por Meses activos
+    Tabla de cohorts por MES DE INGRESO MONDAY (fecha5).
+    - Ventas: items ingresados ese mes en Monday (activos + bajas)
+    - Activos: items actualmente activos de ese cohorte
+    - Bajas: items dados de baja de ese cohorte
+    - Intervalos: desglose de bajas por (fecha_baja - fecha_ingreso)
     - % sobre ventas: cada columna / Ventas del cohorte
     """
     IVLS = ["0", "0-3", "+3", "+6", "+12"]
+    _hoy_v = pd.Timestamp(date.today())
 
-    # Preparar ventas desde 2024
-    df_vtas = df_v.copy()
-    df_vtas = df_vtas[df_vtas["_fecha"].dt.year >= 2024].copy()
-    if df_vtas.empty:
-        return "<p style='padding:12px;color:#666'>Sin datos de ventas desde 2024.</p>", 60
+    # Todos los items con fecha_ingreso desde 2024
+    df_all_fi = df_all_mon[df_all_mon["_fecha_ingreso"].notna()].copy()
+    df_all_fi = df_all_fi[df_all_fi["_fecha_ingreso"].dt.year >= 2024].copy()
+    if df_all_fi.empty:
+        return "<p style='padding:12px;color:#666'>Sin datos de ingreso Monday desde 2024.</p>", 60
 
-    df_vtas["_y"] = df_vtas["_fecha"].dt.year
-    df_vtas["_m"] = df_vtas["_fecha"].dt.month
+    df_all_fi["_y"] = df_all_fi["_fecha_ingreso"].dt.year
+    df_all_fi["_m"] = df_all_fi["_fecha_ingreso"].dt.month
+    df_all_fi["_es_baja"] = df_all_fi["grupo_id"] != _GROUP_ACTIVOS
+
+    # Deduplicar por (ID CRM + Nombre) — duplicados en Monday por error
+    _before_dedup = len(df_all_fi)
+    _dup_mask = df_all_fi.duplicated(subset=["ID CRM", "Nombre"], keep="first")
+    _df_dups  = df_all_fi[_dup_mask].copy()
+    df_all_fi = df_all_fi[~_dup_mask].reset_index(drop=True)
+    _n_dups   = _before_dedup - len(df_all_fi)
+
+    # Resumen de duplicados desestimados por mes
+    _dedup_summary = ""
+    if _n_dups > 0:
+        _dup_por_mes = (
+            _df_dups.groupby(["_y", "_m"]).size()
+            .reset_index(name="n")
+            .sort_values(["_y", "_m"])
+        )
+        _MES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+        _filas_dup = "".join(
+            f"<tr><td>{_MES_ABR[int(r['_m'])-1]}-{str(int(r['_y']))[2:]}</td><td style='text-align:right'>{int(r['n'])}</td></tr>"
+            for _, r in _dup_por_mes.iterrows()
+        )
+        _dedup_summary = (
+            f"<details style='margin-bottom:8px;font-size:0.75rem;color:#888'>"
+            f"<summary>⚠️ {_n_dups} registro{'s' if _n_dups != 1 else ''} duplicado{'s' if _n_dups != 1 else ''} desestimado{'s' if _n_dups != 1 else ''} (ID CRM + Nombre)</summary>"
+            f"<table style='margin-top:4px;border-collapse:collapse'>"
+            f"<tr><th style='text-align:left;padding:2px 12px 2px 0'>Mes</th><th>Desestimados</th></tr>"
+            f"{_filas_dup}"
+            f"</table></details>"
+        )
 
     if granularity == "trimestre":
-        df_vtas["_p"] = ((df_vtas["_m"] - 1) // 3 + 1)
+        df_all_fi["_p"] = ((df_all_fi["_m"] - 1) // 3 + 1)
         def fmt_p(p): return f"Q{int(p)}"
     else:
-        df_vtas["_p"] = df_vtas["_m"]
+        df_all_fi["_p"] = df_all_fi["_m"]
         def fmt_p(p): return str(int(p))
 
-    # Mapa CRM ID → meses activos SIN redondear (para categorizar correctamente los límites)
-    _tmp = (
-        df_b[df_b["_fecha_baja"].notna() & df_b["_fecha_ingreso"].notna() & (df_b["ID CRM"] != "")]
-        .drop_duplicates("ID CRM")
-        .copy()
+    # Calcular meses activos para bajas
+    df_all_fi["_meses_raw"] = None
+    _mask_baj = df_all_fi["_es_baja"] & df_all_fi["_fecha_baja"].notna()
+    df_all_fi.loc[_mask_baj, "_meses_raw"] = (
+        (df_all_fi.loc[_mask_baj, "_fecha_baja"] - df_all_fi.loc[_mask_baj, "_fecha_ingreso"]).dt.days / 30
     )
-    _tmp["_meses_raw"] = (_tmp["_fecha_baja"] - _tmp["_fecha_ingreso"]).dt.days / 30
-    _tmp_idx = _tmp.set_index("ID CRM")
-    baja_map     = _tmp_idx["_meses_raw"].to_dict()
-    nom_map      = _tmp_idx["Nombre"].to_dict()
-    fi_map       = {k: _fmt_fecha(v) for k, v in _tmp_idx["_fecha_ingreso"].to_dict().items()}
-    fb_map       = {k: _fmt_fecha(v) for k, v in _tmp_idx["_fecha_baja"].to_dict().items()}
-    fi_sort_map  = {k: v.strftime("%Y-%m-%d") if pd.notna(v) else ""
-                    for k, v in _tmp_idx["_fecha_ingreso"].to_dict().items()}
-    fb_sort_map  = {k: v.strftime("%Y-%m-%d") if pd.notna(v) else ""
-                    for k, v in _tmp_idx["_fecha_baja"].to_dict().items()}
+    df_all_fi["_iv"] = df_all_fi["_meses_raw"].apply(_cat)
 
-    # Extender mapas con activos (para clientes que no son bajas)
-    _hoy_v = pd.Timestamp(date.today())
-    _act_clean = (
-        df_act[df_act["_fecha_ingreso"].notna() & (df_act["ID CRM"] != "")]
-        .drop_duplicates("ID CRM")
-        .set_index("ID CRM")
-    )
-    act_mr_map: dict = {}
-    for _aid, _arow in _act_clean.iterrows():
-        if _aid not in nom_map:
-            nom_map[_aid] = str(_arow.get("Nombre") or "")
-        if _aid not in fi_map:
-            fi_map[_aid]      = _fmt_fecha(_arow["_fecha_ingreso"])
-            fi_sort_map[_aid] = _arow["_fecha_ingreso"].strftime("%Y-%m-%d")
-        # Meses activos calculado a hoy (se actualiza cada vez que se carga)
-        act_mr_map[_aid] = round((_hoy_v - _arow["_fecha_ingreso"]).days / 30, 1)
+    # Pivots
+    ventas_piv = df_all_fi.groupby(["_y", "_p"]).size()
+    ventas_yr  = df_all_fi.groupby("_y").size()
 
-    # Enriquecer ventas con info de baja
-    df_vtas["_meses_activos"] = df_vtas["_id"].map(baja_map)
-    df_vtas["_iv"]            = df_vtas["_meses_activos"].apply(_cat)
-
-    # Pivots de ventas
-    ventas_piv = df_vtas.groupby(["_y", "_p"]).size()
-    ventas_yr  = df_vtas.groupby("_y").size()
-
-    # Pivots de bajas (solo filas con iv válido)
-    df_baj = df_vtas.dropna(subset=["_iv"]).copy()
-    bajas_piv    = df_baj.groupby(["_y", "_p"]).size()
-    bajas_yr     = df_baj.groupby("_y").size()
+    df_baj = df_all_fi[df_all_fi["_es_baja"] & df_all_fi["_iv"].notna()].copy()
+    bajas_piv    = df_all_fi[df_all_fi["_es_baja"]].groupby(["_y", "_p"]).size()
+    bajas_yr     = df_all_fi[df_all_fi["_es_baja"]].groupby("_y").size()
     bajas_iv_piv = (
         df_baj.groupby(["_y", "_p", "_iv"])
         .size().unstack(fill_value=0)
@@ -913,22 +919,24 @@ def _cohorte_ventas_html(
         .reindex(columns=IVLS, fill_value=0)
     )
 
-    # ── Datos para detalle in-iframe (todos los clientes del cohorte) ─
-    _baj_ids = set(df_baj["_id"].unique())
+    # ── Datos para detalle in-iframe ──────────────────────────────────
     _bdata_rows_v: list[dict] = []
-    for _, _r in df_vtas.iterrows():
-        _vid    = str(_r.get("_id") or "")
-        _is_baj = _vid in _baj_ids
-        _mr_ok  = _is_baj and pd.notna(_r.get("_meses_activos"))
+    for _, _r in df_all_fi.iterrows():
+        _vid    = str(_r.get("ID CRM") or "")
+        _is_baj = bool(_r["_es_baja"])
+        _fi_ok  = pd.notna(_r["_fecha_ingreso"])
+        _fb_ok  = _is_baj and pd.notna(_r.get("_fecha_baja"))
+        _mr_val = round(float(_r["_meses_raw"]), 1) if pd.notna(_r.get("_meses_raw")) else (
+            round((_hoy_v - _r["_fecha_ingreso"]).days / 30, 1) if _fi_ok else None
+        )
         _bdata_rows_v.append({
             "id":  _vid,
-            "nom": str(nom_map.get(_vid, _vid) or ""),
-            "fi":  fi_map.get(_vid, "–"),
-            "fis": fi_sort_map.get(_vid, ""),
-            "fb":  fb_map.get(_vid, "–") if _is_baj else "Activo",
-            "fbs": fb_sort_map.get(_vid, "") if _is_baj else "",
-            "mr":  (round(float(_r["_meses_activos"]), 1) if _mr_ok
-                    else act_mr_map.get(_vid)),
+            "nom": str(_r.get("Nombre") or ""),
+            "fi":  _fmt_fecha(_r["_fecha_ingreso"]) if _fi_ok else "–",
+            "fis": _r["_fecha_ingreso"].strftime("%Y-%m-%d") if _fi_ok else "",
+            "fb":  _fmt_fecha(_r["_fecha_baja"]) if _fb_ok else ("Activo" if not _is_baj else "–"),
+            "fbs": _r["_fecha_baja"].strftime("%Y-%m-%d") if _fb_ok else "",
+            "mr":  _mr_val,
             "yv":  int(_r["_y"]),
             "mv":  int(_r["_m"]),
             "eb":  _is_baj,
@@ -938,9 +946,9 @@ def _cohorte_ventas_html(
         })
     _bdata_json_v = json.dumps(_bdata_rows_v, ensure_ascii=False)
     _filter_js_v  = _make_iframe_js(_bdata_json_v, "yv", "mv")
-    # ─────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────
 
-    years = sorted(df_vtas["_y"].unique())
+    years = sorted(df_all_fi["_y"].unique())
 
     def _cells(ventas, bajas, cnt, fb):
         # Conteos de intervalos (con onclick)
@@ -1063,6 +1071,7 @@ def _cohorte_ventas_html(
     html = (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         f"<style>{_COHORTE_CSS}</style></head><body>"
+        f"{_dedup_summary}"
         "<div class='wrap'><table><thead>"
         "<tr>"
         "<th rowspan='2' class='h-n'>Cohorte</th>"
@@ -1196,7 +1205,7 @@ def _kpi(lbl, val, sub=""):
 
 # ── Tabs ──────────────────────────────────────────────────────────
 
-tab_act, tab_ob, tab_ob_cerr, tab_baj, tab_ped = st.tabs(["Resumen", "OB", "OB Cerrados", "📉 Bajas", "Pedidos de baja"])
+tab_ob, tab_ob_cerr, tab_pob, tab_baj, tab_ped, tab_act = st.tabs(["OB", "OB Cerrados", "CS 2026", "📉 Bajas", "Pedidos de baja", "Anexo"])
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1291,7 +1300,7 @@ with tab_ob:
         _df_ob = _df_ob_all.copy()
 
         if not _df_ob.empty:
-            _ALIAS = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}
+            _ALIAS = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico", "Guido Cardi": "Guido", "Rocio Martinez Dopazo": "Rocio"}
             _df_ob["estratega"] = _df_ob["estratega"].replace(_ALIAS)
             _ETAPA_ALIAS = {
                 "OB 3 practica en vivo + Bot": "OB 3 Practica",
@@ -1355,13 +1364,13 @@ with tab_ob:
 
             def _sla_data_row(est, sub, is_total=False):
                 vals = {
-                    "-30d":      int((sub["sla"] == "≤30d").sum()),
-                    "+30d":      int((sub["sla"] == ">30d").sum()),
+                    "-30d":      int((sub["sla"] == "-30").sum()),
+                    "+30d":      int((sub["sla"] == "+30").sum()),
                     "Sin fecha": int((sub["sla"] == "Sin fecha").sum()),
                     "Total":     len(sub),
                 }
                 row = _td_lbl(est, bold=is_total)
-                _sla_val_map = {"-30d": "≤30d", "+30d": ">30d", "Sin fecha": "Sin fecha", "Total": "Total"}
+                _sla_val_map = {"-30d": "-30", "+30d": "+30", "Sin fecha": "Sin fecha", "Total": "Total"}
                 for col in _sla_cols:
                     _fv = _sla_val_map.get(col, col)
                     filt = f"sla:{_fv}" if is_total else f"est:{est}|sla:{_fv}"
@@ -1377,13 +1386,13 @@ with tab_ob:
             _sla_tot = len(_df_ob)
             _td_pct = lambda s: f'<td style="background:#d6eaf8;border:1px dotted #bbb;padding:3px 6px;text-align:center;font-size:0.72rem;color:#475569">{round(s/_sla_tot*100) if _sla_tot else 0}%</td>'
             _tbody_sla += ('<tr>' + _td_lbl("%")
-                + _td_pct(int((_df_ob["sla"]=="≤30d").sum()))
-                + _td_pct(int((_df_ob["sla"]==">30d").sum()))
+                + _td_pct(int((_df_ob["sla"]=="-30").sum()))
+                + _td_pct(int((_df_ob["sla"]=="+30").sum()))
                 + _td_pct(int((_df_ob["sla"]=="Sin fecha").sum()))
                 + _td_pct(_sla_tot) + '</tr>')
 
             # ── Tabla Riesgo ─────────────────────────────────────
-            _riesgos = [r for r in ["Alto", "Medio", "Bajo", "—"] if r in _df_ob["riesgo"].values]
+            _riesgos = [r for r in ["Bajo", "Medio", "Alto", "—"] if r in _df_ob["riesgo"].values]
 
             _thead_riesgo = (
                 '<tr>'
@@ -1522,10 +1531,12 @@ tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
 </div>
 
 <div class="det-filters">
+  <input id="f-nombre" type="text" placeholder="Buscar nombre..." oninput="applyFilters()" style="font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;min-width:160px">
   <select id="f-est"    onchange="applyFilters()"><option value="">Estratega: Todos</option></select>
   <select id="f-riesgo" onchange="applyFilters()"><option value="">Riesgo: Todos</option></select>
   <select id="f-etapa"  onchange="applyFilters()"><option value="">Etapa: Todos</option></select>
   <select id="f-sla"    onchange="applyFilters()"><option value="">SLA: Todos</option></select>
+  <select id="f-tob"    onchange="applyFilters()"><option value="">Tiempo OB: Todos</option><option value="Nuevo">Nuevo</option><option value="3-9 días">3-9 días</option><option value="10-20 días">10-20 días</option><option value="+20 días">+20 días</option></select>
   <span class="det-count" id="ob-count"></span>
 </div>
 <div class="det-wrap">
@@ -1566,19 +1577,23 @@ _fill('f-etapa','etapa','Etapa: ');
 _fill('f-sla','sla','SLA: ');
 
 function applyFilters() {{
+  var nom=document.getElementById('f-nombre').value.toLowerCase();
   var est=document.getElementById('f-est').value;
   var rie=document.getElementById('f-riesgo').value;
   var eta=document.getElementById('f-etapa').value;
   var sla=document.getElementById('f-sla').value;
+  var tob=document.getElementById('f-tob').value;
   _curRows=_allRows.filter(function(r){{
-    return(!est||r.estratega===est)&&(!rie||r.riesgo===rie)
-         &&(!eta||r.etapa===eta)&&(!sla||r.sla===sla);
+    return(!nom||r.nombre.toLowerCase().includes(nom))
+         &&(!est||r.estratega===est)&&(!rie||r.riesgo===rie)
+         &&(!eta||r.etapa===eta)&&(!sla||r.sla===sla)
+         &&(!tob||r.tiempo_ob===tob);
   }});
   _obSort=-1;_obDir=1;renderOb(_curRows);
 }}
 
 function filterClick(filter) {{
-  [['f-est',''],['f-riesgo',''],['f-etapa',''],['f-sla','']].forEach(function(p){{
+  [['f-est',''],['f-riesgo',''],['f-etapa',''],['f-sla',''],['f-tob','']].forEach(function(p){{
     document.getElementById(p[0]).value='';
   }});
   if(filter!=='all') filter.split('|').forEach(function(p){{
@@ -1626,7 +1641,23 @@ function _ftxt(lbl,val){{
   return'<div class="exp-row-item" style="flex-direction:column"><span class="exp-lbl">'+lbl+'</span>'
     +'<span class="exp-val text-block">'+val+'</span></div>';
 }}
-function _expHtml(r){{
+function _fmodal(lbl,val,uid){{
+  if(!val)return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span><span style="color:#94a3b8">—</span></div>';
+  var q="'"+uid+"'";
+  return'<div class="exp-row-item" style="flex-direction:column">'
+    +'<span class="exp-lbl" style="cursor:pointer;text-decoration:underline dotted;color:#3b82f6" onclick="showModal('+q+',event)">'+lbl+' ↗</span>'
+    +'<div id="mo-'+uid+'" onclick="hideModal('+q+')" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998">'
+    +'<div onclick="event.stopPropagation()" style="position:absolute;top:10%;left:50%;transform:translateX(-50%);background:#fff;border-radius:12px;padding:28px 32px;max-width:560px;width:90%;max-height:75vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.22)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<span style="font-weight:700;font-size:0.9rem;color:#1a3a5c">'+lbl+'</span>'
+    +'<button onclick="hideModal('+q+')" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#64748b">✕</button>'
+    +'</div>'
+    +'<p style="font-size:0.85rem;color:#334155;line-height:1.65;white-space:pre-wrap;margin:0">'+val+'</p>'
+    +'</div></div></div>';
+}}
+function showModal(uid,e){{var el=document.getElementById('mo-'+uid);if(!el)return;var dlg=el.querySelector('div');var ch=dlg.offsetHeight||300;var vy=window.innerHeight;var top=Math.min(Math.max((e?e.clientY:vy/2)-ch/2,16),vy-ch-16);dlg.style.top=top+'px';dlg.style.transform='translateX(-50%)';el.style.display='block';}}
+function hideModal(uid){{var el=document.getElementById('mo-'+uid);if(el)el.style.display='none';}}
+function _expHtml(r,uid){{
   var s1='<div class="exp-section"><div class="exp-section-title">General</div>'
     +_fld('Rubro',r.rubro)+_fld('Subrubro',r.subrubro)
     +_fld('B2B | B2C',r.b2b)+_fld('Tipo cliente',r.tipo_cli)
@@ -1636,13 +1667,13 @@ function _expHtml(r){{
     +'</div>';
   var s2='<div class="exp-section"><div class="exp-section-title">Riesgo y notas</div>'
     +_ftag('Riesgo',r.riesgo)+_ftag('Motivo',r.motivo_riesgo)
-    +_ftxt('Notas',r.notas)
-    +_ftxt('Com. llamado',r.com_llamado)
+    +_fmodal('Insight/Motivo de riesgo (manual)',r.notas,uid+'n')
+    +_fmodal('Com. llamado',r.com_llamado,uid+'l')
     +'</div>';
   var s3='<div class="exp-section"><div class="exp-section-title">Progreso OB</div>'
     +_ftag('1. Carga auto.',r.carga_auto)+_ftag('1. BBDD',r.bbdd)
     +_ftag('1. Diseño flujo',r.diseno)+_ftag('1. Est.|Etiq.|Can.',r.estados)
-    +_ftag('OB 1 - Grafico',r.ob1)+_ftxt('Com. grafico',r.com_grafico)
+    +_ftag('OB 1 - Grafico',r.ob1)+_fmodal('Com. grafico',r.com_grafico,uid+'g')
     +_ftag('OB 2 - API',r.ob2)+_ftag('OB 2 - Sec.',r.ob2_sec)
     +_ftag('2. Automatiz.',r.automations)
     +_ftag('OB 3 - Ejer. vivo',r.ob3)+_ftag('Cap. vendedores',r.cap_vend)
@@ -1651,8 +1682,8 @@ function _expHtml(r){{
     +'</div>';
   var s4='<div class="exp-section"><div class="exp-section-title">WapBot y comentarios</div>'
     +_ftag('WapBot',r.wapbot)+_fld('BOT (fecha)',r.bot)
-    +_ftxt('Com. bot',r.com_bot)
-    +_ftxt('Com. finales',r.com_finales)
+    +_fmodal('Com. bot',r.com_bot,uid+'b')
+    +_fmodal('Com. finales',r.com_finales,uid+'f')
     +'</div>';
   return'<div class="exp-inner">'+s1+s2+s3+s4+'</div>';
 }}
@@ -1692,7 +1723,7 @@ function renderOb(rows) {{
       +'<td class="det-td-c">'+r.sla+'</td>'
       +'<td class="det-td-c" style="color:'+rc+';font-weight:600">'+r.riesgo+'</td>'
       +'</tr>'
-      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r)+'</td></tr>';
+      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r,i)+'</td></tr>';
   }});
   if(!rows.length)h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
   document.getElementById('ob-tbl-body').innerHTML=h;
@@ -1798,20 +1829,17 @@ with tab_ob_cerr:
         import json as _json_cerr
         _df_ob_cerr_all = _dcrm_cerr.cargar_ob_cerrados()
         _hoy_cerr    = pd.Timestamp.today().normalize()
-        _fin_ts_cerr = pd.to_datetime(_df_ob_cerr_all["fin_impl"], errors="coerce")
-        _df_ob_cerr  = _df_ob_cerr_all[
-            _fin_ts_cerr.notna() & (_fin_ts_cerr >= _hoy_cerr - pd.Timedelta(days=30))
-        ].copy()
+        _df_ob_cerr  = _df_ob_cerr_all.copy()
 
         if _df_ob_cerr.empty:
             st.info("No hay OBs cerrados en los últimos 30 días.")
         else:
-            _ALIAS_C = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico"}
+            _ALIAS_C = {"Melina": "Meli", "julispinelli": "Juli", "Nicolas Guzmán": "Nico", "Nicolas Guzman": "Nico", "Guido Cardi": "Guido", "Rocio Martinez Dopazo": "Rocio"}
             _df_ob_cerr["estratega"] = _df_ob_cerr["estratega"].replace(_ALIAS_C)
-            _df_ob_cerr["_fin_ts"]   = pd.to_datetime(_df_ob_cerr["fin_impl"], errors="coerce")
+            _df_ob_cerr["_fin_ts"]   = pd.to_datetime(_df_ob_cerr["fin_impl"], dayfirst=True, errors="coerce")
 
             _ests_c   = sorted(_df_ob_cerr["estratega"].unique())
-            _riesgos_c = [r for r in ["Alto", "Medio", "Bajo", "—"] if r in _df_ob_cerr["riesgo"].values]
+            _riesgos_c = [r for r in ["Bajo", "Medio", "Alto", "—"] if r in _df_ob_cerr["riesgo"].values]
 
             # helpers reutilizados
             def _tdc_num(n, filt="", bold=False):
@@ -1827,63 +1855,53 @@ with tab_ob_cerr:
             def _hth(txt):
                 return f'<th style="background:#1a3a5c;color:#fff;font-weight:bold;padding:6px 4px;text-align:center;border:1px dotted #9ab;font-size:0.72rem">{txt}</th>'
 
-            # ── Tabla SLA (con datos cerrados) ──────────────────
-            _thead_sla_c = '<tr>' + _hth('') + _hth('-30d') + _hth('+30d') + _hth('Sin fecha') + _hth('Total') + '</tr>'
-            _tbody_sla_c = ''
-            for _ec in _ests_c:
-                _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
-                _tbody_sla_c += ('<tr>' + _tdc_lbl(_ec)
-                    + _tdc_num(int((_s["sla"]=="≤30d").sum()),   filt=f"est:{_ec}|sla:≤30d")
-                    + _tdc_num(int((_s["sla"]==">30d").sum()),   filt=f"est:{_ec}|sla:>30d")
-                    + _tdc_num(int((_s["sla"]=="Sin fecha").sum()), filt=f"est:{_ec}|sla:Sin fecha")
-                    + _tdc_num(len(_s), filt=f"est:{_ec}") + '</tr>')
-            _tbody_sla_c += ('<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
-                + _tdc_num(int((_df_ob_cerr["sla"]=="≤30d").sum()),   filt="sla:≤30d",    bold=True)
-                + _tdc_num(int((_df_ob_cerr["sla"]==">30d").sum()),   filt="sla:>30d",    bold=True)
-                + _tdc_num(int((_df_ob_cerr["sla"]=="Sin fecha").sum()), filt="sla:Sin fecha", bold=True)
-                + _tdc_num(len(_df_ob_cerr), filt="all", bold=True) + '</tr>')
-
-            # ── Tabla Riesgo (con datos cerrados) ───────────────
+            # ── Tabla Por tiempo desde ini. y riesgo ────────────
+            _TINI_ORDEN = ["1er mes", "1-3 meses", "4-6 meses", "6-12 meses", "+12 meses", "Sin fecha"]
+            _tinis_c = [t for t in _TINI_ORDEN if t in _df_ob_cerr["t_ini"].values]
             _thead_riesgo_c = '<tr>' + _hth('') + ''.join(_hth(r) for r in _riesgos_c) + _hth('Total') + '</tr>'
             _tbody_riesgo_c = ''
-            for _ec in _ests_c:
-                _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
-                _tbody_riesgo_c += '<tr>' + _tdc_lbl(_ec)
+            for _ti in _tinis_c:
+                _s = _df_ob_cerr[_df_ob_cerr["t_ini"] == _ti]
+                _tbody_riesgo_c += '<tr>' + _tdc_lbl(_ti)
                 for _r in _riesgos_c:
-                    _tbody_riesgo_c += _tdc_num(int((_s["riesgo"]==_r).sum()), filt=f"est:{_ec}|riesgo:{_r}")
-                _tbody_riesgo_c += _tdc_num(len(_s), filt=f"est:{_ec}") + '</tr>'
+                    _tbody_riesgo_c += _tdc_num(int((_s["riesgo"]==_r).sum()), filt=f"t_ini:{_ti}|riesgo:{_r}")
+                _tbody_riesgo_c += _tdc_num(len(_s), filt=f"t_ini:{_ti}") + '</tr>'
             _tbody_riesgo_c += '<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
             for _r in _riesgos_c:
                 _tbody_riesgo_c += _tdc_num(int((_df_ob_cerr["riesgo"]==_r).sum()), filt=f"riesgo:{_r}", bold=True)
             _tbody_riesgo_c += _tdc_num(len(_df_ob_cerr), filt="all", bold=True) + '</tr>'
 
-            # ── Tabla Cierres por semana ─────────────────────────
-            # Últimas 4 semanas (lunes a domingo)
-            _lunes_hoy = _hoy_cerr - pd.Timedelta(days=_hoy_cerr.weekday())
-            _semanas_c = [(_lunes_hoy - pd.Timedelta(weeks=i),
-                           _lunes_hoy - pd.Timedelta(weeks=i) + pd.Timedelta(days=6))
-                          for i in range(3, -1, -1)]
-            _sem_labels = [f"{s[0].strftime('%d/%m')}–{s[1].strftime('%d/%m')}" for s in _semanas_c]
+            # ── Tabla Cierres por mes (desde Ene-26) ─────────────
+            _MES_ES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+            _inicio_meses = pd.Timestamp("2026-01-01")
+            _meses_c = []
+            _m = _inicio_meses
+            while _m <= _hoy_cerr:
+                _meses_c.append(_m)
+                _m = (_m + pd.offsets.MonthBegin(1))
+            _mes_labels = [f"{_MES_ES_ABR[_m.month-1]}-{str(_m.year)[2:]}" for _m in _meses_c]
 
-            _thead_sem_c = '<tr>' + _hth('') + ''.join(_hth(l) for l in _sem_labels) + _hth('Total') + '</tr>'
+            _thead_sem_c = '<tr>' + _hth('') + ''.join(_hth(l) for l in _mes_labels) + _hth('Total') + '</tr>'
             _tbody_sem_c = ''
             for _ec in _ests_c:
                 _s = _df_ob_cerr[_df_ob_cerr["estratega"] == _ec]
                 _tbody_sem_c += '<tr>' + _tdc_lbl(_ec)
-                for (sd, se) in _semanas_c:
-                    _n_s = int(((_s["_fin_ts"] >= sd) & (_s["_fin_ts"] <= se + pd.Timedelta(hours=23,minutes=59))).sum())
+                for _mp in _meses_c:
+                    _mp_end = _mp + pd.offsets.MonthEnd(1)
+                    _n_s = int(((_s["_fin_ts"] >= _mp) & (_s["_fin_ts"] <= _mp_end)).sum())
                     _tbody_sem_c += _tdc_num(_n_s)
                 _tbody_sem_c += _tdc_num(len(_s)) + '</tr>'
             _tbody_sem_c += '<tr class="yr-row">' + _tdc_lbl("Total", bold=True)
-            for (sd, se) in _semanas_c:
-                _n_s = int(((_df_ob_cerr["_fin_ts"] >= sd) & (_df_ob_cerr["_fin_ts"] <= se + pd.Timedelta(hours=23,minutes=59))).sum())
+            for _mp in _meses_c:
+                _mp_end = _mp + pd.offsets.MonthEnd(1)
+                _n_s = int(((_df_ob_cerr["_fin_ts"] >= _mp) & (_df_ob_cerr["_fin_ts"] <= _mp_end)).sum())
                 _tbody_sem_c += _tdc_num(_n_s, bold=True)
             _tbody_sem_c += _tdc_num(len(_df_ob_cerr), bold=True) + '</tr>'
 
             # ── JSON para tabla detalle ──────────────────────────
             _ob_cerr_json = _json_cerr.dumps(_df_ob_cerr.drop(columns=["_fin_ts"]).to_dict(orient="records"), ensure_ascii=True)
             _n_rows_c = len(_df_ob_cerr)
-            _ob_cerr_height = (len(_ests_c) + 2) * 34 * 3 + 160 + _n_rows_c * 30 + 200
+            _ob_cerr_height = (len(_tinis_c) + 2) * 34 * 2 + 160 + _n_rows_c * 30 + 200
 
             _html_cerr = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
 <style>
@@ -1923,23 +1941,22 @@ tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
 </style>
 </head><body>
 <div class="layout">
-  <div class="col-sla">
-    <div class="tbl-title">Por estratega y SLA</div>
-    <div class="wrap"><table><thead>{_thead_sla_c}</thead><tbody>{_tbody_sla_c}</tbody></table></div>
-  </div>
   <div class="col-riesgo">
-    <div class="tbl-title">Por estratega y riesgo</div>
+    <div class="tbl-title">Por tiempo desde ini. y riesgo</div>
     <div class="wrap"><table><thead>{_thead_riesgo_c}</thead><tbody>{_tbody_riesgo_c}</tbody></table></div>
   </div>
   <div class="col-sem">
-    <div class="tbl-title">Cierres por semana</div>
+    <div class="tbl-title">Cierres por mes</div>
     <div class="wrap"><table><thead>{_thead_sem_c}</thead><tbody>{_tbody_sem_c}</tbody></table></div>
   </div>
 </div>
 <div class="det-filters">
+  <input id="f-nombre" type="text" placeholder="Buscar nombre..." oninput="applyF()" style="font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;min-width:160px">
   <select id="f-est" onchange="applyF()"><option value="">Estratega: Todos</option></select>
   <select id="f-riesgo" onchange="applyF()"><option value="">Riesgo: Todos</option></select>
   <select id="f-sla" onchange="applyF()"><option value="">SLA: Todos</option></select>
+  <select id="f-tini" onchange="applyF()"><option value="">Tiempo desde ini. impl.: Todos</option><option value="1er mes">1er mes</option><option value="1-3 meses">1-3 meses</option><option value="4-6 meses">4-6 meses</option><option value="6-12 meses">6-12 meses</option><option value="+12 meses">+12 meses</option></select>
+  <select id="f-tfin" onchange="applyF()"><option value="">Tiempo desde fin. impl.: Todos</option><option value="1er mes">1er mes</option><option value="1-3 meses">1-3 meses</option><option value="4-6 meses">4-6 meses</option><option value="6-12 meses">6-12 meses</option><option value="+12 meses">+12 meses</option></select>
   <span class="det-count" id="ob-count"></span>
 </div>
 <div class="det-wrap">
@@ -1968,19 +1985,23 @@ _fill('f-est','estratega','Estratega: ');
 _fill('f-riesgo','riesgo','Riesgo: ');
 _fill('f-sla','sla','SLA: ');
 function applyF(){{
+  var nom=document.getElementById('f-nombre').value.toLowerCase();
   var est=document.getElementById('f-est').value;
   var rie=document.getElementById('f-riesgo').value;
   var sla=document.getElementById('f-sla').value;
-  _curRows=_allRows.filter(function(r){{return(!est||r.estratega===est)&&(!rie||r.riesgo===rie)&&(!sla||r.sla===sla);}});
+  var tini=document.getElementById('f-tini').value;
+  var tfin=document.getElementById('f-tfin').value;
+  _curRows=_allRows.filter(function(r){{return(!nom||r.nombre.toLowerCase().includes(nom))&&(!est||r.estratega===est)&&(!rie||r.riesgo===rie)&&(!sla||r.sla===sla)&&(!tini||r.t_ini===tini)&&(!tfin||r.t_fin===tfin);}});
   _cSort=-1;_cDir=1;renderC(_curRows);
 }}
 function filterC(filter){{
-  [['f-est',''],['f-riesgo',''],['f-sla','']].forEach(function(p){{document.getElementById(p[0]).value='';}});
+  [['f-est',''],['f-riesgo',''],['f-sla',''],['f-tini',''],['f-tfin','']].forEach(function(p){{document.getElementById(p[0]).value='';}});
   if(filter!=='all') filter.split('|').forEach(function(p){{
     var kv=p.split(':'),key=kv[0],val=kv.slice(1).join(':');
     if(key==='est')    document.getElementById('f-est').value=val;
     if(key==='sla')    document.getElementById('f-sla').value=val;
     if(key==='riesgo') document.getElementById('f-riesgo').value=val;
+    if(key==='t_ini')  document.getElementById('f-tini').value=val;
   }});
   applyF();
 }}
@@ -2006,11 +2027,14 @@ function _lnk(v,label){{if(!v)return'<span style="color:#94a3b8">—</span>';ret
 function _fld(lbl,val){{var v=val||'';return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span><span class="exp-val">'+(v||'<span style="color:#94a3b8">—</span>')+'</span></div>';}}
 function _ftag(lbl,val){{return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span>'+_tag(val)+'</div>';}}
 function _ftxt(lbl,val){{if(!val)return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span><span style="color:#94a3b8">—</span></div>';return'<div class="exp-row-item" style="flex-direction:column"><span class="exp-lbl">'+lbl+'</span><span class="exp-val text-block">'+val+'</span></div>';}}
-function _expHtml(r){{
+function _fmodal(lbl,val,uid){{var q="'"+uid+"'";if(!val)return'<div class="exp-row-item"><span class="exp-lbl">'+lbl+'</span><span style="color:#94a3b8">—</span></div>';return'<div class="exp-row-item" style="flex-direction:column"><span class="exp-lbl" style="cursor:pointer;text-decoration:underline dotted;color:#3b82f6" onclick="showModal('+q+',event)">'+lbl+' ↗</span><div id="mo-'+uid+'" onclick="hideModal('+q+')" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998"><div onclick="event.stopPropagation()" style="position:absolute;top:10%;left:50%;transform:translateX(-50%);background:#fff;border-radius:12px;padding:28px 32px;max-width:560px;width:90%;max-height:75vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.22)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span style="font-weight:700;font-size:0.9rem;color:#1a3a5c">'+lbl+'</span><button onclick="hideModal('+q+')" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#64748b;line-height:1">✕</button></div><p style="font-size:0.85rem;color:#334155;line-height:1.65;white-space:pre-wrap;margin:0">'+val+'</p></div></div></div>';}}
+function showModal(uid,e){{var el=document.getElementById('mo-'+uid);if(!el)return;var dlg=el.querySelector('div');var ch=dlg.offsetHeight||300;var vy=window.innerHeight;var top=Math.min(Math.max((e?e.clientY:vy/2)-ch/2,16),vy-ch-16);dlg.style.top=top+'px';dlg.style.transform='translateX(-50%)';el.style.display='block';}}
+function hideModal(uid){{var el=document.getElementById('mo-'+uid);if(el)el.style.display='none';}}
+function _expHtml(r,uid){{
   var s1='<div class="exp-section"><div class="exp-section-title">General</div>'+_fld('Rubro',r.rubro)+_fld('Subrubro',r.subrubro)+_fld('B2B | B2C',r.b2b)+_fld('Tipo cliente',r.tipo_cli)+_fld('Vendedores',r.vendedores)+_fld('Pain',r.pain)+'<div class="exp-row-item"><span class="exp-lbl">Link Drive</span>'+_lnk(r.link_drive,'Abrir Drive')+'</div><div class="exp-row-item"><span class="exp-lbl">Link CRM</span>'+_lnk(r.link_crm,'Abrir CRM')+'</div></div>';
-  var s2='<div class="exp-section"><div class="exp-section-title">Riesgo y notas</div>'+_ftag('Riesgo',r.riesgo)+_ftag('Motivo',r.motivo_riesgo)+_ftxt('Notas',r.notas)+_ftxt('Com. llamado',r.com_llamado)+'</div>';
-  var s3='<div class="exp-section"><div class="exp-section-title">Progreso OB</div>'+_ftag('1. Carga auto.',r.carga_auto)+_ftag('1. BBDD',r.bbdd)+_ftag('1. Diseño flujo',r.diseno)+_ftag('1. Est.|Etiq.|Can.',r.estados)+_ftag('OB 1 - Grafico',r.ob1)+_ftxt('Com. grafico',r.com_grafico)+_ftag('OB 2 - API',r.ob2)+_ftag('OB 2 - Sec.',r.ob2_sec)+_ftag('2. Automatiz.',r.automations)+_ftag('OB 3 - Ejer. vivo',r.ob3)+_ftag('Cap. vendedores',r.cap_vend)+_ftag('OB 4 - Nurt.',r.ob4)+_ftag('OB 5 - Cierre',r.ob5)+_ftag('M1 - Mistery',r.m1)+'</div>';
-  var s4='<div class="exp-section"><div class="exp-section-title">WapBot y comentarios</div>'+_ftag('WapBot',r.wapbot)+_fld('BOT (fecha)',r.bot)+_ftxt('Com. bot',r.com_bot)+_ftxt('Com. finales',r.com_finales)+'</div>';
+  var s2='<div class="exp-section"><div class="exp-section-title">Riesgo y notas</div>'+_ftag('Riesgo',r.riesgo)+_ftag('Motivo',r.motivo_riesgo)+_fmodal('Insight/Motivo de riesgo (manual)',r.notas,uid+'n')+_fmodal('Com. llamado',r.com_llamado,uid+'l')+'</div>';
+  var s3='<div class="exp-section"><div class="exp-section-title">Progreso OB</div>'+_ftag('1. Carga auto.',r.carga_auto)+_ftag('1. BBDD',r.bbdd)+_ftag('1. Diseño flujo',r.diseno)+_ftag('1. Est.|Etiq.|Can.',r.estados)+_ftag('OB 1 - Grafico',r.ob1)+_fmodal('Com. grafico',r.com_grafico,uid+'g')+_ftag('OB 2 - API',r.ob2)+_ftag('OB 2 - Sec.',r.ob2_sec)+_ftag('2. Automatiz.',r.automations)+_ftag('OB 3 - Ejer. vivo',r.ob3)+_ftag('Cap. vendedores',r.cap_vend)+_ftag('OB 4 - Nurt.',r.ob4)+_ftag('OB 5 - Cierre',r.ob5)+_ftag('M1 - Mistery',r.m1)+'</div>';
+  var s4='<div class="exp-section"><div class="exp-section-title">WapBot y comentarios</div>'+_ftag('WapBot',r.wapbot)+_fld('BOT (fecha)',r.bot)+_fmodal('Com. bot',r.com_bot,uid+'b')+_fmodal('Com. finales',r.com_finales,uid+'f')+'</div>';
   return'<div class="exp-inner">'+s1+s2+s3+s4+'</div>';
 }}
 var _openIdx=null;
@@ -2039,7 +2063,7 @@ function renderC(rows){{
       +'<td class="det-td-c">'+r.sla+'</td>'
       +'<td class="det-td-c" style="color:'+rc+';font-weight:600">'+r.riesgo+'</td>'
       +'</tr>'
-      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r)+'</td></tr>';
+      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r,i)+'</td></tr>';
   }});
   if(!rows.length)h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
   document.getElementById('ob-tbl-body').innerHTML=h;
@@ -2054,6 +2078,190 @@ renderC(_allRows);
         st.exception(_e_cerr)
 
 
+with tab_pob:
+    try:
+        import datos_crm as _dcrm_cs
+        _cols_ob = _dcrm_cs._monday_request_cs('{ boards(ids: [18390960078]) { columns { id title } } }')
+        st.write({c["id"]: c["title"] for c in _cols_ob["data"]["boards"][0]["columns"] if "baja" in c["title"].lower() or "fecha" in c["title"].lower()})
+        _cs_rows     = _dcrm_cs.cargar_cs2026()
+        _cs_clientes = _dcrm_cs.cargar_cs2026_clientes()
+        _ob_data     = _dcrm_cs.cargar_ob_para_cs2026()  # {crm_id: {estratega, inicio, fin, estado}}
+
+        # Mergear datos OB en clientes (match por nombre normalizado)
+        _matched = 0
+        for _c in _cs_clientes:
+            _key = _c["nombre"].strip().lower()
+            _ob  = _ob_data.get(_key, {})
+            if _ob:
+                _matched += 1
+            _c["estratega"] = _ob.get("estratega", "")
+            _c["inicio"]    = _ob.get("inicio", "")
+            _c["fin"]       = _ob.get("fin", "")
+            _c["estado"]    = _ob.get("estado", "")
+
+        # Construir columnas: Ene-26 hasta mes actual
+        _MES_ES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+        _hoy_cs   = pd.Timestamp.today().normalize()
+        _meses_cs = []
+        _mc = pd.Timestamp("2026-01-01")
+        while _mc <= _hoy_cs:
+            _meses_cs.append(_mc)
+            _mc = _mc + pd.offsets.MonthBegin(1)
+
+        # Agrupar datos
+        _counts = {}  # (cat, year, month) -> int
+        for _r in _cs_rows:
+            _k = (_r["cat"], _r["year"], _r["month"])
+            _counts[_k] = _counts.get(_k, 0) + 1
+
+        _CS_DEFS = [
+            ("Clientes OB", "ob",    "#dbeafe"),
+            ("POB",         "pob",   "#d1fae5"),
+            ("Churn",       "churn", "#fee2e2"),
+        ]
+
+        def _th2(t):
+            return f'<th style="background:#1a3a5c;color:#fff;font-weight:600;padding:7px 12px;text-align:center;border:1px solid #2d5a8e;font-size:0.8rem;white-space:nowrap">{t}</th>'
+        def _td2(v, bold=False, color=""):
+            s = "font-weight:700;" if bold else ""
+            s += f"background:{color};" if color else ""
+            return f'<td style="padding:7px 12px;text-align:center;border:1px solid #e2e8f0;font-size:0.82rem;{s}">{v}</td>'
+        def _tl2(t):
+            return f'<td style="padding:7px 14px;font-weight:600;background:#f1f5f9;border:1px solid #e2e8f0;font-size:0.82rem;white-space:nowrap">{t}</td>'
+
+        _labels = [f"{_MES_ES_C[m.month-1]}-{str(m.year)[2:]}" for m in _meses_cs]
+        _thead2 = '<tr>' + _th2('') + ''.join(_th2(l) for l in _labels) + _th2('Total') + '</tr>'
+        _tbody2 = ''
+        for _lbl2, _cat2, _col2 in _CS_DEFS:
+            _vals2  = [_counts.get((_cat2, m.year, m.month), 0) for m in _meses_cs]
+            _tot2   = sum(_vals2)
+            _tbody2 += '<tr>' + _tl2(_lbl2)
+            for _v2 in _vals2:
+                _tbody2 += _td2(_v2 if _v2 else "—", color=_col2 if _v2 else "")
+            _tbody2 += _td2(_tot2, bold=True) + '</tr>'
+
+        _html2 = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+*{{box-sizing:border-box;margin:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;padding:8px 0;font-size:0.82rem}}
+.wrap{{overflow-x:auto;border:1px solid #c8ccd0;border-radius:6px;margin-bottom:20px}}
+table{{border-collapse:collapse;min-width:100%}}
+.det-filters{{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}}
+.det-filters input{{font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;min-width:160px}}
+.det-filters select{{font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;cursor:pointer;min-width:120px}}
+.det-count{{font-size:0.78rem;color:#64748b;margin-left:4px}}
+.det-wrap{{border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}}
+.det-tbl{{width:100%;border-collapse:collapse;font-size:0.8rem}}
+.det-th{{padding:6px 12px;font-weight:600;background:#f1f5f9;color:#475569;border-bottom:2px solid #e2e8f0;cursor:pointer;white-space:nowrap;text-align:left}}
+.det-th:hover{{background:#e2e8f0}}
+.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;user-select:text}}
+.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center;user-select:text}}
+tr.main-row:hover .det-td,tr.main-row:hover .det-td-c{{background:#f0f7ff}}
+</style>
+</head><body>
+<div class="wrap">
+  <table>
+    <thead>{_thead2}</thead>
+    <tbody>{_tbody2}</tbody>
+  </table>
+</div>
+<div class="det-filters">
+  <input id="cs-search" type="text" placeholder="Buscar nombre..." oninput="csApply()">
+  <select id="cs-est"    onchange="csApply()"><option value="">Estratega: Todos</option></select>
+  <select id="cs-estado" onchange="csApply()"><option value="">Estado: Todos</option></select>
+  <select id="cs-riesgo" onchange="csApply()"><option value="">Riesgo: Todos</option></select>
+  <span class="det-count" id="cs-count"></span>
+</div>
+<div class="det-wrap">
+  <table class="det-tbl">
+    <thead><tr>
+      <th class="det-th" onclick="csSort(0)">ID <span id="csa0"></span></th>
+      <th class="det-th" onclick="csSort(1)">Nombre <span id="csa1"></span></th>
+      <th class="det-th" onclick="csSort(2)" style="text-align:center">Mes ingreso <span id="csa2"></span></th>
+      <th class="det-th" onclick="csSort(3)" style="text-align:center">Estratega <span id="csa3"></span></th>
+      <th class="det-th" onclick="csSort(4)" style="text-align:center">Inicio impl. <span id="csa4"></span></th>
+      <th class="det-th" onclick="csSort(5)" style="text-align:center">Fin impl. <span id="csa5"></span></th>
+      <th class="det-th" onclick="csSort(6)" style="text-align:center">Fecha baja <span id="csa6"></span></th>
+      <th class="det-th" onclick="csSort(7)" style="text-align:center">Estado <span id="csa7"></span></th>
+      <th class="det-th" onclick="csSort(8)" style="text-align:center">Riesgo <span id="csa8"></span></th>
+    </tr></thead>
+    <tbody id="cs-body"></tbody>
+  </table>
+</div>
+<script>
+var _RC={{'Alto':'#c0392b','Medio':'#d68910','Bajo':'#1e8449'}};
+var _KEYS=['id','nombre','fecha_ingreso','estratega','inicio','fin','fecha_baja','estado','riesgo'];
+var _allCS=__CS_CLIENTES_JSON__;
+var _curCS=_allCS.slice();
+var _csSort=-1,_csDir=1;
+
+function _uniqCS(k){{var s={{}};_allCS.forEach(function(r){{if(r[k])s[r[k]]=1;}});return Object.keys(s).sort();}}
+function _fillCS(id,k,lbl){{var sel=document.getElementById(id);_uniqCS(k).forEach(function(v){{var o=document.createElement('option');o.value=v;o.textContent=lbl+v;sel.appendChild(o);}});}}
+
+function csApply(){{
+  var nom=document.getElementById('cs-search').value.toLowerCase();
+  var est=document.getElementById('cs-est').value;
+  var est2=document.getElementById('cs-estado').value;
+  var rie=document.getElementById('cs-riesgo').value;
+  _curCS=_allCS.filter(function(r){{
+    return(!nom||(r.nombre||'').toLowerCase().includes(nom))
+      &&(!est||r.estratega===est)
+      &&(!est2||r.estado===est2)
+      &&(!rie||r.riesgo===rie);
+  }});
+  _csSort=-1;_csDir=1;csRender(_curCS);
+}}
+
+function csSort(i){{
+  if(_csSort===i){{_csDir*=-1;}}else{{_csSort=i;_csDir=1;}}
+  var key=_KEYS[i];
+  _curCS=_curCS.slice().sort(function(a,b){{
+    var av=a[key]||'',bv=b[key]||'';
+    var an=!av||av==='—',bn=!bv||bv==='—';
+    if(an&&bn)return 0;if(an)return 1;if(bn)return-1;
+    return(av<bv?-1:av>bv?1:0)*_csDir;
+  }});
+  csRender(_curCS);
+}}
+
+function csRender(rows){{
+  for(var i=0;i<9;i++){{var el=document.getElementById('csa'+i);if(el)el.textContent=_csSort===i?(_csDir>0?' ↑':' ↓'):'';}}
+  document.getElementById('cs-count').textContent=rows.length+' clientes';
+  var h='';
+  rows.forEach(function(r){{
+    var rc=_RC[r.riesgo]||'#64748b';
+    h+='<tr class="main-row">'
+      +'<td class="det-td">'+( r.id||'—')+'</td>'
+      +'<td class="det-td">'+( r.nombre||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.fecha_ingreso||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.estratega||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.inicio||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.fin||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.fecha_baja||'—')+'</td>'
+      +'<td class="det-td-c">'+(r.estado||'—')+'</td>'
+      +'<td class="det-td-c" style="color:'+rc+';font-weight:600">'+(r.riesgo||'—')+'</td>'
+      +'</tr>';
+  }});
+  if(!rows.length)h='<tr><td colspan="9" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
+  document.getElementById('cs-body').innerHTML=h;
+}}
+
+_fillCS('cs-est','estratega','Estratega: ');
+_fillCS('cs-estado','estado','Estado: ');
+_fillCS('cs-riesgo','riesgo','Riesgo: ');
+csRender(_allCS);
+</script>
+</body></html>"""
+        import json as _json_cs
+        _cs_json = _json_cs.dumps(_cs_clientes, ensure_ascii=True)
+        _html2 = _html2.replace("__CS_CLIENTES_JSON__", _cs_json)
+        _n_cs  = len(_cs_clientes)
+        _h2    = 80 + (len(_CS_DEFS) + 1) * 38 + 260 + _n_cs * 31 + 80
+        st.components.v1.html(_html2, height=_h2, scrolling=True)
+    except Exception as _e_pob:
+        st.exception(_e_pob)
+
+
 # ════════════════════════════════════════════════════════════════
 #  TAB BAJAS
 # ════════════════════════════════════════════════════════════════
@@ -2066,6 +2274,42 @@ with tab_baj:
     except Exception as _e:
         st.error(f"Error cargando BBDD_Ventas: {_e}")
         df_ventas_cs = pd.DataFrame()
+
+    # ── Modal detalle bajas ────────────────────────────────────
+    @st.dialog("Detalle de bajas", width="large")
+    def _modal_det_bajas(lbl, filas):
+        _df_d = pd.DataFrame(filas).sort_values("F. baja", ascending=False)
+        st.markdown(f"**{lbl} — {len(_df_d)} bajas**")
+        st.dataframe(
+            _df_d,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID CRM":     st.column_config.TextColumn("ID CRM",     width="small"),
+                "Nombre":     st.column_config.TextColumn("Nombre",     width="medium"),
+                "F. ingreso": st.column_config.TextColumn("F. ingreso", width="small"),
+                "F. baja":    st.column_config.TextColumn("F. baja",    width="small"),
+                "Meses":      st.column_config.NumberColumn("Meses",    format="%.1f m", width="small"),
+                "LTV T":      st.column_config.NumberColumn("LTV T",    format="$ %d",   width="small"),
+                "LTV I":      st.column_config.NumberColumn("LTV I",    format="$ %d",   width="small"),
+                "Tkt Prom":   st.column_config.NumberColumn("Tkt Prom", format="$ %d",   width="small"),
+                "Recurrente": st.column_config.NumberColumn("Recurrente", format="$ %.2f", width="small"),
+            },
+        )
+        _tot  = _df_d["LTV T"].dropna().sum()
+        _prom = _df_d["LTV T"].dropna().mean()
+        _n    = _df_d["LTV T"].dropna().count()
+        st.markdown("---")
+        _mc1, _mc2, _mc3 = st.columns(3)
+        _mc1.metric("Total LTV T",     f"${int(_tot):,}".replace(",", "."))
+        _mc2.metric("LTV Promedio",    f"${int(_prom):,}".replace(",", ".") if _n > 0 else "–")
+        _mc3.metric("Con LTV cargado", f"{_n} / {len(_df_d)}")
+
+    if st.session_state.get("_det_baj_filas"):
+        _modal_det_bajas(
+            st.session_state.pop("_det_baj_lbl", ""),
+            st.session_state.pop("_det_baj_filas"),
+        )
 
     # ── Cards resumen por mes ──────────────────────────────────
     st.markdown("### Resumen")
@@ -2157,6 +2401,33 @@ with tab_baj:
         )
         with _col_c:
             st.markdown(_html_c, unsafe_allow_html=True)
+            if st.button("Ver detalle", key=f"det_baj_{str(_mes_c)}", use_container_width=True):
+                # Construir filas del detalle
+                _det_filas = []
+                for _, _dr in _grp_c.iterrows():
+                    _cid = str(_dr.get("ID CRM", "") or "").strip()
+                    try: _cid = str(int(float(_cid)))
+                    except: pass
+                    _entry   = _ltv_lookup_cs.get(_cid)
+                    _ltv_t   = round(_entry["total"]) if _entry else None
+                    _ltv_i   = round(_entry["impl"])  if _entry else None
+                    _mr      = _dr.get("Meses activos")
+                    _mf      = max(1, int(_mr)) if pd.notna(_mr) else 1
+                    _tkt     = round((_ltv_t - (_ltv_i or 0)) / _mf) if _ltv_t is not None else None
+                    _rec     = _rec_lookup_cs.get(_cid)
+                    _det_filas.append({
+                        "ID CRM":     _cid,
+                        "Nombre":     _dr.get("Nombre", ""),
+                        "F. ingreso": _dr.get("Fecha de ingreso", ""),
+                        "F. baja":    _dr.get("Fecha de baja", ""),
+                        "Meses":      round(float(_mr), 1) if pd.notna(_mr) else None,
+                        "LTV T":      _ltv_t,
+                        "LTV I":      _ltv_i,
+                        "Tkt Prom":   _tkt,
+                        "Recurrente": _rec,
+                    })
+                st.session_state["_det_baj_filas"] = _det_filas
+                st.session_state["_det_baj_lbl"]   = _lbl_c
 
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     st.markdown("### Bajas por cohorte de baja")
@@ -2203,7 +2474,7 @@ with tab_baj:
         '<div style="margin-top:8px"></div>',
         unsafe_allow_html=True,
     )
-    st.markdown("### Bajas por cohorte de ingreso")
+    st.markdown("### Bajas por cohorte de fecha ingreso monday")
 
     _col_lbl2, _col_rad2, _ = st.columns([1, 2, 6])
     with _col_lbl2:
@@ -2219,34 +2490,34 @@ with tab_baj:
 
     st.markdown(
         '<div style="font-size:0.7rem;color:#999;margin-bottom:4px">'
-        "Cohorte = mes de la venta (BBDD_Ventas) &nbsp;·&nbsp; "
-        "Bajas: clientes de ese cohorte dados de baja en Monday &nbsp;·&nbsp; "
-        "% sobre ventas: proporción respecto al total de ventas del cohorte"
+        "Cohorte = mes de ingreso en Monday (board 6967792411) &nbsp;·&nbsp; "
+        "Bajas: clientes de ese cohorte dados de baja &nbsp;·&nbsp; "
+        "% sobre ventas: proporción respecto al total de ingresos del cohorte"
         "</div>",
         unsafe_allow_html=True,
     )
 
-    if not df_ventas_cs.empty:
+    if not df_all.empty:
         _html_c2, _h_c2 = _cohorte_ventas_html(
             df_bajas,
-            df_ventas_cs,
+            df_all,
             df_activos,
             granularity="trimestre" if _gran2 == "Trimestre" else "mes",
         )
         components.html(_html_c2, height=_h_c2, scrolling=False)
     else:
-        st.info("Sin datos de ventas disponibles.")
+        st.info("Sin datos de Monday disponibles.")
 
     st.markdown(
         '<div style="text-align:right;font-size:0.68rem;color:#94a3b8;margin-top:4px">'
-        'Fuente: BBDD_Ventas (cohortes) · Monday.com (bajas) · '
-        'Matcheo por ID CRM · Un cliente = primera venta'
+        'Fuente: Monday board 6967792411 (cohortes + bajas) · '
+        'Cohorte = mes de fecha_ingreso (fecha5)'
         '</div>',
         unsafe_allow_html=True,
     )
 
     _xlsx_bytes = _export_cohorte_excel(
-        df_bajas, df_ventas_cs, df_activos, _gran1, _gran2
+        df_bajas, df_all, df_activos, _gran1, _gran2
     )
     st.download_button(
         label="⬇️ Exportar cohortes a Excel",

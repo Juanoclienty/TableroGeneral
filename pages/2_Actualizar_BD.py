@@ -164,6 +164,34 @@ if st.button("Ejecutar actualizacion", type="primary", use_container_width=True)
     st.dataframe(st.session_state.resumen, use_container_width=True, hide_index=True)
 
 
+# ── Actualizar Ads ───────────────────────────────────────────────────────────
+st.markdown("---")
+st.markdown("## Actualizar Ads")
+st.caption("Fuerza la re-descarga del sheet de inversión publicitaria. Usá esto cuando corrijas datos en el sheet de Ads y no quieras esperar las 24h del caché automático.")
+
+if st.button("Actualizar Ads", type="primary", use_container_width=True):
+    import os as _os
+    _root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    _ads_cache = _os.path.join(_root, "cache", "sheet_ads.parquet")
+    _existed = _os.path.exists(_ads_cache)
+    if _existed:
+        _os.remove(_ads_cache)
+    st.cache_data.clear()
+    # Limpiar cache_resource que también cachea ads en memoria
+    import sys
+    sys.path.insert(0, _root)
+    import datos_crm as _datos_crm
+    _datos_crm.cargar_meses_compartido.clear()
+    # Re-fetch inmediato
+    import datos as _datos
+    with st.spinner("Descargando datos de Ads..."):
+        _datos.cargar_ads()
+    if _existed:
+        st.success(f"✅ Ads actualizados. Parquet regenerado en: `{_ads_cache}`")
+    else:
+        st.warning(f"El parquet no existía. Descargado de cero en: `{_ads_cache}`")
+
+
 # ── Actualizar Histórico ─────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("## Actualizar Histórico")
@@ -197,6 +225,7 @@ if st.button("Actualizar LTV", type="primary", use_container_width=True):
     with st.status("Actualizando LTV...", expanded=True) as _ltv_status:
         try:
             datos_ltv.actualizar_ltv(progress_cb=st.write)
+            st.cache_data.clear()
             _ltv_status.update(label="LTV actualizado correctamente.", state="complete")
             st.success(f"Caché LTV guardado — {datos_ltv.cache_fecha()}")
         except Exception as _ltv_e:

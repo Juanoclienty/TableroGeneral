@@ -18,10 +18,11 @@ URL_CALENDLY  = "https://docs.google.com/spreadsheets/d/1KDlgqrTcaSlPSbARUJe4qnP
 URL_ADS       = "https://docs.google.com/spreadsheets/d/1mx6EXpdM6kKfzNNWQ_J7vcPBL2Ex36uRmtY-mxKXcoY/export?format=csv"
 URL_OBJETIVOS = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/export?format=csv"
 
+# Mapeo columna del sheet → número de mes (ene-26 = 1, etc.)
 _MESES_COL = {
-    1: "2026 Enero", 2: "2026 Febrero", 3: "2026 Marzo", 4: "2026 Abril",
-    5: "2026 Mayo",  6: "2026 Junio",   7: "2026 Julio", 8: "2026 Agosto",
-    9: "2026 Septiembre", 10: "2026 Octubre", 11: "2026 Noviembre", 12: "2026 Diciembre",
+    "ene-26": 1, "feb-26": 2, "mar-26": 3, "abr-26": 4,
+    "may-26": 5, "jun-26": 6, "jul-26": 7, "ago-26": 8,
+    "sept-26": 9, "oct-26": 10, "nov-26": 11, "dic-26": 12,
 }
 
 
@@ -111,9 +112,18 @@ def cargar_calendly() -> pd.DataFrame:
 
 
 def cargar_ads() -> pd.DataFrame:
-    df = _leer_cache("sheet_ads.parquet")
-    if df is None:
+    import time
+    _cache_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", "sheet_ads.parquet")
+    _TTL = 86400  # 24h
+    _cache_ok = (
+        os.path.exists(_cache_path)
+        and (time.time() - os.path.getmtime(_cache_path)) < _TTL
+    )
+    if _cache_ok:
+        df = pd.read_parquet(_cache_path)
+    else:
         df = _leer_sheet(URL_ADS)
+        df.to_parquet(_cache_path, index=False)
     df["fecha"]         = pd.to_datetime(df["Fecha"], dayfirst=True, errors="coerce")
     df["inversion"]     = _limpiar_monto(df["Inversión total"])
     df["semana_inicio"] = df["fecha"] - pd.to_timedelta(df["fecha"].dt.dayofweek, unit="D")
@@ -122,53 +132,36 @@ def cargar_ads() -> pd.DataFrame:
 
 def cargar_objetivos() -> dict:
     """
-    Retorna {
-        'cpl':    {mes_num: val},   # CPL objetivo
-        'cpl_gf': {mes_num: val},   # $R1 = CPL GF objetivo
-        'leads':  {mes_num: val},   # leads mensuales objetivo
-        'gf':     {mes_num: val},   # R1 (GF) mensuales objetivo
-    }
-    Defaults: cpl=74, cpl_gf=92, leads=300, gf=240.
+    Lee el sheet de objetivos y retorna:
+      { 'leads': {mes: val}, 'gf': {mes: val}, 'inversion': {mes: val},
+        'cpl': {mes: val}, 'cpl_gf': {mes: val} }
+    Las claves del dict interno son números de mes (1=enero … 12=diciembre).
+    Los valores vienen directamente del sheet; no hay defaults hardcodeados.
     """
-    defaults = {
-        "cpl":      {m: 74.0    for m in range(1, 13)},
-        "cpl_gf":   {m: 163.0   for m in range(1, 13)},
-        "leads":    {m: 300.0   for m in range(1, 13)},
-        "gf":       {m: 141.0   for m in range(1, 13)},
-        "inversion":{m: 23000.0 for m in range(1, 13)},
-    }
+    # Filas de interés (valor exacto de la columna 'Unnamed: 0' en el CSV)
     kpi_map = {
-        "CPL": "cpl",
-        "CPL GF": "cpl_gf",
-        "Leads": "leads",
-        "Leads GF (Un)": "gf",
-        "Inversión publicidad (Sin imp)": "inversion",
+        "Cantidad de prospectos":  "leads",
+        "Leads GF (Un)":           "gf",
+        "Inversión publicidad":    "inversion",
+        "CPL":                     "cpl",
+        "CPL GF":                  "cpl_gf",
     }
-    try:
-        df     = _leer_sheet(URL_OBJETIVOS)
-        result = {k: {} for k in defaults}
-        for _, row in df.iterrows():
-            # Ignorar filas del desglose semanal (Area vacía)
-            area = str(row.get(" Area", row.get("Area", ""))).strip()
-            if not area or area == "nan":
+    result = {k: {} for k in kpi_map.values()}
+    df = _leer_sheet(URL_OBJETIVOS)
+    # La primera columna tiene los nombres de KPI
+    label_col = df.columns[0]
+    for _, row in df.iterrows():
+        label = str(row[label_col]).strip()
+        if label not in kpi_map:
+            continue
+        key = kpi_map[label]
+        for col, mes_num in _MESES_COL.items():
+            if col not in df.columns:
                 continue
-            kpi = str(row.get(" KPI", row.get("KPI", ""))).strip()
-            if kpi not in kpi_map:
-                continue
-            key = kpi_map[kpi]
-            for mes_num, col in _MESES_COL.items():
-                if col in df.columns:
-                    val = _limpiar_monto(pd.Series([row[col]])).iloc[0]
-                    if val > 0:
-                        result[key][mes_num] = val
-        # Completar meses faltantes con defaults
-        for key, defvals in defaults.items():
-            for m in range(1, 13):
-                if m not in result[key]:
-                    result[key][m] = defvals[m]
-        return result
-    except Exception:
-        return defaults
+            val = _limpiar_monto(pd.Series([row[col]])).iloc[0]
+            if val > 0:
+                result[key][mes_num] = val
+    return result
 
 
 # ============================================================
@@ -208,6 +201,127 @@ def calcular_meses(df_cal: pd.DataFrame, df_ads: pd.DataFrame) -> pd.DataFrame:
     df = _merge_ads_y_costos(df, ads_grp, "mes_key")
 
     return df.sort_values("fecha_ini").reset_index(drop=True)
+
+
+
+# ============================================================
+# ADS DETALLE (Sheet BBDD_Detalle_ads)
+# ============================================================
+
+_ADS_SHEET_ID   = "1DSXU0pluCzCJDFwKremw7crWb1W21S9HtWDOsDhVG8E"
+_CACHE_ADS_SEM  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", "ads_detalle_sem.parquet")
+_CACHE_ADS_MES  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", "ads_detalle_mes.parquet")
+_CACHE_ADS_DATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", "ads_detalle.date")
+
+import re as _re
+
+
+def _extraer_num_ad(nombre: str) -> int:
+    """'Ad_0813' / 'Ad 813' / 'Ad_293' → 813 / 813 / 293 (int, sin ceros)."""
+    m = _re.search(r"\d+", str(nombre))
+    return int(m.group()) if m else -1
+
+
+def _procesar_ads_xlsx() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Descarga el xlsx de ads, procesa y retorna (df_sem, df_mes) ya
+    dolarizados y con tipo/tematica del Anexo.
+    """
+    url = f"https://docs.google.com/spreadsheets/d/{_ADS_SHEET_ID}/export?format=xlsx"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req) as r:
+        data = r.read()
+
+    xls = pd.ExcelFile(io.BytesIO(data))
+
+    # ── Tipo de cambio ─────────────────────────────────────────
+    tc_df = pd.read_excel(io.BytesIO(data), sheet_name="Tipo de cambio")
+    tc_df["fecha"] = pd.to_datetime(tc_df.iloc[:, 0], errors="coerce")
+    tc_df["mes"]   = tc_df["fecha"].dt.month
+    tc_map = tc_df.dropna(subset=["mes"]).set_index("mes")["Tipo de cambio"].to_dict()
+
+    # ── Anexo ads — deduplicar quedando con la última fila ────
+    anx = pd.read_excel(io.BytesIO(data), sheet_name="Anexo_ads")
+    anx.columns = [c.strip() for c in anx.columns]
+    anx["_num"] = anx["Nombre del AD"].apply(_extraer_num_ad)
+    anx = anx[anx["_num"] >= 0].drop_duplicates(subset="_num", keep="last")
+    anx["tipo"]     = anx.get("Tipo de contenido", pd.Series(dtype=str)).fillna("Sin clasificar").str.strip()
+    _tem_col        = next((c for c in anx.columns if c.strip().lower() == "tematica"), None)
+    anx["tematica"] = anx[_tem_col].fillna("Sin clasificar").str.strip() if _tem_col else "Sin clasificar"
+    anx_map = anx.set_index("_num")[["tipo", "tematica"]]
+
+    def _enriquecer(df: pd.DataFrame, periodo_col: str) -> pd.DataFrame:
+        df = df.copy()
+        df.columns = [c.strip() for c in df.columns]
+        df["fecha_ini"] = pd.to_datetime(df["Inicio del informe"], errors="coerce")
+        df["fecha_fin"] = pd.to_datetime(df["Fin del informe"],    errors="coerce")
+        df["mes_num"]   = df["fecha_ini"].dt.month
+        df["_num"]      = df["Nombre del anuncio"].apply(_extraer_num_ad)
+        df["inversion_ars"] = pd.to_numeric(
+            df["Importe gastado (ARS)"].astype(str)
+            .str.replace(",", ".", regex=False), errors="coerce").fillna(0)
+        df["tc"]            = df["mes_num"].map(tc_map).fillna(1)
+        df["inversion_usd"] = (df["inversion_ars"] / df["tc"]).round(1)
+        # Join con Anexo
+        df = df.join(anx_map, on="_num", how="left")
+        df["tipo"]     = df["tipo"].fillna("Sin clasificar")
+        df["tematica"] = df["tematica"].fillna("Sin clasificar")
+        df["nombre_ad"] = df["Nombre del anuncio"]
+        keep = [periodo_col, "nombre_ad", "inversion_ars", "fecha_ini", "fecha_fin",
+                "mes_num", "inversion_usd", "tipo", "tematica"]
+        return df[[c for c in keep if c in df.columns]].reset_index(drop=True)
+
+    df_sem = _enriquecer(
+        pd.read_excel(io.BytesIO(data), sheet_name="Detalle_ads_sem"), "Semana")
+    df_mes = _enriquecer(
+        pd.read_excel(io.BytesIO(data), sheet_name="Detalle_ads_mes"), "Mes")
+
+    return df_sem, df_mes
+
+
+def cargar_anexo_ads() -> pd.DataFrame:
+    """Retorna DataFrame con columnas [_num, tipo, tematica] desde Anexo_ads."""
+    import io
+    url = f"https://docs.google.com/spreadsheets/d/{_ADS_SHEET_ID}/export?format=xlsx"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req) as r:
+        data = r.read()
+    anx = pd.read_excel(io.BytesIO(data), sheet_name="Anexo_ads")
+    anx.columns = [c.strip() for c in anx.columns]
+    anx["_num"] = anx["Nombre del AD"].apply(_extraer_num_ad)
+    anx = anx[anx["_num"] >= 0].drop_duplicates(subset="_num", keep="last")
+    anx["tipo"] = anx.get("Tipo de contenido", pd.Series(dtype=str)).fillna("Sin clasificar").str.strip()
+    _tem_col = next((c for c in anx.columns if c.strip().lower() == "tematica"), None)
+    anx["tematica"] = anx[_tem_col].fillna("Sin clasificar").str.strip() if _tem_col else "Sin clasificar"
+    return anx[["_num", "tipo", "tematica"]].reset_index(drop=True)
+
+
+def actualizar_cache_ads() -> str:
+    """Descarga, procesa y guarda los parquets de ads. Retorna timestamp."""
+    df_sem, df_mes = _procesar_ads_xlsx()
+    df_sem.to_parquet(_CACHE_ADS_SEM, index=False)
+    df_mes.to_parquet(_CACHE_ADS_MES, index=False)
+    ts = pd.Timestamp.now().strftime("%d/%m/%Y %H:%M")
+    with open(_CACHE_ADS_DATE, "w") as f:
+        f.write(ts)
+    return ts
+
+
+def cargar_ads_detalle() -> tuple[pd.DataFrame, pd.DataFrame, str]:
+    """
+    Retorna (df_sem, df_mes, ultima_actualizacion).
+    Lee de parquet local; si no existe, descarga del xlsx.
+    """
+    ts = "–"
+    if os.path.exists(_CACHE_ADS_DATE):
+        with open(_CACHE_ADS_DATE) as f:
+            ts = f.read().strip()
+
+    if os.path.exists(_CACHE_ADS_SEM) and os.path.exists(_CACHE_ADS_MES):
+        return pd.read_parquet(_CACHE_ADS_SEM), pd.read_parquet(_CACHE_ADS_MES), ts
+
+    ts = actualizar_cache_ads()
+    return pd.read_parquet(_CACHE_ADS_SEM), pd.read_parquet(_CACHE_ADS_MES), ts
 
 
 def calcular_dias(df_cal: pd.DataFrame, df_ads: pd.DataFrame, dias: int = 15) -> pd.DataFrame:

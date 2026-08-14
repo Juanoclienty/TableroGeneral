@@ -11,6 +11,14 @@ from datetime import datetime
 st.set_page_config(page_title="Objetivos mkt-vtas", layout="wide")
 st.markdown("## Objetivos mkt - vtas")
 
+with st.sidebar:
+    st.markdown("### Actualizar")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        _btn_refresh_api = st.button("🔄 API CRM", use_container_width=True, help="Recarga datos del CRM")
+    with col_b:
+        _btn_refresh_sheets = st.button("📋 Sheets", use_container_width=True, help="Recarga inversión desde Ads xlsx")
+
 _URL_OBJ  = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/export?format=csv"
 _URL_EDIT = "https://docs.google.com/spreadsheets/d/1rOa7MvHxXUiU8nEMb5cKTyv8lMvPuZzrAT8Wj0KuD40/edit"
 
@@ -275,7 +283,7 @@ body{font-family:sans-serif;font-size:12.5px;margin:0}
 
 # ── Tab 3: Real vs Proyectado ─────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def _cargar_real_mes():
     """Carga datos reales del mes actual desde CRM y ads."""
     import sys
@@ -283,12 +291,10 @@ def _cargar_real_mes():
     import datos as _datos
     import datos_crm as _dcrm
 
-    df_crm  = _dcrm.cargar_crm()
-    df_ads  = _datos.cargar_ads()
+    df_crm = _dcrm.cargar_crm()
 
-    # Filtrar mes actual
     hoy = datetime.today()
-    mes_actual = hoy.month
+    mes_actual  = hoy.month
     anio_actual = hoy.year
 
     df_mes = df_crm[
@@ -296,39 +302,70 @@ def _cargar_real_mes():
         (df_crm["fecha_lead"].dt.year  == anio_actual)
     ] if not df_crm.empty else df_crm
 
-    leads       = len(df_mes)
-    r1          = int(df_mes["estado_resumen"].isin(["1. R1","2. Follow","3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
-    follow      = int(df_mes["estado_resumen"].isin(["2. Follow","3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
-    r2_agend    = int(df_mes["estado_resumen"].isin(["3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
-    r2_efect    = int(df_mes["estado_resumen"].isin(["3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
-    presup      = int(df_mes["estado_resumen"].isin(["4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
-    ventas      = int((df_mes["estado_resumen"] == "5. Venta").sum()) if not df_mes.empty else 0
+    leads    = len(df_mes)
+    r1       = int(df_mes["estado_resumen"].isin(["1. R1","2. Follow","3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    follow   = int(df_mes["estado_resumen"].isin(["2. Follow","3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    r2_agend = int(df_mes["estado_resumen"].isin(["3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    r2_efect = int(df_mes["estado_resumen"].isin(["3. R2","4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    presup   = int(df_mes["estado_resumen"].isin(["4. Presupuesto","5. Venta"]).sum()) if not df_mes.empty else 0
+    ventas   = int((df_mes["estado_resumen"] == "5. Venta").sum()) if not df_mes.empty else 0
 
+    # Inversión: desde sheet_ads (mismo origen que Ventas y Marketing)
     inv = 0.0
-    if not df_ads.empty:
-        df_ads_mes = df_ads[
+    try:
+        df_ads = _datos.cargar_ads()
+        inv = float(df_ads[
             (df_ads["fecha"].dt.month == mes_actual) &
             (df_ads["fecha"].dt.year  == anio_actual)
-        ]
-        inv = float(df_ads_mes["inversion"].sum())
+        ]["inversion"].sum())
+    except Exception:
+        pass
 
-    cpl = round(inv / leads, 0) if leads > 0 else 0
-    cpe = round(inv / leads, 0) if leads > 0 else 0
-    cpv = round(inv / ventas, 0) if ventas > 0 else 0
+    # Ventas reales: desde BBDD_Ventas (fecha de cierre en el mes actual)
+    ventas_reales = 0
+    try:
+        import pandas as _pd
+        _ID_BBDD = "1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M"
+        _url_bbdd = f"https://docs.google.com/spreadsheets/d/{_ID_BBDD}/gviz/tq?tqx=out:csv&sheet=BBDD_Ventas"
+        df_bbdd = _pd.read_csv(_url_bbdd, dtype=str)
+        df_bbdd["Fecha"] = _pd.to_datetime(df_bbdd["Fecha"], dayfirst=True, errors="coerce")
+        ventas_reales = int(((df_bbdd["Fecha"].dt.month == mes_actual) & (df_bbdd["Fecha"].dt.year == anio_actual)).sum())
+    except Exception:
+        pass
+
+    cpl = round(inv / leads,        0) if leads  > 0 else 0
+    cpe = round(inv / presup,       0) if presup > 0 else 0
+    cpv = round(inv / ventas_reales, 0) if ventas_reales > 0 else 0
 
     return {
-        "inversion": inv,
-        "cpl":       cpl,
-        "leads":     leads,
-        "r1":        r1,
-        "follow":    follow,
-        "r2_ag":     r2_agend,
-        "r2_ef":     r2_efect,
-        "presup":    presup,
-        "ventas":    ventas,
-        "cpe":       cpe,
-        "cpv":       cpv,
+        "inversion":     inv,
+        "cpl":           cpl,
+        "leads":         leads,
+        "r1":            r1,
+        "follow":        follow,
+        "r2_ag":         r2_agend,
+        "r2_ef":         r2_efect,
+        "presup":        presup,
+        "ventas_co":     ventas,
+        "ventas_reales": ventas_reales,
+        "cpe":           cpe,
+        "cpv":           cpv,
     }
+
+
+if _btn_refresh_api:
+    import datos_crm as _dcrm_sb
+    with st.spinner("Descargando CRM..."):
+        _dcrm_sb.limpiar_cache()
+        st.cache_data.clear()
+    st.rerun()
+
+if _btn_refresh_sheets:
+    import datos as _datos_sb
+    with st.spinner("Descargando Ads xlsx..."):
+        _datos_sb.actualizar_cache_ads()
+        st.cache_data.clear()
+    st.rerun()
 
 
 def _render_real_vs_proy(rows_sheet):
@@ -378,9 +415,10 @@ def _render_real_vs_proy(rows_sheet):
             ("R1 Efectivas",           "R1 Efectivas",           "r1",     "r1",     "n"),
             ("R2 agendadas",           "R2 agendadas",           "r2_ag",  "r2_ag",  "n"),
             ("R2 Efectivas",           "R2 Efectivas",           "r2_ef",  "r2_ef",  "n"),
-            ("Presupuestos enviados",  "Presupuestos enviados",  "presup", "presup", "n"),
-            ("Ventas",                 "Ventas",                 "ventas", "ventas", "n"),
-            ("Tasa sobre leads",       "Tasa sobre leads",       None,     None,     "pct"),
+            ("Presupuestos enviados",  "Presupuestos enviados",  "presup", "presup",        "n"),
+            ("Ventas reales",          "Ventas",                 None,     "ventas_reales", "n"),
+            ("Tasa sobre leads",       "Tasa sobre leads",       None,     None,            "pct"),
+            ("Ventas (Co)",            None,                     "ventas", "ventas_co",     "n"),
         ]),
         ("Costos", [
             ("CPE", "CPE", None, "cpe", "$"),
@@ -388,11 +426,11 @@ def _render_real_vs_proy(rows_sheet):
         ]),
     ]
 
-    _GRISES  = {"Tasa sobre leads"}
-    _VERDES  = {"Ventas"}
+    _GRISES  = {"Tasa sobre leads", "Ventas (Co)"}
+    _VERDES  = {"Ventas reales"}
 
-    # calcular tasa real
-    tasa_real = f"{round(real.get('ventas',0)/real.get('leads',1)*100,1)}%" if real.get("leads") else "—"
+    # calcular tasa real (usa ventas_reales)
+    tasa_real = f"{round(real.get('ventas_reales',0)/real.get('leads',1)*100,1)}%" if real.get("leads") else "—"
 
     css = """
 <style>
@@ -418,7 +456,7 @@ body{font-family:sans-serif;font-size:12.5px;margin:0}
     for nombre_sec, filas in _SECS_RVP:
         html += f'<tr class="sec-hdr"><td colspan="4">{nombre_sec}</td></tr>'
         for nombre_fila, sheet_key, p6_key, real_key, fmt in filas:
-            proy_val = datos_sheet.get(sheet_key, "—")
+            proy_val = datos_sheet.get(sheet_key, "—") if sheet_key else "—"
             p6_val   = str(p6.get(p6_key, "—")) if p6_key else "—"
             if real_key is None:
                 real_val = tasa_real
@@ -442,6 +480,20 @@ body{font-family:sans-serif;font-size:12.5px;margin:0}
     n_filas = sum(len(f) for _, f in _SECS_RVP)
     height  = 40 + len(_SECS_RVP) * 30 + n_filas * 28
     components.html(html, height=height, scrolling=False)
+
+    st.markdown(
+        "<div style='font-size:0.75rem;color:#9ca3af;margin-top:12px;line-height:1.6'>"
+        "<b>Fuentes columna Real:</b><br>"
+        "· <b>Inversión publicidad</b> — Google Sheet de Ads (mismo origen que Ventas), suma del mes actual<br>"
+        "· <b>CPL</b> — Inversión / Leads<br>"
+        "· <b>Leads, R1 Efectivas, R2, Presupuestos</b> — API Clienty CRM, leads con fecha_lead en el mes actual<br>"
+        "· <b>Ventas reales</b> — BBDD_Ventas (Google Sheet), filas con fecha de cierre en el mes actual<br>"
+        "· <b>Ventas (Co)</b> — API Clienty CRM, leads con fecha_lead en el mes actual en estado 5. Venta<br>"
+        "· <b>CPE</b> — Inversión / Presupuestos<br>"
+        "· <b>CPV</b> — Inversión / Ventas reales"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

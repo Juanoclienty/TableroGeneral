@@ -20,12 +20,10 @@ def _cargar_cache():
     return datos_ltv.cargar_ltv()
 
 try:
-    _data   = _cargar_cache()
-    df_real = _data["real"]
-    df_prom = _data["prom"]
-    df_vtas = _data["ventas"]
-    df_ads  = _data["ads"]
-    _estado_lookup = _data["monday"]
+    _data    = _cargar_cache()
+    df_ltv_v2 = _data["ltv_v2"]
+    df_vtas   = _data["ventas"]
+    df_ads    = _data["ads"]
 except FileNotFoundError as _e:
     st.title("💰 LTV")
     st.warning(str(_e))
@@ -83,59 +81,43 @@ if not df_vtas.empty:
             _fecha_por_id[idk] = row["_fecha"]
 
 
-# ── Agregar LTV por cliente ───────────────────────────────────────
-
-_real_rec  = df_real[~df_real["_es_impl"]].groupby("_id")["_usd"].sum()
-_real_impl = df_real[df_real["_es_impl"]].groupby("_id")["_usd"].sum()
-_real_cli  = df_real.groupby("_id")["_cliente"].first()
-
-_prom_rec = df_prom.groupby("_id")["_usd"].sum()
-_prom_cli = df_prom.groupby("_id")["_cliente"].first()
-
-_todos_ids = sorted(
-    set(_real_rec.index) | set(_real_impl.index) | set(_prom_rec.index),
-    key=lambda x: (not x.lstrip("-").isdigit(), x),
-)
-
-_FINNEGANS = pd.Timestamp("2024-09-01")
+# ── Construir df_ltv desde sheet consolidado ──────────────────────
 
 filas = []
-for idk in _todos_ids:
+for _, row in df_ltv_v2.iterrows():
+    idk = row["_id"]
     if not idk:
         continue
-    _fv = _fecha_por_id.get(idk)
-    _pre_finnegans = (_fv is not None and pd.notna(_fv) and pd.Timestamp(_fv) < _FINNEGANS)
-    rec  = float(_real_rec.get(idk, 0)) + (float(_prom_rec.get(idk, 0)) if _pre_finnegans else 0.0)
-    impl = float(_real_impl.get(idk, 0))
-
-    _c = _real_cli.get(idk)
-    if _c is None or (isinstance(_c, float) and pd.isna(_c)):
-        _c = _prom_cli.get(idk)
-    cli = str(_c).strip() if _c is not None else "–"
-    if cli in ("nan", "None", ""):
-        cli = "–"
 
     fecha_ts = _fecha_por_id.get(idk)
+    _fecha_ingreso = row["_fecha_ingreso"]
     if fecha_ts is not None and pd.notna(fecha_ts):
         _p        = pd.Timestamp(fecha_ts).to_period("M")
         cpv       = _cpv_mes(_p)
-        fecha_str = pd.Timestamp(fecha_ts).strftime("%d/%m/%Y")
+        mes_venta = _mes_es(pd.Timestamp(fecha_ts))
+    elif pd.notna(_fecha_ingreso):
+        _p        = pd.Timestamp(_fecha_ingreso).to_period("M")
+        cpv       = _cpv_mes(_p)
+        mes_venta = _mes_es(pd.Timestamp(_fecha_ingreso))
     else:
         cpv       = None
-        fecha_str = "–"
+        mes_venta = None
 
-    _fecha_baja = _estado_lookup.get(idk, pd.NaT)
+    _fecha_baja = row["_fecha_baja"]
     _es_baja    = pd.notna(_fecha_baja)
+
     filas.append({
-        "ID CRM":    idk,
-        "Cliente":   cli,
-        "Mes venta": _mes_es(pd.Timestamp(fecha_ts)) if fecha_ts is not None and pd.notna(fecha_ts) else None,
-        "Estado":    "Baja" if _es_baja else "Activo",
-        "Mes baja":  _mes_es(_fecha_baja) if _es_baja else None,
-        "CPV":       float(cpv) if cpv is not None else float("nan"),
-        "LTV R":     rec,
-        "LTV I":     impl,
-        "LTV T":     rec + impl,
+        "ID CRM":            idk,
+        "Cliente":           row["_cliente"],
+        "Mes venta":         mes_venta,
+        "Estado":            str(row["_estado"]).strip().capitalize(),
+        "Mes baja":          _mes_es(_fecha_baja) if _es_baja else None,
+        "CPV":               float(cpv) if cpv is not None else float("nan"),
+        "LTV R":             row["_ltv_r"],
+        "LTV I":             row["_ltv_i"],
+        "LTV T":             row["_ltv_t"],
+        "Meses activo":      row["_meses_activo"],
+        "Ultimo Tkt":        row["_ultimo_tkt"],
     })
 
 df_ltv = pd.DataFrame(filas)
@@ -212,6 +194,8 @@ st.dataframe(
     df_show,
     use_container_width=True,
     hide_index=True,
+    column_order=["ID CRM", "Cliente", "Mes venta", "Estado", "Mes baja",
+                  "CPV", "LTV R", "LTV I", "LTV T", "Meses activo", "Ultimo Tkt"],
     column_config={
         "Mes venta": st.column_config.TextColumn("Mes venta"),
         "CPV": st.column_config.NumberColumn(
@@ -219,16 +203,17 @@ st.dataframe(
             help="Costo por venta del mes en que se cerró la venta",
         ),
         "LTV R": st.column_config.NumberColumn("LTV R (USD)", format="$ %.0f",
-            help="Facturación acumulada (excluye Implementación)"),
+            help="Facturación recurrente acumulada"),
         "LTV I": st.column_config.NumberColumn("LTV I (USD)", format="$ %.0f"),
         "LTV T": st.column_config.NumberColumn("LTV T (USD)", format="$ %.0f"),
+        "Meses activo": st.column_config.NumberColumn("Meses activo", format="%.0f"),
+        "Ultimo Tkt": st.column_config.NumberColumn("Último Tkt (USD)", format="$ %.0f"),
     },
 )
 
 st.markdown(
     '<div style="text-align:right;font-size:0.68rem;color:#94a3b8;margin-top:4px">'
-    'LTV Real (Finnegans) + LTV Prom pre-Finnegans · '
-    'Fecha de venta y CPV: BBDD_Ventas · Moneda: USD'
+    'LTV: sheet consolidado · Fecha de venta y CPV: BBDD_Ventas · Moneda: USD'
     '</div>',
     unsafe_allow_html=True,
 )
@@ -269,6 +254,8 @@ for _p, _grp in _df_coh.dropna(subset=["_periodo"]).groupby("_periodo"):
         "bajas":    _baj,
         "inv":      float(_inv_por_mes.get(_p, 0)),
         "ltv":      _ltv,
+        "ltv_r":    float(_grp["LTV R"].sum()),
+        "ltv_i":    float(_grp["LTV I"].sum()),
         "cpv_prom": _cpv_prom,
         "ltv_prom": _ltv_prom,
     })
@@ -288,12 +275,18 @@ td   { border:1px dotted #bbb; padding:5px 6px; text-align:center; }
 .c-n { background:#d6eaf8; }
 .c-p { background:#fdebd0; }
 .c-a { background:#d5f5e3; }
+.c-d { background:#ede7f6; }
 .yr-row td  { font-weight:bold; }
 .yr-row .c-l { background:#dde1e6; }
 .p-row .c-l  { padding-left:20px !important; }
 .tbtn { background:none; border:none; cursor:pointer; font-size:0.65rem;
         padding:0 3px 0 0; color:#444; vertical-align:middle; }
 .tbtn:hover { color:#0055cc; }
+.detail-col { display:none; }
+.topbar { padding:4px 6px 4px; text-align:right; }
+.dbtn { background:#f0f4ff; border:1px solid #bcd; border-radius:4px;
+        cursor:pointer; font-size:0.72rem; padding:3px 10px; color:#1a3a5c; }
+.dbtn:hover { background:#dde8ff; }
 """
 
 _JS_COH = """
@@ -304,6 +297,13 @@ function togc(yr) {
     rows.forEach(function(r){ r.style.display = open ? 'none' : ''; });
     btn.dataset.open = open ? '0' : '1';
     btn.innerHTML    = open ? '&#9654;' : '&#9660;';
+}
+var _detailVisible = false;
+function togDetail() {
+    _detailVisible = !_detailVisible;
+    var els = document.querySelectorAll('.detail-col');
+    els.forEach(function(e){ e.style.display = _detailVisible ? 'table-cell' : 'none'; });
+    document.getElementById('dbtn').textContent = _detailVisible ? 'Ocultar desglose' : 'Ver desglose';
 }
 """
 
@@ -321,6 +321,8 @@ for _yr in _years:
     _tl     = float(_grp_yr["ltv"].sum())
     _tcpv   = float(_grp_yr["cpv_prom"].mean()) if _tv > 0 else 0.0
     _tltv   = _tl / _tv if _tv > 0 else 0.0
+    _tr  = float(_grp_yr["ltv_r"].sum())
+    _ti2 = float(_grp_yr["ltv_i"].sum())
     _tbody += (
         f'<tr class="yr-row">'
         f'<td class="c-l"><button class="tbtn" id="btnc-{_yr}" data-open="0"'
@@ -330,6 +332,8 @@ for _yr in _years:
         f'<td class="c-n" style="color:#c0392b">{_tbaj}</td>'
         f'<td class="c-p">{_fmt_usd(_ti)}</td>'
         f'<td class="c-a">{_fmt_usd(_tl)}</td>'
+        f'<td class="c-d detail-col">{_fmt_usd(_tr)}</td>'
+        f'<td class="c-d detail-col">{_fmt_usd(_ti2)}</td>'
         f'<td class="c-p">{_fmt_usd(_tcpv)}</td>'
         f'<td class="c-a">{_fmt_usd(_tltv)}</td>'
         f'</tr>'
@@ -343,8 +347,9 @@ for _yr in _years:
             f'<td class="c-n" style="color:#c0392b">{int(_row["bajas"]) if _row["bajas"] > 0 else ""}</td>'
             f'<td class="c-p">{_fmt_usd(_row["inv"])}</td>'
             f'<td class="c-a">{_fmt_usd(_row["ltv"])}</td>'
+            f'<td class="c-d detail-col">{_fmt_usd(_row["ltv_r"])}</td>'
+            f'<td class="c-d detail-col">{_fmt_usd(_row["ltv_i"])}</td>'
             f'<td class="c-p">{_fmt_usd(_row["cpv_prom"])}</td>'
-            f'<td class="c-a">{_fmt_usd(_row["ltv_prom"])}</td>'
             f'</tr>'
         )
 
@@ -354,6 +359,7 @@ _height = min(max(_n_rows * 28 + 70, 120), 520)
 _html_coh = (
     "<!DOCTYPE html><html><head><meta charset='utf-8'>"
     f"<style>{_CSS_COH}</style></head><body>"
+    "<div class='topbar'><button class='dbtn' id='dbtn' onclick='togDetail()'>Ver desglose</button></div>"
     "<div class='wrap'><table><thead><tr>"
     "<th class='h-n' style='width:120px'>Cohorte</th>"
     "<th class='h-n' style='width:65px'>Total</th>"
@@ -361,11 +367,14 @@ _html_coh = (
     "<th class='h-n' style='width:65px'>Bajas</th>"
     "<th class='h-n'>Inversión MKT</th>"
     "<th class='h-n'>Ingresos totales</th>"
+    "<th class='h-n detail-col'>Ing. Recurrente</th>"
+    "<th class='h-n detail-col'>Ing. Implementación</th>"
     "<th class='h-n'>CPV Prom</th>"
-    "<th class='h-n'>LTV Prom</th>"
     f"</tr></thead><tbody>{_tbody}</tbody></table></div>"
     f"<script>{_JS_COH}</script>"
     "</body></html>"
 )
 
 components.html(_html_coh, height=_height, scrolling=False)
+
+st.caption("Total = ventas con factura cargada en el sheet LTV.")

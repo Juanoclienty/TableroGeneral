@@ -173,6 +173,7 @@ with st.sidebar:
     st.markdown("---")
     if st.button("📊 Actualizar tablas", use_container_width=True,
                  help="Recarga solo los Google Sheets (ventas, presupuestos, ads). Rápido."):
+        _cargar_todo.clear()
         st.cache_data.clear()
         st.rerun()
     if st.button("🔄 Recargar todo (API)", use_container_width=True,
@@ -797,9 +798,14 @@ if not df_vista.empty:
         columns=["_pkey", "fR1", "fFollow", "fR2", "fPresu", "fVenta"])
     df_vista = df_vista.merge(df_fc, on="_pkey", how="left")
     for c, _ in FUNNEL_COLS:
-        df_vista[c] = df_vista[c].fillna(0).astype(int)
+        if c in df_vista.columns:
+            df_vista[c] = df_vista[c].fillna(0).astype(int)
+        else:
+            df_vista[c] = 0
 else:
     df_crm_fil = pd.DataFrame()
+    for c, _ in FUNNEL_COLS:
+        df_vista[c] = 0
 
 
 # ── Header ────────────────────────────────────────────────────
@@ -864,6 +870,37 @@ else:
     fecha_desde = _meses_rango(_n_vt)[0]
     _base_sl = datos_crm.calcular_meses_crm(_filtrar_crm(filtro_calidad), df_ads) if _hay_filtro else df_men
     df_vista = _base_sl[(_base_sl["fecha_ini"] >= pd.Timestamp(fecha_desde)) & (_base_sl["fecha_ini"] <= pd.Timestamp(fecha_hasta))].copy()
+
+if not df_vista.empty:
+    # Recalcular columnas del embudo sobre el df_vista filtrado por slider
+    _fd2 = df_vista["fecha_ini"].min()
+    _fh2 = df_vista["fecha_fin"].max()
+    _crm2 = _filtrar_crm(filtro_calidad)
+    _crm2 = _crm2[(_crm2["fecha_lead"] >= _fd2) & (_crm2["fecha_lead"] <= _fh2)].copy()
+    if vista == "Sem":
+        _crm2["_pkey"] = _crm2["semana_inicio"]
+        df_vista["_pkey"] = df_vista["semana_inicio"]
+    elif vista == "Mes":
+        _crm2["_pkey"] = _crm2["fecha_lead"].dt.to_period("M").dt.start_time.dt.normalize()
+        df_vista["_pkey"] = df_vista["fecha_ini"]
+    else:
+        _crm2["_pkey"] = _crm2["fecha_lead"].dt.normalize()
+        df_vista["_pkey"] = df_vista["fecha_ini"]
+    _rows2 = []
+    for _pk, _grp in _crm2.groupby("_pkey"):
+        _e = _grp["Estado"].dropna()
+        _rows2.append({"_pkey": _pk,
+            "fR1":    int(_e.isin(R1_PLUS).sum()),
+            "fFollow":int(_e.isin(FOLLOW_PLUS).sum()),
+            "fR2":    int(_e.isin(R2_PLUS).sum()),
+            "fPresu": int(_e.isin(PRESU_PLUS).sum()),
+            "fVenta": int((_e == "Venta ganada").sum()),
+        })
+    _fc2 = pd.DataFrame(_rows2) if _rows2 else pd.DataFrame(
+        columns=["_pkey", "fR1", "fFollow", "fR2", "fPresu", "fVenta"])
+    df_vista = df_vista.merge(_fc2, on="_pkey", how="left")
+    for _c, _ in FUNNEL_COLS:
+        df_vista[_c] = df_vista[_c].fillna(0).astype(int) if _c in df_vista.columns else 0
 
 if df_vista.empty:
     st.info("No hay datos para el período seleccionado.")
