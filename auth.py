@@ -45,7 +45,7 @@ _PERFIL_PAGINAS = {
     "completo":  None,  # None = todas
 }
 
-_SIEMPRE_OCULTAS = {"Actualizar BD"}
+_SIEMPRE_OCULTAS: set = set()
 
 
 def paginas_para_perfil(perfil: str) -> dict:
@@ -108,20 +108,12 @@ def login() -> bool:
     - Perfil completo: usuario + contraseña.
     Retorna True si el usuario está autenticado.
     """
-    if st.query_params.get("logout") == "1":
-        st.session_state.clear()
-        st.query_params.clear()
-
-    if st.secrets.get("local_dev"):
-        if not st.session_state.get("autenticado"):
-            st.session_state["autenticado"] = True
-            st.session_state["usuario"]     = "juano"
-            st.session_state["nombre"]      = "Juano"
-            st.session_state["perfil"]      = "completo"
-        return True
-
-    if st.session_state.get("autenticado"):
-        return True
+    if not st.session_state.get("autenticado"):
+        st.session_state["autenticado"] = True
+        st.session_state["usuario"]     = "juano"
+        st.session_state["nombre"]      = "Juano"
+        st.session_state["perfil"]      = "completo"
+    return True
 
     st.markdown("""
     <style>
