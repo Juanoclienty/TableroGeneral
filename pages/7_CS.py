@@ -33,7 +33,7 @@ _MONDAY_TOKEN = (
 )
 _BOARD_ID      = "6967792411"
 _GROUP_ACTIVOS = "grupo_nuevo28466"
-_COLS          = ["id8__1", "fecha5", "fecha1", "status0", "rubro_mkmttagz", "pain__1"]
+_COLS          = ["id8__1", "fecha5", "fecha1", "status0", "rubro_mkmttagz", "pain__1", "color_mm5et9yr", "enlace_mkmtdb0f"]
 _ID_BBDD_CS    = "1pCQtjCZZOrhP21K-EyFECtoNeNNosZfOEgDp9YUZE6M"
 
 _MESES_ES = {
@@ -244,6 +244,8 @@ def cargar_monday_cs() -> pd.DataFrame:
             "_fecha_baja":     cv.get("fecha1", ""),
             "Tipo de cliente": cv.get("status0", ""),
             "Rubro":           cv.get("rubro_mkmttagz", ""),
+            "Wapbot":          cv.get("color_mm5et9yr", ""),
+            "Link CRM":        cv.get("enlace_mkmtdb0f", ""),
             "B2B - B2C":       cv.get(_col_b2b, "") if _col_b2b else "",
         })
 
@@ -1205,7 +1207,7 @@ def _kpi(lbl, val, sub=""):
 
 # ── Tabs ──────────────────────────────────────────────────────────
 
-tab_ob, tab_ob_cerr, tab_pob, tab_baj, tab_ped, tab_act = st.tabs(["OB", "OB Cerrados", "CS 2026", "📉 Bajas", "Pedidos de baja", "Anexo"])
+tab_ob, tab_ob_cerr, tab_pob, tab_baj, tab_ped, tab_wap, tab_act = st.tabs(["OB", "OB Cerrados", "CS 2026", "📉 Bajas", "Pedidos de baja", "API + Wapbot", "Anexo"])
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1331,6 +1333,18 @@ with tab_ob:
             _etapas_all = list(_df_ob["etapa"].unique())
             _etapas = [e for e in _ETAPA_ORDER if e in _etapas_all] + \
                       [e for e in sorted(_etapas_all) if e not in _ETAPA_ORDER]
+
+            # ── Enriquecer con fecha de ingreso del tablero CS ───────
+            _fi_lkp = df_all[["Nombre", "_fecha_ingreso"]].copy()
+            _fi_lkp["_fi_fmt"] = _fi_lkp["_fecha_ingreso"].apply(
+                lambda x: x.strftime("%d/%m/%Y") if pd.notna(x) else "—"
+            )
+            _df_ob = _df_ob.merge(
+                _fi_lkp.rename(columns={"Nombre": "nombre"})[["nombre", "_fi_fmt"]],
+                on="nombre", how="left"
+            )
+            _df_ob["fecha_ingreso"] = _df_ob["_fi_fmt"].fillna("—")
+
             _ob_json    = _json_ob.dumps(_df_ob.to_dict(orient="records"), ensure_ascii=False)
 
             # ── helpers de celda ────────────────────────────────
@@ -1545,10 +1559,11 @@ tr.exp-row td{{padding:0;border-bottom:2px solid #c7d9f0}}
       <th class="det-th" onclick="sortOb(0)">Nombre <span id="arr0"></span></th>
       <th class="det-th" onclick="sortOb(1)" style="text-align:center">Estratega <span id="arr1"></span></th>
       <th class="det-th" onclick="sortOb(2)" style="text-align:center">Etapa <span id="arr2"></span></th>
-      <th class="det-th" onclick="sortOb(3)" style="text-align:center">Inicio impl. <span id="arr3"></span></th>
-      <th class="det-th" onclick="sortOb(4)" style="text-align:center">Días OB <span id="arr4"></span></th>
-      <th class="det-th" onclick="sortOb(5)" style="text-align:center">SLA <span id="arr5"></span></th>
-      <th class="det-th" onclick="sortOb(6)" style="text-align:center">Riesgo <span id="arr6"></span></th>
+      <th class="det-th" onclick="sortOb(3)" style="text-align:center">F. ingreso <span id="arr3"></span></th>
+      <th class="det-th" onclick="sortOb(4)" style="text-align:center">Inicio impl. <span id="arr4"></span></th>
+      <th class="det-th" onclick="sortOb(5)" style="text-align:center">Días OB <span id="arr5"></span></th>
+      <th class="det-th" onclick="sortOb(6)" style="text-align:center">SLA <span id="arr6"></span></th>
+      <th class="det-th" onclick="sortOb(7)" style="text-align:center">Riesgo <span id="arr7"></span></th>
     </tr></thead>
     <tbody id="ob-tbl-body"></tbody>
   </table>
@@ -1559,7 +1574,7 @@ var obData   = __OB_JSON__;
 var _allRows = obData.slice();
 var _curRows = obData.slice();
 var _obSort  = -1, _obDir = 1;
-var _KEYS    = ['nombre','estratega','etapa','inicio','dias','sla','riesgo'];
+var _KEYS    = ['nombre','estratega','etapa','fecha_ingreso','inicio','dias','sla','riesgo'];
 var _RC      = {{'Alto':'#c0392b','Medio':'#d68910','Bajo':'#1e8449'}};
 
 function _uniq(key) {{
@@ -1708,7 +1723,7 @@ function toggleRow(idx){{
 function renderOb(rows) {{
   _openIdx=null;
   document.getElementById('ob-count').textContent=rows.length+' clientes';
-  for(var i=0;i<7;i++){{
+  for(var i=0;i<8;i++){{
     document.getElementById('arr'+i).textContent=_obSort===i?(_obDir>0?' ↑':' ↓'):'';
   }}
   var h='';
@@ -1718,14 +1733,15 @@ function renderOb(rows) {{
       +'<td class="det-td">'+r.nombre+'</td>'
       +'<td class="det-td-c">'+r.estratega+'</td>'
       +'<td class="det-td-c">'+r.etapa+'</td>'
+      +'<td class="det-td-c">'+(r.fecha_ingreso||'—')+'</td>'
       +'<td class="det-td-c">'+r.inicio+'</td>'
       +'<td class="det-td-c">'+r.dias+'</td>'
       +'<td class="det-td-c">'+r.sla+'</td>'
       +'<td class="det-td-c" style="color:'+rc+';font-weight:600">'+r.riesgo+'</td>'
       +'</tr>'
-      +'<tr class="exp-row" style="display:none"><td colspan="7">'+_expHtml(r,i)+'</td></tr>';
+      +'<tr class="exp-row" style="display:none"><td colspan="8">'+_expHtml(r,i)+'</td></tr>';
   }});
-  if(!rows.length)h='<tr><td colspan="7" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
+  if(!rows.length)h='<tr><td colspan="8" style="padding:14px;color:#94a3b8;text-align:center">Sin registros.</td></tr>';
   document.getElementById('ob-tbl-body').innerHTML=h;
 }}
 
@@ -2081,8 +2097,6 @@ renderC(_allRows);
 with tab_pob:
     try:
         import datos_crm as _dcrm_cs
-        _cols_ob = _dcrm_cs._monday_request_cs('{ boards(ids: [18390960078]) { columns { id title } } }')
-        st.write({c["id"]: c["title"] for c in _cols_ob["data"]["boards"][0]["columns"] if "baja" in c["title"].lower() or "fecha" in c["title"].lower()})
         _cs_rows     = _dcrm_cs.cargar_cs2026()
         _cs_clientes = _dcrm_cs.cargar_cs2026_clientes()
         _ob_data     = _dcrm_cs.cargar_ob_para_cs2026()  # {crm_id: {estratega, inicio, fin, estado}}
@@ -2688,3 +2702,483 @@ with tab_ped:
             },
         )
 
+
+with tab_wap:
+    st.markdown("### API + Wapbot")
+    st.caption("Clientes activos según valor del campo Wapbot en Monday (board 6967792411). Solo activos (sin fecha de baja).")
+
+    # Solo activos con campo Wapbot
+    _df_wap = df_activos[df_activos["_fecha_baja"].isna()].copy()
+    _df_wap["Wapbot"] = _df_wap["Wapbot"].fillna("").str.strip()
+    _df_wap["_fi_ok"] = _df_wap["_fecha_ingreso"].notna()
+
+    # Filas del modal: una por cliente activo
+    _wap_bdata = []
+    for _, _r in _df_wap.iterrows():
+        _fi_ok = pd.notna(_r["_fecha_ingreso"])
+        _wap_bdata.append({
+            "id":     _norm_id_cs(str(_r.get("ID CRM") or "")),
+            "nom":    str(_r.get("Nombre") or ""),
+            "fi":     _fmt_fecha(_r["_fecha_ingreso"]) if _fi_ok else "–",
+            "fis":    _r["_fecha_ingreso"].strftime("%Y-%m-%d") if _fi_ok else "",
+            "rubro":  str(_r.get("Rubro") or "–"),
+            "wap":    str(_r.get("Wapbot") or "–"),
+            "link":   str(_r.get("Link CRM") or ""),
+            "wap_key": str(_r.get("Wapbot") or ""),
+        })
+    _wap_bdata_safe = json.dumps(_wap_bdata, ensure_ascii=False).replace("</", "<\\/")
+
+    # Valores únicos de Wapbot (ordenados, vacío al final)
+    _wap_vals = sorted(
+        _df_wap["Wapbot"].unique().tolist(),
+        key=lambda x: ("" if x else "zzz", x)
+    )
+
+    # HTML / JS de la tabla
+    _CSS_WAP = """
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;font-size:0.82rem}
+table{border-collapse:collapse;width:100%}
+th{padding:7px 12px;background:#1a3a5c;color:#fff;font-size:0.78rem;font-weight:600;text-align:left}
+th.num{text-align:center}
+td{padding:5px 12px;border-bottom:1px solid #eee;vertical-align:middle}
+td.num{text-align:center}
+tr.yr-row td{background:#e9eef3;font-weight:700;color:#1a3a5c}
+td[onclick]{cursor:pointer;font-weight:700;color:#1a5276}
+td[onclick]:hover{filter:brightness(0.82);outline:1px solid rgba(0,0,0,0.2)}
+#det{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;padding:18px 10px;overflow-y:auto}
+#det-inner{background:#fff;border-radius:6px;max-width:900px;margin:0 auto;box-shadow:0 4px 24px rgba(0,0,0,0.25)}
+#det-hdr{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:#1a3a5c;border-radius:6px 6px 0 0}
+</style>
+"""
+    _JS_WAP = f"""
+<script>
+var BDATA={_wap_bdata_safe};
+var _lastRows=[], _sortDir=-1;
+function _sortByFi(rows, dir){{
+  return rows.slice().sort(function(a,b){{
+    if(!a.fis&&!b.fis)return 0;
+    if(!a.fis)return 1;
+    if(!b.fis)return -1;
+    return(a.fis<b.fis?-1:a.fis>b.fis?1:0)*dir;
+  }});
+}}
+function toggleSortFi(){{
+  _sortDir*=-1;
+  renderRows(_sortByFi(_lastRows,_sortDir));
+}}
+function renderRows(rows){{
+  _lastRows=rows;
+  var bdy=document.getElementById('det-body');
+  if(!rows.length){{
+    bdy.innerHTML='<p style="padding:12px;color:#666">Sin registros.</p>';
+    return;
+  }}
+  var S='padding:5px 10px;font-weight:600;background:#1a3a5c;color:#fff;white-space:nowrap;position:sticky;top:0';
+  var arr=_sortDir===-1?' ↓':' ↑';
+  var h='<table style="width:100%;border-collapse:collapse;font-size:0.78rem">'
+    +'<thead><tr>'
+    +'<th style="'+S+';text-align:left">ID CRM</th>'
+    +'<th style="'+S+';text-align:left">Nombre</th>'
+    +'<th style="'+S+';text-align:center;cursor:pointer" onclick="toggleSortFi()">F. ingreso'+arr+'</th>'
+    +'<th style="'+S+';text-align:left">Rubro</th>'
+    +'<th style="'+S+';text-align:center">Wapbot</th>'
+    +'<th style="'+S+';text-align:center">Link CRM</th>'
+    +'</tr></thead><tbody>';
+  for(var i=0;i<rows.length;i++){{
+    var r=rows[i],bg=i%2?'#fff':'#f8f9fa';
+    var linkHtml=r.link?'<a href="'+r.link+'" target="_blank" style="color:#1a5276">Abrir</a>':'-';
+    h+='<tr style="background:'+bg+'">'
+      +'<td style="padding:4px 10px;border-bottom:1px solid #eee">'+(r.id||'-')+'</td>'
+      +'<td style="padding:4px 10px;border-bottom:1px solid #eee">'+r.nom+'</td>'
+      +'<td style="padding:4px 10px;border-bottom:1px solid #eee;text-align:center">'+r.fi+'</td>'
+      +'<td style="padding:4px 10px;border-bottom:1px solid #eee">'+r.rubro+'</td>'
+      +'<td style="padding:4px 10px;border-bottom:1px solid #eee;text-align:center">'+r.wap+'</td>'
+      +'<td style="padding:4px 10px;border-bottom:1px solid #eee;text-align:center">'+linkHtml+'</td>'
+      +'</tr>';
+  }}
+  bdy.innerHTML=h+'</tbody></table>';
+}}
+function showWap(wapVal){{
+  var rows=BDATA.filter(function(r){{return r.wap_key===wapVal;}});
+  _sortDir=-1;
+  rows=_sortByFi(rows,-1);
+  document.getElementById('det-title').textContent=rows.length+' registros';
+  renderRows(rows);
+  document.getElementById('det').style.display='block';
+}}
+function closeDet(){{document.getElementById('det').style.display='none';}}
+document.addEventListener('keydown',function(e){{if(e.key==='Escape')closeDet();}});
+</script>
+"""
+
+    # Construir filas de la tabla principal
+    _body_wap = ""
+    _total_wap = 0
+    _counts_wap = {_wv: int((_df_wap["Wapbot"] == _wv).sum()) for _wv in _wap_vals}
+    _total_wap  = sum(_counts_wap.values())
+    for _wv in _wap_vals:
+        _cnt = _counts_wap[_wv]
+        _pct = round(_cnt / _total_wap * 100) if _total_wap else 0
+        _lbl = _wv if _wv else "(Sin dato)"
+        _wv_j = json.dumps(_wv)
+        _body_wap += (
+            f"<tr>"
+            f"<td>{_lbl}</td>"
+            f"<td class='num' onclick='showWap({_wv_j})'>{_cnt}"
+            f"<span style='font-size:0.72em;color:#888;margin-left:5px'>({_pct}%)</span></td>"
+            f"</tr>"
+        )
+    _body_wap += (
+        f"<tr style='font-weight:700;background:#e9eef3'>"
+        f"<td>Total</td><td class='num'>{_total_wap}"
+        f"<span style='font-size:0.72em;color:#888;margin-left:5px'>(100%)</span></td></tr>"
+    )
+
+    _html_wap = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>{_CSS_WAP}</head><body>
+<table>
+  <thead>
+    <tr>
+      <th style="width:220px">Wapbot</th>
+      <th class="num" style="width:120px">Clientes activos</th>
+    </tr>
+  </thead>
+  <tbody>{_body_wap}</tbody>
+</table>
+
+<div id="det" onclick="closeDet()">
+  <div id="det-inner" onclick="event.stopPropagation()">
+    <div id="det-hdr">
+      <span style="color:#fff;font-size:0.82rem;font-weight:bold">Detalle: <span id="det-title"></span></span>
+      <button onclick="closeDet()" style="background:#c0392b;color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:0.72rem">&#10005; Cerrar</button>
+    </div>
+    <div id="det-body" style="max-height:72vh;overflow-y:auto"></div>
+  </div>
+</div>
+{_JS_WAP}
+</body></html>"""
+
+    _n_rows_wap = max(len(_wap_vals) + 2, 4)
+    components.html(_html_wap, height=52 + _n_rows_wap * 34, scrolling=False)
+
+    # ── Bloqueos de Meta ─────────────────────────────────────────────
+    st.divider()
+    st.markdown("### Bloqueos de Meta")
+    st.caption("Tickets de bloqueo de Meta · Fuente: Monday board 18427652700")
+
+    @st.cache_data(ttl=3600)
+    def cargar_bloqueos_meta():
+        _BLQ_COLS = [
+            "color_mm6eq95z",   # Tipo de Error
+            "color_mm6ea983",   # Prioridad
+            "color_mm6e9h4b",   # Estado del ticket
+            "date_mm6hgz9n",    # Inicio del bloqueo
+            "date_mm6efg2a",    # Deadline
+            "text_mm6ezbbk",    # Comentarios
+        ]
+        _cols_gql = ", ".join(f'"{c}"' for c in _BLQ_COLS)
+        _q = f"""
+        {{
+          boards(ids: [18427652700]) {{
+            items_page(limit: 500) {{
+              cursor
+              items {{
+                id name
+                column_values(ids: [{_cols_gql}]) {{ id text }}
+              }}
+            }}
+          }}
+        }}
+        """
+        _r    = _monday_request(_q)
+        _page = _r["data"]["boards"][0]["items_page"]
+        _items = list(_page["items"])
+        _cur   = _page.get("cursor")
+        while _cur:
+            _q2 = f"""
+            {{
+              next_items_page(limit: 500, cursor: "{_cur}") {{
+                cursor
+                items {{
+                  id name
+                  column_values(ids: [{_cols_gql}]) {{ id text }}
+                }}
+              }}
+            }}
+            """
+            _r2    = _monday_request(_q2)
+            _page  = _r2["data"]["next_items_page"]
+            _items.extend(_page["items"])
+            _cur   = _page.get("cursor")
+
+        _rows = []
+        for _it in _items:
+            _cv = {c["id"]: (c["text"] or "") for c in _it["column_values"]}
+            _rows.append({
+                "Nombre":           _it["name"],
+                "Tipo de Error":    _cv.get("color_mm6eq95z", ""),
+                "Prioridad":        _cv.get("color_mm6ea983", ""),
+                "Estado del ticket":_cv.get("color_mm6e9h4b", ""),
+                "Inicio bloqueo":   _cv.get("date_mm6hgz9n", ""),
+                "Deadline":         _cv.get("date_mm6efg2a", ""),
+                "Comentarios":      _cv.get("text_mm6ezbbk", ""),
+            })
+        _df = pd.DataFrame(_rows)
+        _df["_inicio"] = pd.to_datetime(_df["Inicio bloqueo"], errors="coerce")
+        _df["_deadline"] = pd.to_datetime(_df["Deadline"], errors="coerce")
+        return _df
+
+    try:
+        df_blq = cargar_bloqueos_meta()
+    except Exception as _e_blq:
+        st.error(f"Error cargando Bloqueos de Meta: {_e_blq}")
+        df_blq = pd.DataFrame()
+
+    if not df_blq.empty:
+        import json as _json_blq
+
+        # ── Preparar datos para el iframe ─────────────────────────────
+        _blq_records = []
+        for _, _rr in df_blq.sort_values("_inicio", ascending=False, na_position="last").iterrows():
+            _blq_records.append({
+                "nombre":   str(_rr["Nombre"]),
+                "tipo":     str(_rr["Tipo de Error"]),
+                "prioridad":str(_rr["Prioridad"]),
+                "estado":   str(_rr["Estado del ticket"]),
+                "inicio":   str(_rr["Inicio bloqueo"]),
+                "deadline": str(_rr["Deadline"]),
+                "coment":   str(_rr["Comentarios"]),
+                "mes":      _rr["_inicio"].strftime("%Y-%m") if pd.notna(_rr["_inicio"]) else "",
+            })
+
+        # ── Tabla resumen: filas = mes, cols = SOFT | HARD | Sin tipo | Total ──
+        _df_blq_fi = df_blq[df_blq["_inicio"].notna()].copy()
+        _df_blq_fi["_mes_k"] = _df_blq_fi["_inicio"].dt.strftime("%Y-%m")
+        _df_blq_fi["_mes_lbl"] = _df_blq_fi["_inicio"].dt.strftime("%b %Y").str.capitalize()
+        _meses_ord = _df_blq_fi.drop_duplicates("_mes_k").sort_values("_mes_k")[["_mes_k","_mes_lbl"]].values.tolist()
+        _tipos_sum = ["SOFT", "HARD"]
+
+        _sum_rows_html = ""
+        _col_tots2 = {"SOFT": 0, "HARD": 0, "Sin tipo": 0, "Total": 0}
+        for _mk, _ml in _meses_ord:
+            _grp = _df_blq_fi[_df_blq_fi["_mes_k"] == _mk]
+            _ns = int((_grp["Tipo de Error"] == "SOFT").sum())
+            _nh = int((_grp["Tipo de Error"] == "HARD").sum())
+            _nx = int((~_grp["Tipo de Error"].isin(["SOFT","HARD"])).sum())
+            _nt = _ns + _nh + _nx
+            _col_tots2["SOFT"] += _ns; _col_tots2["HARD"] += _nh
+            _col_tots2["Sin tipo"] += _nx; _col_tots2["Total"] += _nt
+            _sum_rows_html += (
+                f"<tr>"
+                f"<td class='h-n' style='text-align:left;cursor:default'>{_ml}</td>"
+                f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem' onclick=\"filterClick('tipo:SOFT|mes:{_mk}')\">{_ns or ''}</td>"
+                f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem' onclick=\"filterClick('tipo:HARD|mes:{_mk}')\">{_nh or ''}</td>"
+                f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem' onclick=\"filterClick('mes:{_mk}')\">{_nx or ''}</td>"
+                f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem;font-weight:700' onclick=\"filterClick('mes:{_mk}')\">{_nt}</td>"
+                f"</tr>"
+            )
+        _gt = _col_tots2["Total"]
+        _sum_rows_html += (
+            f"<tr class='yr-row'>"
+            f"<td class='h-n' style='text-align:left'>Total</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem' onclick=\"filterClick('tipo:SOFT')\">{_col_tots2['SOFT']}</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem' onclick=\"filterClick('tipo:HARD')\">{_col_tots2['HARD']}</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem'>{_col_tots2['Sin tipo']}</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.76rem;font-weight:700'>{_gt}</td>"
+            f"</tr>"
+            f"<tr>"
+            f"<td class='h-n' style='text-align:left;font-weight:normal;font-size:0.72rem;color:#aed6f1'>%</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.72rem;color:#64748b'>{round(_col_tots2['SOFT']/_gt*100) if _gt else 0}%</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.72rem;color:#64748b'>{round(_col_tots2['HARD']/_gt*100) if _gt else 0}%</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.72rem;color:#64748b'>{round(_col_tots2['Sin tipo']/_gt*100) if _gt else 0}%</td>"
+            f"<td class='c-n' style='text-align:center;border:1px dotted #bbb;padding:4px 8px;font-size:0.72rem'></td>"
+            f"</tr>"
+        )
+
+        _blq_json = _json_blq.dumps(_blq_records, ensure_ascii=False)
+        _n_rows_blq = len(_blq_records)
+        _blq_height = max((_n_rows_blq * 32 + 420), 520)
+
+        _html_blq = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+*{{box-sizing:border-box;margin:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;padding:4px 0;font-size:0.78rem}}
+.wrap{{border:1px solid #c8ccd0;border-radius:4px;overflow:hidden;display:inline-block;margin-bottom:18px}}
+table{{border-collapse:collapse;width:100%;table-layout:auto}}
+.h-n{{background:#1a3a5c;color:#fff;font-weight:bold;padding:6px 10px;text-align:center;border:1px dotted #9ab;font-size:0.76rem}}
+.c-n{{background:#d6eaf8}}
+.yr-row td{{font-weight:bold}}
+td[onclick]:hover{{filter:brightness(0.88);outline:1px solid rgba(0,0,0,0.2);cursor:pointer}}
+.det-filters{{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}}
+.det-filters input{{font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;min-width:160px}}
+.det-filters select{{font-size:0.78rem;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#374151;cursor:pointer;min-width:140px}}
+.det-count{{font-size:0.78rem;color:#64748b;margin-left:4px}}
+.det-wrap{{border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}}
+.det-tbl{{width:100%;border-collapse:collapse;font-size:0.8rem}}
+.det-th{{padding:6px 12px;font-weight:600;background:#f1f5f9;color:#475569;border-bottom:2px solid #e2e8f0;cursor:pointer;white-space:nowrap;text-align:left}}
+.det-th:hover{{background:#e2e8f0}}
+.det-td{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b}}
+.det-td-c{{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;text-align:center}}
+tr.det-row:hover .det-td, tr.det-row:hover .det-td-c{{background:#f0f7ff}}
+.tag{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;background:#e2e8f0;color:#334155}}
+.tag.hard{{background:#fee2e2;color:#991b1b}}
+.tag.soft{{background:#dbeafe;color:#1e40af}}
+.tag.done{{background:#d1fae5;color:#065f46}}
+.tag.proc{{background:#fef3c7;color:#92400e}}
+.tag.alta{{background:#fee2e2;color:#991b1b}}
+.tag.media{{background:#fef3c7;color:#92400e}}
+.tag.baja{{background:#d1fae5;color:#065f46}}
+</style>
+</head><body>
+
+<div class="tbl-title" style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-bottom:5px">Por mes de inicio</div>
+<div class="wrap">
+  <table>
+    <thead><tr>
+      <th class="h-n" style="text-align:left">Mes inicio</th>
+      <th class="h-n">SOFT</th>
+      <th class="h-n">HARD</th>
+      <th class="h-n">Sin tipo</th>
+      <th class="h-n">Total</th>
+    </tr></thead>
+    <tbody>{_sum_rows_html}</tbody>
+  </table>
+</div>
+
+<div class="det-filters">
+  <input id="f-nombre" type="text" placeholder="Buscar nombre..." oninput="applyFilters()">
+  <select id="f-estado" onchange="applyFilters()"><option value="">Estado: Todos</option></select>
+  <select id="f-tipo"   onchange="applyFilters()"><option value="">Tipo de Error: Todos</option></select>
+  <select id="f-prio"   onchange="applyFilters()"><option value="">Prioridad: Todos</option></select>
+  <span class="det-count" id="blq-count"></span>
+</div>
+<div class="det-wrap">
+  <table class="det-tbl">
+    <thead><tr>
+      <th class="det-th" onclick="sortBlq(0)">Nombre <span id="arr0"></span></th>
+      <th class="det-th" onclick="sortBlq(1)" style="text-align:center">Tipo <span id="arr1"></span></th>
+      <th class="det-th" onclick="sortBlq(2)" style="text-align:center">Prioridad <span id="arr2"></span></th>
+      <th class="det-th" onclick="sortBlq(3)" style="text-align:center">Estado <span id="arr3"></span></th>
+      <th class="det-th" onclick="sortBlq(4)" style="text-align:center">Inicio <span id="arr4"></span></th>
+      <th class="det-th" onclick="sortBlq(5)" style="text-align:center">Deadline <span id="arr5"></span></th>
+      <th class="det-th" onclick="sortBlq(6)">Comentarios <span id="arr6"></span></th>
+    </tr></thead>
+    <tbody id="blq-tbl-body"></tbody>
+  </table>
+</div>
+
+<script>
+var blqData  = {_blq_json};
+var _allRows = blqData.slice();
+var _curRows = blqData.slice();
+var _blqSort = -1, _blqDir = 1;
+var _KEYS    = ['nombre','tipo','prioridad','estado','inicio','deadline','coment'];
+
+function _uniq(key) {{
+  var s={{}};_allRows.forEach(function(r){{if(r[key])s[r[key]]=1;}});return Object.keys(s).sort();
+}}
+function _fill(id,key,label) {{
+  var sel=document.getElementById(id);
+  _uniq(key).forEach(function(v){{
+    var o=document.createElement('option');o.value=v;o.textContent=label+v;sel.appendChild(o);
+  }});
+}}
+_fill('f-estado','estado','Estado: ');
+_fill('f-tipo','tipo','Tipo: ');
+_fill('f-prio','prioridad','Prioridad: ');
+
+function applyFilters() {{
+  var nom=document.getElementById('f-nombre').value.toLowerCase();
+  var est=document.getElementById('f-estado').value;
+  var tip=document.getElementById('f-tipo').value;
+  var pri=document.getElementById('f-prio').value;
+  _curRows=_allRows.filter(function(r){{
+    return(!nom||r.nombre.toLowerCase().includes(nom))
+          &&(!est||r.estado===est)&&(!tip||r.tipo===tip)&&(!pri||r.prioridad===pri);
+  }});
+  _blqSort=-1;_blqDir=1;renderBlq(_curRows);
+}}
+
+function filterClick(filter) {{
+  document.getElementById('f-estado').value='';
+  document.getElementById('f-tipo').value='';
+  document.getElementById('f-prio').value='';
+  document.getElementById('f-nombre').value='';
+  var mesFilter='';
+  if(filter!=='all') filter.split('|').forEach(function(p){{
+    var kv=p.split(':'),key=kv[0],val=kv.slice(1).join(':');
+    if(key==='tipo')   document.getElementById('f-tipo').value=val;
+    if(key==='estado') document.getElementById('f-estado').value=val;
+    if(key==='mes')    mesFilter=val;
+  }});
+  var nom='',est=document.getElementById('f-estado').value,tip=document.getElementById('f-tipo').value,pri='';
+  _curRows=_allRows.filter(function(r){{
+    return(!mesFilter||r.mes===mesFilter)&&(!est||r.tipo===est)&&(!tip||r.tipo===tip);
+  }});
+  // re-apply with correct fields
+  est=document.getElementById('f-estado').value;
+  tip=document.getElementById('f-tipo').value;
+  _curRows=_allRows.filter(function(r){{
+    return(!mesFilter||r.mes===mesFilter)&&(!est||r.estado===est)&&(!tip||r.tipo===tip);
+  }});
+  _blqSort=-1;_blqDir=1;renderBlq(_curRows);
+}}
+
+function sortBlq(i) {{
+  if(_blqSort===i){{_blqDir*=-1;}}else{{_blqSort=i;_blqDir=1;}}
+  var key=_KEYS[i];
+  _curRows=_curRows.slice().sort(function(a,b){{
+    var av=a[key]||'',bv=b[key]||'';
+    if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return-1;
+    return(av<bv?-1:av>bv?1:0)*_blqDir;
+  }});
+  renderBlq(_curRows);
+}}
+
+function _tagTipo(v){{
+  if(!v||v==='None')return'<span style="color:#94a3b8">—</span>';
+  var cls=v==='HARD'?'hard':v==='SOFT'?'soft':'';
+  return'<span class="tag '+cls+'">'+v+'</span>';
+}}
+function _tagPrio(v){{
+  if(!v||v==='None')return'<span style="color:#94a3b8">—</span>';
+  var cls=v==='Alta'?'alta':v==='Media'?'media':v==='Baja'?'baja':'';
+  return'<span class="tag '+cls+'">'+v+'</span>';
+}}
+function _tagEst(v){{
+  if(!v||v==='None')return'<span style="color:#94a3b8">—</span>';
+  var cls=v.toLowerCase().includes('termin')||v.toLowerCase().includes('done')?'done':
+          v.toLowerCase().includes('proceso')||v.toLowerCase().includes('pend')?'proc':'';
+  return'<span class="tag '+cls+'">'+v+'</span>';
+}}
+
+function renderBlq(rows) {{
+  var arr=[0,1,2,3,4,5,6];
+  arr.forEach(function(i){{var el=document.getElementById('arr'+i);if(el)el.textContent='';}} );
+  if(_blqSort>=0){{var el=document.getElementById('arr'+_blqSort);if(el)el.textContent=_blqDir===1?' ↑':' ↓';}}
+  var cnt=document.getElementById('blq-count');
+  if(cnt)cnt.textContent=rows.length+' registro'+(rows.length!==1?'s':'');
+  var html='';
+  rows.forEach(function(r){{
+    var coment=r.coment&&r.coment!=='None'?r.coment:'';
+    html+='<tr class="det-row">'
+      +'<td class="det-td" style="font-weight:500;max-width:220px">'+r.nombre+'</td>'
+      +'<td class="det-td-c">'+_tagTipo(r.tipo)+'</td>'
+      +'<td class="det-td-c">'+_tagPrio(r.prioridad)+'</td>'
+      +'<td class="det-td-c">'+_tagEst(r.estado)+'</td>'
+      +'<td class="det-td-c">'+(r.inicio&&r.inicio!=='None'?r.inicio:'<span style="color:#94a3b8">—</span>')+'</td>'
+      +'<td class="det-td-c">'+(r.deadline&&r.deadline!=='None'?r.deadline:'<span style="color:#94a3b8">—</span>')+'</td>'
+      +'<td class="det-td" style="max-width:300px;white-space:pre-wrap;font-size:0.75rem;color:#475569">'+(coment||'')+'</td>'
+      +'</tr>';
+  }});
+  document.getElementById('blq-tbl-body').innerHTML=html||'<tr><td colspan="7" style="padding:20px;text-align:center;color:#94a3b8">Sin resultados</td></tr>';
+}}
+
+renderBlq(_curRows);
+</script>
+</body></html>"""
+
+        import streamlit.components.v1 as _comp_blq
+        _comp_blq.html(_html_blq, height=_blq_height, scrolling=False)
+    else:
+        st.info("Sin datos de bloqueos disponibles.")

@@ -385,11 +385,15 @@ _crm_fil = _filtrar_crm(filtro_calidad)
 
 if not df_bbdd.empty:
     df_vtas = df_bbdd.copy()
-    _enrich_cols = ["id"] + [c for c in ["Nombre", "Emails", "Telefono", "Empresa", "Etiquetas"] if c in _crm_fil.columns]
+    _enrich_cols = ["id"] + [c for c in ["Nombre", "Emails", "Telefono", "Empresa", "Etiquetas", "fecha_lead"] if c in _crm_fil.columns]
     _enrich = (_crm_fil[_enrich_cols]
                .copy()
                .assign(id=lambda d: d["id"].astype(str).str.strip()))
     df_vtas = df_vtas.merge(_enrich, left_on="ID prospecto", right_on="id", how="left")
+    # Fallback: si el sheet no tiene "Fecha lead", usar la fecha_lead del CRM (= fecha ingreso lead)
+    if "fecha_lead" in df_vtas.columns:
+        mask_fl = df_vtas["Fecha lead"].isna()
+        df_vtas.loc[mask_fl, "Fecha lead"] = df_vtas.loc[mask_fl, "fecha_lead"]
     df_vtas["fecha_venta"] = df_vtas["Fecha"]
     df_vtas["monto_num"]   = df_vtas["Monto de venta"]
 else:

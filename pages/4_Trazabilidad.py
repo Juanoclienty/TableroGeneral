@@ -342,6 +342,28 @@ def cargar_bbdd_ventas_traz() -> pd.DataFrame:
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=86400)
+def cargar_ventas_con_chance() -> pd.DataFrame:
+    """Ventas con chance de venta (join CRM por ID prospecto)."""
+    try:
+        df = cargar_bbdd_ventas_traz().copy()
+        if df.empty:
+            return df
+        import datos_crm as _crm
+        df_crm = _crm.cargar_crm()[["id", "Etiquetas"]].copy()
+        df_crm["id"] = df_crm["id"].astype(str).str.strip()
+        df["_id"] = df["ID prospecto"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
+        df = df.merge(df_crm, left_on="_id", right_on="id", how="left")
+        df["chance"] = df["Etiquetas"].apply(_detectar_chance_traz)
+        df["semana_inicio"] = (
+            df["_fecha_venta"] - pd.to_timedelta(df["_fecha_venta"].dt.dayofweek, unit="D")
+        ).dt.normalize()
+        df["mes"] = df["_fecha_venta"].dt.to_period("M")
+        return df.dropna(subset=["_fecha_venta"])
+    except Exception:
+        return pd.DataFrame()
+
+
 @st.cache_data(ttl=3600)
 def cargar_bbdd_presu_traz() -> pd.DataFrame:
     """Carga bbdd_presupuestos — misma fuente que la página de Ventas."""
@@ -555,7 +577,7 @@ def _build_filas_traz(df_v):
         })
     return filas
 
-tab_gral, tab_cc, tab_closer = st.tabs(["Gral", "Perfo. CC", "Perfo. Closer"])
+tab_gral, tab_cc, tab_closer, tab_pi = st.tabs(["Gral", "Perfo. CC", "Perfo. Closer", "Proy. Intención"])
 with tab_gral:
     
     # ── Resumen (últimos 4 períodos) — mismas fuentes que página Ventas ─
@@ -721,7 +743,8 @@ with tab_gral:
         ult = df[df[_existing_cols].sum(axis=1) > 0]
         if not ult.empty:
             row = ult.iloc[-1]
-            st.caption(f"**{row['fecha'].strftime('%d/%m')}**  ·  Semana {int(row['semana'])}")
+            _sem_lbl = f"  ·  Semana {int(row['semana'])}" if pd.notna(row['semana']) else ""
+            st.caption(f"**{row['fecha'].strftime('%d/%m')}**{_sem_lbl}")
             c1, c2, c3, c4, c5, c6 = st.columns(6)
             _tarjeta(c1, "Leads",         int(row["leads"]),         obj["Leads"])
             _tarjeta(c2, "R1",            int(row["r1"]),            obj["R1"])
@@ -1235,7 +1258,7 @@ with tab_gral:
         for _lbl in list(df_show["periodo_lbl"]):
             _hdr_ch += f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WP};{_BASE_TH_ch}">{_lbl}</th>'
         _hdr_ch += (
-            f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WS};{_BASE_TH_ch}">Total</th>'
+            f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WS};{_BASE_TH_ch}">Promedio</th>'
             f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WO};{_BASE_TH_ch}">Objetivo</th>'
             f'<th style="text-align:center;background:#f8fafc;color:#64748b;{_WC};{_BASE_TH_ch}">% Cumpl.</th>'
         )
@@ -1261,9 +1284,10 @@ with tab_gral:
                     )
                 else:
                     _cells_ch += f'<td style="{_cell_style}">{_n if _n else ""}</td>'
-            _total_ch = sum(_vals_ch)
+            _n_dias = len(_vals_ch) if _vals_ch else 1
+            _prom_ch = round(sum(_vals_ch) / _n_dias, 1) if sum(_vals_ch) else ""
             _cells_ch += (
-                f'<td style="text-align:center;font-weight:500;{_WS};{_BASE_TD_ch};background:{_bgs}">{_total_ch if _total_ch else ""}</td>'
+                f'<td style="text-align:center;font-weight:500;{_WS};{_BASE_TD_ch};background:{_bgs}">{_prom_ch}</td>'
                 f'<td style="text-align:center;{_WO};{_BASE_TD_ch};background:{_bg}"></td>'
                 f'<td style="text-align:center;{_WC};{_BASE_TD_ch};background:{_bg}"></td>'
             )
@@ -1271,21 +1295,14 @@ with tab_gral:
 
         # ── Fila "Proy. ventas" (solo Día o Semana) ──────────────────
         if vista in ("Día", "Semana"):
-            _CUTOFF_PESOS = pd.Timestamp("2026-08-01")
-            _PESOS_OLD = {"ch_alta": 0.38, "ch_media_alta": 0.20, "ch_media": 0.13, "ch_baja": 0.06}
-            _PESOS_NEW = {"ch_alta": 0.47, "ch_media_alta": 0.33, "ch_media": 0.13, "ch_baja": 0.06}
+            _PESOS = {"ch_alta": 0.47, "ch_media_alta": 0.33, "ch_media": 0.13, "ch_baja": 0.06}
             _proy_vals = []
             _proy_cells = (
                 f'<td style="text-align:left;font-weight:600;color:#1e293b;{_WM};{_BASE_TD_ch};'
                 f'background:#f0f4ff;border-top:2px solid #cbd5e1">Proy. ventas</td>'
             )
             for _row_agg in df_show.itertuples():
-                if vista == "Día":
-                    _row_date = pd.Timestamp(getattr(_row_agg, "fecha", pd.NaT))
-                else:
-                    _row_date = pd.Timestamp(getattr(_row_agg, "lunes", pd.NaT))
-                _pesos = _PESOS_NEW if pd.notna(_row_date) and _row_date >= _CUTOFF_PESOS else _PESOS_OLD
-                _proy = sum(int(getattr(_row_agg, col, 0)) * peso for col, peso in _pesos.items())
+                _proy = sum(int(getattr(_row_agg, col, 0)) * peso for col, peso in _PESOS.items())
                 _proy_r = round(_proy, 1)
                 _proy_vals.append(_proy_r)
                 _proy_cells += (
@@ -1293,10 +1310,11 @@ with tab_gral:
                     f'background:#f0f4ff;border-top:2px solid #cbd5e1">'
                     f'{_proy_r if _proy_r else ""}</td>'
                 )
-            _total_proy = round(sum(_proy_vals), 1)
+            _n_dias_p = len(_proy_vals) if _proy_vals else 1
+            _prom_proy = round(sum(_proy_vals) / _n_dias_p, 1) if sum(_proy_vals) else ""
             _proy_cells += (
                 f'<td style="text-align:center;font-weight:500;{_WS};{_BASE_TD_ch};'
-                f'background:#e8ecf8;border-top:2px solid #cbd5e1">{_total_proy if _total_proy else ""}</td>'
+                f'background:#e8ecf8;border-top:2px solid #cbd5e1">{_prom_proy}</td>'
                 f'<td style="text-align:center;{_WO};{_BASE_TD_ch};background:#f0f4ff;border-top:2px solid #cbd5e1"></td>'
                 f'<td style="text-align:center;{_WC};{_BASE_TD_ch};background:#f0f4ff;border-top:2px solid #cbd5e1"></td>'
             )
@@ -1306,12 +1324,13 @@ with tab_gral:
             '<table style="table-layout:fixed;width:100%;border-collapse:collapse;margin-bottom:4px">'
             f'<thead><tr>{_hdr_ch}</tr></thead><tbody>{_body_ch}</tbody></table>'
             '<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px">'
-            'Proy. ventas: hasta Jul-26 = Alta×0.38 + Media-Alta×0.20 + Media×0.13 + Baja×0.06 · desde Ago-26 = Alta×0.47 + Media-Alta×0.33 + Media×0.13 + Baja×0.06</div>',
+            'Proy. ventas (v2.0, Ago-26): Alta×0.47 + Media-Alta×0.33 + Media×0.13 + Baja×0.06 · '
+            'v1.0 (hasta Jul-26): Alta×0.38 + Media-Alta×0.20 + Media×0.13 + Baja×0.06</div>',
             unsafe_allow_html=True,
         )
     
     st.divider()
-    
+
     # ── Forecast ─────────────────────────────────────────────────────
     st.markdown(
         f'<h3 style="margin-bottom:4px">🔮 Forecast '
@@ -2462,3 +2481,111 @@ document.querySelectorAll('td[data-filter]').forEach(function(td){{
             _render_perfo_closer(_cargar_bbdd_ro(), "Ro")
         except Exception as _e_ro:
             st.error(f"Error cargando datos de Ro: {_e_ro}")
+
+with tab_pi:
+    st.markdown("### Proyección de intención")
+    st.caption("Índice de conversión presupuesto → venta por categoría de chance, calculado sobre períodos móviles.")
+
+    _pi_c1, _pi_c2, _pi_c3 = st.columns([1, 3, 4])
+    with _pi_c1:
+        _vista_pi_raw = st.radio(
+            "", ["Sem", "Mes"], horizontal=True,
+            label_visibility="collapsed", key="vista_pi"
+        )
+    _vista_pi = "Semana" if _vista_pi_raw == "Sem" else "Mes"
+    with _pi_c2:
+        _n_pi_max = 24 if _vista_pi == "Semana" else 12
+        _n_pi_def = 12 if _vista_pi == "Semana" else 6
+        _n_pi = st.slider("Períodos a mostrar", 4, _n_pi_max, _n_pi_def, key="n_pi")
+
+    _df_ch_pi = cargar_presupuestos_con_chance()
+    _df_vt_pi = cargar_ventas_con_chance()
+
+    _CHANCE_PI = ["Alta", "Media-Alta", "Media", "Baja"]
+
+    if _vista_pi == "Semana":
+        if not _df_ch_pi.empty:
+            _df_ch_pi["_pk"] = (
+                _df_ch_pi["fecha"].dt.isocalendar().year.astype(int) * 100
+                + _df_ch_pi["fecha"].dt.isocalendar().week.astype(int)
+            )
+            _lunes_ch = _df_ch_pi["fecha"] - pd.to_timedelta(_df_ch_pi["fecha"].dt.dayofweek, unit="D")
+            _df_ch_pi["_lbl"] = (
+                "Sem " + _df_ch_pi["fecha"].dt.isocalendar().week.astype(int).astype(str)
+                + " · " + _lunes_ch.dt.strftime("%d/%m")
+            )
+        if not _df_vt_pi.empty:
+            _df_vt_pi["_pk"] = (
+                _df_vt_pi["_fecha_venta"].dt.isocalendar().year.astype(int) * 100
+                + _df_vt_pi["_fecha_venta"].dt.isocalendar().week.astype(int)
+            )
+    else:
+        if not _df_ch_pi.empty:
+            _df_ch_pi["_pk"]  = _df_ch_pi["fecha"].dt.to_period("M").astype(str)
+            _df_ch_pi["_lbl"] = _df_ch_pi["fecha"].dt.to_period("M").apply(
+                lambda p: pd.Timestamp(str(p.start_time)).strftime("%b %Y").capitalize()
+            )
+        if not _df_vt_pi.empty:
+            _df_vt_pi["_pk"] = _df_vt_pi["mes"].astype(str)
+
+    if not _df_ch_pi.empty and "_pk" in _df_ch_pi.columns:
+        _all_pks  = sorted(_df_ch_pi["_pk"].dropna().unique())
+        _show_pks = _all_pks[-_n_pi:]
+        _pk_lbl   = _df_ch_pi[["_pk", "_lbl"]].drop_duplicates().set_index("_pk")["_lbl"].to_dict()
+        _presu_agg = (
+            _df_ch_pi[_df_ch_pi["_pk"].isin(_show_pks)]
+            .groupby(["_pk", "chance"]).size().unstack(fill_value=0)
+        )
+        _ventas_agg = (
+            _df_vt_pi[_df_vt_pi["_pk"].isin(_show_pks)]
+            .groupby(["_pk", "chance"]).size().unstack(fill_value=0)
+            if not _df_vt_pi.empty and "_pk" in _df_vt_pi.columns
+            else pd.DataFrame()
+        )
+
+        _TH_PI   = "padding:5px 8px;font-weight:600;background:#1a3a5c;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font-size:0.74rem"
+        _TH_PI_L = "padding:5px 8px;font-weight:600;background:#1a3a5c;color:#fff;text-align:left;font-size:0.74rem"
+        _TD_PI   = "padding:4px 8px;text-align:center;border-bottom:1px solid #eee;font-size:0.78rem"
+        _TD_PI_L = "padding:4px 8px;text-align:left;font-weight:600;border-bottom:1px solid #eee;font-size:0.78rem"
+        _TD_IDX  = "padding:4px 8px;text-align:center;border-bottom:1px solid #eee;font-weight:700;color:#1a5276;font-size:0.78rem"
+        _CHANCE_COLORS = {"Alta": "#1a5276", "Media-Alta": "#1f618d", "Media": "#2e86c1", "Baja": "#7fb3d3"}
+
+        _pi_cols = st.columns(2)
+        for _ci, _cat in enumerate(_CHANCE_PI):
+            with _pi_cols[_ci % 2]:
+                _hc   = _CHANCE_COLORS.get(_cat, "#1a3a5c")
+                _html = (
+                    f'<div style="font-weight:700;color:{_hc};margin:12px 0 4px;font-size:0.9rem">{_cat}</div>'
+                    f'<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:0.78rem;table-layout:auto">'
+                    f'<thead><tr><th style="{_TH_PI_L};min-width:100px">Métrica</th>'
+                )
+                for _pk in _show_pks:
+                    _html += f'<th style="{_TH_PI};min-width:72px">{_pk_lbl.get(_pk, str(_pk))}</th>'
+                _html += f'<th style="{_TH_PI};min-width:72px">Promedio</th></tr></thead><tbody>'
+
+                _pv = [int(_presu_agg.loc[_pk, _cat]) if _pk in _presu_agg.index and _cat in _presu_agg.columns else 0 for _pk in _show_pks]
+                _prom_pv = round(sum(_pv) / len(_pv), 1) if _pv else 0
+                _html += f'<tr><td style="{_TD_PI_L};background:#f8f9fa">Presupuestos</td>'
+                for v in _pv:
+                    _html += f'<td style="{_TD_PI};background:#f8f9fa">{v if v else ""}</td>'
+                _html += f'<td style="{_TD_PI};background:#eef2f7;font-weight:600">{_prom_pv if _prom_pv else ""}</td></tr>'
+
+                _vv = [int(_ventas_agg.loc[_pk, _cat]) if not _ventas_agg.empty and _pk in _ventas_agg.index and _cat in _ventas_agg.columns else 0 for _pk in _show_pks]
+                _prom_vv = round(sum(_vv) / len(_vv), 1) if _vv else 0
+                _html += f'<tr><td style="{_TD_PI_L}">Ventas</td>'
+                for v in _vv:
+                    _html += f'<td style="{_TD_PI}">{v if v else ""}</td>'
+                _html += f'<td style="{_TD_PI};background:#eef2f7;font-weight:600">{_prom_vv if _prom_vv else ""}</td></tr>'
+
+                _iv = [round(_vv[i] / _pv[i], 2) if _pv[i] > 0 else None for i in range(len(_show_pks))]
+                _iv_valid = [x for x in _iv if x is not None]
+                _prom_iv  = round(sum(_iv_valid) / len(_iv_valid), 2) if _iv_valid else None
+                _html += f'<tr><td style="{_TD_IDX};text-align:left;background:#f0f4ff">Índice</td>'
+                for v in _iv:
+                    _html += f'<td style="{_TD_IDX};background:#f0f4ff">{f"{v:.2f}" if v is not None else ""}</td>'
+                _html += f'<td style="{_TD_IDX};background:#e8ecf8">{f"{_prom_iv:.2f}" if _prom_iv is not None else ""}</td></tr>'
+
+                _html += '</tbody></table></div>'
+                st.markdown(_html, unsafe_allow_html=True)
+    else:
+        st.info("Sin datos de presupuestos disponibles.")
