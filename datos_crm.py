@@ -293,7 +293,13 @@ def limpiar_cache():
 def cargar_crm() -> pd.DataFrame:
     # Usar caché local si es del día de hoy
     if _cache_vigente():
-        return pd.read_parquet(_CACHE_FILE)
+        df = pd.read_parquet(_CACHE_FILE)
+        # Garantizar columnas derivadas que pueden faltar en caches viejas
+        if "fecha_ingreso" in df.columns and "fecha_lead" not in df.columns:
+            df["fecha_lead"] = pd.to_datetime(df["fecha_ingreso"], errors="coerce").dt.normalize()
+        elif "fecha_lead" not in df.columns:
+            df["fecha_lead"] = pd.NaT
+        return df
 
     subdominio, username, password = _get_api_config()
     leads = _fetch_leads_api(subdominio, username, password)

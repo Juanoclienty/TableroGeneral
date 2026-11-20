@@ -391,9 +391,19 @@ if not df_bbdd.empty:
                .assign(id=lambda d: d["id"].astype(str).str.strip()))
     df_vtas = df_vtas.merge(_enrich, left_on="ID prospecto", right_on="id", how="left")
     # Fallback: si el sheet no tiene "Fecha lead", usar la fecha_lead del CRM (= fecha ingreso lead)
+    # Intentar primero con la columna que vino del merge (CRM filtrado)
     if "fecha_lead" in df_vtas.columns:
         mask_fl = df_vtas["Fecha lead"].isna()
         df_vtas.loc[mask_fl, "Fecha lead"] = df_vtas.loc[mask_fl, "fecha_lead"]
+    # Segunda vuelta: usar el CRM completo (sin filtro de calidad) para los que siguen sin fecha
+    _mask_fl2 = df_vtas["Fecha lead"].isna()
+    if _mask_fl2.any() and "fecha_lead" in df_crm.columns:
+        _fl_lkp = (df_crm[["id", "fecha_lead"]].copy()
+                   .assign(id=lambda d: d["id"].astype(str).str.strip()))
+        _df_fl = df_vtas[_mask_fl2][["ID prospecto"]].merge(
+            _fl_lkp, left_on="ID prospecto", right_on="id", how="left"
+        )
+        df_vtas.loc[_mask_fl2, "Fecha lead"] = _df_fl["fecha_lead"].values
     df_vtas["fecha_venta"] = df_vtas["Fecha"]
     df_vtas["monto_num"]   = df_vtas["Monto de venta"]
 else:
